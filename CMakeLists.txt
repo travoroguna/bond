@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.22)
+project(bond)
+
+set(CMAKE_CXX_STANDARD 23)
+
+
+find_package(fmt)
+add_subdirectory(src)
+
+
+add_executable(bond src/main.cpp)
+target_link_libraries(bond bondlib fmt::fmt)
