@@ -8,14 +8,14 @@
 
 
 namespace bond {
-    std::string Context::read_file(const std::string& path) {
+    std::string Context::read_file(std::string const& path) {
         std::ifstream file(path);
         std::stringstream buffer;
         buffer << file.rdbuf();
         return buffer.str();
     }
 
-    uint32_t Context::new_module(std::string &path) {
+    uint32_t Context::new_module(std::string const& path) {
         auto val = std::find_if(std::begin(m_modules), std::end(m_modules),
                                 [&path](auto &&p) { return p.second == path; });
 
