@@ -13,6 +13,7 @@ namespace bond {
     class Parser {
     public:
         Parser(std::vector<Token> &tokens, Context *context) : m_tokens(tokens) { ctx = context; }
+        std::shared_ptr<Expression> parse();
 
     private:
         std::vector<Token> &m_tokens;
@@ -50,7 +51,6 @@ namespace bond {
 
         void synchronize();
 
-        std::shared_ptr<Expression> parse();
     };
 
 } // bond

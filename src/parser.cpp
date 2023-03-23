@@ -33,6 +33,7 @@ namespace bond {
             ctx->error(e.span, e.error);
             synchronize();
         }
+        
     }
 
     void Parser::synchronize() {
@@ -69,7 +70,7 @@ namespace bond {
             auto right = comparison();
 
             auto expr_span = expr->get_span();
-            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end(), expr_span->line);
+            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end, expr_span->line);
             expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
         }
 
@@ -84,7 +85,7 @@ namespace bond {
             auto right = term();
 
             auto expr_span = expr->get_span();
-            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end(), expr_span->line);
+            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end, expr_span->line);
             expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
         }
 
@@ -99,7 +100,7 @@ namespace bond {
             auto right = factor();
 
             auto expr_span = expr->get_span();
-            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end(), expr_span->line);
+            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end, expr_span->line);
             expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
         }
 
@@ -114,7 +115,7 @@ namespace bond {
             auto right = unary();
 
             auto expr_span = expr->get_span();
-            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end(), expr_span->line);
+            auto new_span = std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end, expr_span->line);
             expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
         }
 
@@ -145,6 +146,8 @@ namespace bond {
             consume(TokenType::RIGHT_PAREN, expr->get_span(), "Expected ')' after expression.");
             return expr;
         }
+
+        throw ParserError("Expected expression.", peek().get_span());
     }
 
 
