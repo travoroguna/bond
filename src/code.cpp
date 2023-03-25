@@ -6,17 +6,17 @@
 
 
 namespace bond {
-    NodeVisitor::NodeVisitor() {};
-    
+
     CodeGenerator::CodeGenerator(Context *ctx) {
         m_ctx = ctx;
+        m_code = GarbageCollector::instance().make_immortal<Code>();
     }
-    void Code::add_code(Opcode code, SharedSpan span) {
+    void Code::add_code(Opcode code, const SharedSpan& span) {
         m_code.push_back(static_cast<uint8_t>(code));
         m_spans.push_back(span);
     }
 
-    void Code::add_code(Opcode code, uint32_t oprand, SharedSpan span) {
+    void Code::add_code(Opcode code, uint32_t oprand, const SharedSpan& span) {
         m_code.push_back(static_cast<uint8_t>(code));
         m_code.push_back(oprand);
         m_spans.push_back(span);
@@ -24,7 +24,7 @@ namespace bond {
 
     }
 
-    Code* CodeGenerator::generate_code(SharedExpr expr){
+    GcPtr<Code> CodeGenerator::generate_code(const SharedExpr& expr){
         m_code = new Code();
         expr->accept(this);
         m_code->add_code(Opcode::RETURN, nullptr);
@@ -73,11 +73,14 @@ namespace bond {
     }
 
     void CodeGenerator::visit_num_lit(NumberLiteral* expr){
-        m_code->add_code(Opcode::LOAD_CONST, m_code->add_constant(new Number(expr->get_value())), expr->get_span());
+        auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<Number>(expr->get_value()));
+        m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
     }
 
     void CodeGenerator::visit_string_lit(StringLiteral* expr) {
-        // m_code->add_code(Opcode::LOAD_CONST, m_code->add_constant(new String(expr->get_value())), expr->get_span());
+        auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(expr->get_value()));
+        m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
+
     }
 
     void CodeGenerator::visit_nil_lit(NilLiteral* expr) {
