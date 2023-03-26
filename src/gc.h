@@ -104,6 +104,7 @@ namespace bond {
 
     class Object {
     public:
+        Object() = default;
         virtual ~Object() = default;
 
         [[nodiscard]] bool is_marked() const { return m_marked; }
@@ -139,6 +140,8 @@ namespace bond {
         virtual OBJ_RESULT $mul(const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $div(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual std::string str();
 
     protected:
         bool m_marked = false;
