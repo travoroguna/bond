@@ -27,6 +27,10 @@ void execute_source(std::string& source, const char *path) {
     auto codegen = bond::CodeGenerator(&ctx);
     auto bytecode = codegen.generate_code(expr);
 
+    auto vm = bond::Vm(&ctx);
+    bond::GarbageCollector::instance().add_root(&vm);
+    vm.run(bytecode);
+
 }
 
 
@@ -34,7 +38,7 @@ void run_repl() {
     while (true) {
         bond::Context ctx;
         auto path = std::string("<repl>");
-        auto id = ctx.new_module(path);
+//        auto id = ctx.new_module(path);
 
         std::string source;
 
