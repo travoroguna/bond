@@ -146,7 +146,7 @@ namespace bond {
     protected:
         bool m_marked = false;
     };
-    
+
 #define STACK_MAX 1024
 
     class Root {
@@ -182,7 +182,7 @@ namespace bond {
 
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
-            auto t = GcPtr<T>(new(instance()) T(std::forward<Args>(args)...));
+            auto t = GcPtr<T>(new T(std::forward<Args>(args)...));
             m_immortal.emplace_back(t);
             return t;
         }
@@ -194,8 +194,8 @@ namespace bond {
 
 
         void *allocate(size_t size) {
-            auto ptr = std::malloc(size);
-            m_objects.emplace_back((Object *) ptr);
+            auto ptr = (Object *) std::malloc(size);
+            m_objects.emplace_back(ptr);
             return ptr;
         }
 

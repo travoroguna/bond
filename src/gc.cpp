@@ -47,13 +47,13 @@ namespace bond {
 
     GarbageCollector::~GarbageCollector() {
         for (auto &obj: m_objects) {
+            // allocated using malloc but we also want the destructor to be called
             obj.get()->~Object();
             std::free(obj.get());
         }
 
         for (auto &obj: m_immortal) {
-            obj.get()->~Object();
-            std::free(obj.get());
+            delete obj.get();
         }
     }
 
