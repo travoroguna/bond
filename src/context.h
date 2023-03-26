@@ -18,12 +18,23 @@ namespace bond {
 
         void error(const std::shared_ptr<Span>& span, const std::basic_string<char>& err) {
             m_has_error = true;
+
+            if (m_modules[span->module_id] == "<repl>"){
+                fmt::print("Error: {}\n", err);
+                return;
+            }
+
+
             auto contents = read_file(m_modules[span->module_id]);
 
             auto line_start = contents.rfind('\n', span->start);
-            auto line_end = contents.rfind('\n', span->end);
+            if (line_start == std::string::npos) line_start = 0;
 
-            auto line_source = contents.substr(line_start, line_end);
+            auto line_end = contents.find('\n', span->end);
+            if (line_end > contents.length()-1) line_end = contents.length()-1;
+
+
+            auto line_source = contents.substr(line_start, line_end - line_start);
 
             fmt::print("Error: {}\n", err);
             fmt::print("{}\n", line_source);
