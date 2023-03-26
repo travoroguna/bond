@@ -19,16 +19,17 @@ namespace bond {
         Code() = default;
         Code(std::vector<uint32_t> code, std::vector<GcPtr<Object>> constants)
                 : m_code{std::move(code)}, m_constants{std::move(constants)} {}
-        [[nodiscard]] std::vector<uint32_t> get_code() const { return m_code; }
+        [[nodiscard]] std::vector<uint32_t> get_opcodes() const { return m_code; }
         [[nodiscard]] std::vector<GcPtr<Object>> get_constants() const { return m_constants; }
 
         uint32_t add_constant(const GcPtr<Object> &object)  { m_constants.push_back(object);  return m_constants.size() - 1; }
         void add_code(Opcode code, const SharedSpan& span);
         void add_code(Opcode code, uint32_t oprand, const SharedSpan& span);
 
-        GcPtr<Object> get_object(size_t index) { return m_constants[index]; }
+        GcPtr<Object> get_constant(size_t index) { return m_constants[index]; }
         uint32_t get_code(size_t index) { return m_code[index]; }
         SharedSpan get_span(size_t index) { return m_spans[index]; }
+        SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
 
     private:
         std::vector<uint32_t> m_code{};
@@ -46,6 +47,8 @@ namespace bond {
         OBJ_RESULT $mul(const GcPtr<Object> &other) override;
         OBJ_RESULT $div(const GcPtr<Object> &other) override;
 
+        std::string str() override;
+
     private:
         float m_value{0};
     };
@@ -58,6 +61,9 @@ namespace bond {
 
         OBJ_RESULT $add(const GcPtr<Object> &other) override;
 
+        std::string str() override;
+
+
     private:
         std::string m_value;
     };
@@ -67,7 +73,9 @@ namespace bond {
     public:
         explicit Bool(bool value) { m_value = value; }
         [[nodiscard]] bool get_value() const { return m_value; }
-        OBJ_RESULT $add(const GcPtr<Object> &other) override;
+
+        std::string str() override;
+
 
     private:
         bool m_value;
@@ -77,6 +85,8 @@ namespace bond {
     class Nil : public Object {
     public:
         Nil() = default;
+        std::string str() override;
+
     };
 
 
