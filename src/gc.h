@@ -147,9 +147,30 @@ namespace bond {
 #define STACK_SIZE 1024
 #define FRAME_MAX 1024
 
-    class Frame {
+#define STACK_MAX 1024
+
+    class Root {
     public:
-        Frame() = default;
+        Root() = default;
+
+        virtual void mark();
+
+        virtual void unmark();
+
+        template<typename T, typename... Args>
+        void push(Args &&...args) {
+            auto ptr = make<T>(std::forward<Args>(args)...);
+            Object *obj = ptr.get();
+            push(GcPtr<Object>(obj));
+        }
+
+        void push(GcPtr<Object> const &obj) { m_stack[m_stack_ptr++] = obj; }
+
+        GcPtr<Object> pop() { return m_stack[--m_stack_ptr]; }
+
+    private:
+        std::array<GcPtr<Object>, STACK_MAX> m_stack;
+        size_t m_stack_ptr = 0;
     };
 
     class GarbageCollector {
@@ -189,15 +210,14 @@ namespace bond {
 
         ~GarbageCollector();
 
+        void add_root(Root *root) { m_roots.push_back(root); }
+
     private:
         GarbageCollector();
 
         std::vector<GcPtr<Object>> m_objects;
         std::vector<GcPtr<Object>> m_immortal;
-
-        std::array<GcPtr<Object>, STACK_SIZE> m_stack = {};
-        std::array<Frame, FRAME_MAX> m_frames = {};
-        size_t m_stack_ptr = 0;
+        std::vector<Root *> m_roots;
     };
 
 }; // namespace bond

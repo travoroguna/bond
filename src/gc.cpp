@@ -32,6 +32,25 @@ namespace bond {
                         m_objects.end());
     }
 
+
+    void Root::mark() {
+        for (auto &obj: m_stack) {
+            if (obj) {
+                obj->mark();
+            }
+        }
+    }
+
+
+    void Root::unmark() {
+        for (auto &obj: m_stack) {
+            if (obj) {
+                obj->unmark();
+            }
+        }
+    }
+
+
     GarbageCollector::~GarbageCollector() {
         for (auto &obj: m_objects) {
             obj.get()->~Object();
