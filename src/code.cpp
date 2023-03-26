@@ -25,9 +25,17 @@ namespace bond {
     }
 
     GcPtr<Code> CodeGenerator::generate_code(const SharedExpr& expr){
-        m_code = new Code();
+        m_code = GarbageCollector::instance().make_immortal<Code>();
         expr->accept(this);
-        m_code->add_code(Opcode::RETURN, nullptr);
+
+        if (m_code->get_opcodes().empty()) {
+            //FIXME: this will cause a crash when an error occurs
+            //       in an empty block
+            m_code->add_code(Opcode::RETURN, nullptr);
+        }
+        else {
+            m_code->add_code(Opcode::RETURN, m_code->last_span());
+        }
         return m_code;
     }
   
