@@ -7,15 +7,9 @@ namespace bond {
         return gc;
     }
 
-    GarbageCollector::GarbageCollector() { m_stack.fill(nullptr); }
+    GarbageCollector::GarbageCollector() = default;
 
     void GarbageCollector::collect() {
-        for (auto &obj: m_stack) {
-            if (obj) {
-                obj->mark();
-            }
-        }
-
         for (auto &obj: m_objects) {
             if (obj.is_marked()) {
                 obj.unmark();

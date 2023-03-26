@@ -146,7 +146,6 @@ namespace bond {
     protected:
         bool m_marked = false;
     };
-
     
 #define STACK_MAX 1024
 
@@ -180,9 +179,6 @@ namespace bond {
 
         void collect();
 
-        void push(GcPtr<Object> const &obj) { m_stack[m_stack_ptr++] = obj; }
-
-        GcPtr<Object> pop() { return m_stack[--m_stack_ptr]; }
 
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
@@ -196,12 +192,6 @@ namespace bond {
             return GcPtr<T>(new(instance()) T(std::forward<Args>(args)...));
         }
 
-        template<typename T, typename... Args>
-        void push(Args &&...args) {
-            auto ptr = make<T>(std::forward<Args>(args)...);
-            Object *obj = ptr.get();
-            push(GcPtr<Object>(obj));
-        }
 
         void *allocate(size_t size) {
             auto ptr = std::malloc(size);
