@@ -23,11 +23,11 @@ namespace bond {
     public:
         GcPtr() = default;
 
-        GcPtr(T *GcPtr) : m_ptr(GcPtr) {}
+        explicit GcPtr(T *GcPtr) : m_ptr(GcPtr) {}
 
         GcPtr(const GcPtr &other) : m_ptr(other.m_ptr) {}
 
-        GcPtr(GcPtr &&other) : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
+        GcPtr(GcPtr &&other)  noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
 
         ~GcPtr() { m_ptr = nullptr; }
 
@@ -48,7 +48,7 @@ namespace bond {
 
         T *get() const { return m_ptr; }
 
-        operator bool() const { return m_ptr != nullptr; }
+        explicit operator bool() const { return m_ptr != nullptr; }
 
         void mark() {
             if (m_ptr)
