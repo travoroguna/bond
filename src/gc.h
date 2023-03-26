@@ -147,9 +147,7 @@ namespace bond {
         bool m_marked = false;
     };
 
-#define STACK_SIZE 1024
-#define FRAME_MAX 1024
-
+    
 #define STACK_MAX 1024
 
     class Root {
