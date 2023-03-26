@@ -26,7 +26,9 @@ namespace bond {
             }
         }
 
-        m_objects.erase(std::remove(m_objects.begin(), m_objects.end(), nullptr),
+        m_objects.erase(std::remove_if(m_objects.begin(),
+                                       m_objects.end(),
+                        [](GcPtr<Object> &obj) { return obj.get() == nullptr; }),
                         m_objects.end());
     }
 
