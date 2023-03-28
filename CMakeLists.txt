@@ -9,3 +9,6 @@ add_subdirectory(src)
 
 add_executable(bond src/main.cpp)
 target_link_libraries(bond bondlib)
+
+enable_testing()
+add_subdirectory(tests)
