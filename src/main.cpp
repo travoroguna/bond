@@ -64,18 +64,6 @@ void run_file(const char *path) {
 
 
 int main(int32_t argc, const char * argv[]) {
-    auto str0 = bond::GarbageCollector::instance().make<bond::String>("hello");
-    auto str1 = bond::GarbageCollector::instance().make<bond::String>("hello");
-    auto str2 = bond::GarbageCollector::instance().make<bond::String>("bello");
-
-
-    fmt::print("hashes: {} and {}, is_equal: {}\n", str0->hash(), str1->hash(), str0->equal(str1));
-
-    auto map= bond::GarbageCollector::instance().make<bond::Map>();
-    map->set(str0, str1);
-
-    fmt::print("hello in map? same key {}, different key {}, test key {}\n", map->has(str0), map->has(str1), map->has(str2));
-
    if (argc > 2) {
        std::cout << "Usage: bond <script path>\n";
        return 1;
