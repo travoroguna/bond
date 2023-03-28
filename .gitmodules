@@ -1,0 +1,3 @@
+[submodule "src/external/fmt"]
+	path = src/external/fmt
+	url = https://github.com/fmtlib/fmt.git
