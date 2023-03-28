@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -7,6 +9,9 @@
 #include <functional>
 #include <expected>
 #include <optional>
+
+
+#define DEBUG
 
 namespace bond {
     class GarbageCollector;
@@ -47,6 +52,7 @@ namespace bond {
         T &operator*() const { return *m_ptr; }
 
         T *get() const { return m_ptr; }
+        void set(T* ptr) { m_ptr = ptr; }
 
         explicit operator bool() const { return m_ptr != nullptr; }
 
@@ -62,9 +68,9 @@ namespace bond {
 
         void reset() { m_ptr = nullptr; }
 
-        bool is_marked() const { return m_ptr && m_ptr->is_marked(); }
+        bool is_marked() const { return m_ptr->is_marked(); }
 
-        bool operator==(GcPtr const &other) const { return m_ptr == other.m_ptr; }
+        bool operator==(GcPtr const &other) const { return m_ptr->equal(other); }
 
         template<typename K>
         GcPtr(const GcPtr <K> &other) : m_ptr(other.get()) {}
@@ -96,7 +102,8 @@ namespace bond {
     enum class RuntimeError {
         TypeError,
         Unimplemented,
-        DivisionByZero
+        DivisionByZero,
+        GenericError
     };
 
 #define UNIMPLEMENTED return std::unexpected(RuntimeError::Unimplemented)
@@ -106,6 +113,7 @@ namespace bond {
     public:
         Object() = default;
         virtual ~Object() = default;
+
 
         [[nodiscard]] bool is_marked() const { return m_marked; }
 
@@ -141,7 +149,21 @@ namespace bond {
 
         virtual OBJ_RESULT $div(const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
+        virtual OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $get_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
+
+        bool operator==(const GcPtr<Object> &other) { return equal(other); }
+
         virtual std::string str();
+        virtual bool equal(const GcPtr<Object> &other) = 0;
+        virtual size_t hash() = 0;
+
+        struct HashMe {
+            size_t operator()(const GcPtr<Object> &other) const{
+                return other->hash();
+            }
+        };
 
     protected:
         bool m_marked = false;
@@ -168,9 +190,10 @@ namespace bond {
 
         GcPtr<Object> pop() { return m_stack[--m_stack_ptr]; }
 
-    private:
-        std::array<GcPtr<Object>, STACK_MAX> m_stack;
+    protected:
         size_t m_stack_ptr = 0;
+        std::array<GcPtr<Object>, STACK_MAX> m_stack;
+
     };
 
     class GarbageCollector {
@@ -194,21 +217,22 @@ namespace bond {
 
 
         void *allocate(size_t size) {
+            collect_if_needed();
             auto ptr = (Object *) std::malloc(size);
             m_objects.emplace_back(ptr);
             return ptr;
         }
 
         ~GarbageCollector();
-
         void add_root(Root *root) { m_roots.push_back(root); }
 
     private:
         GarbageCollector();
-
         std::vector<GcPtr<Object>> m_objects;
         std::vector<GcPtr<Object>> m_immortal;
         std::vector<Root *> m_roots;
+        size_t m_alloc_limit = 100;
+        void collect_if_needed();
     };
 
 }; // namespace bond

@@ -24,9 +24,12 @@ namespace bond {
 
     }
 
-    GcPtr<Code> CodeGenerator::generate_code(const SharedExpr& expr){
+    GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes){
         m_code = GarbageCollector::instance().make_immortal<Code>();
-        expr->accept(this);
+
+        for (const auto& node: nodes){
+            node->accept(this);
+        }
 
         if (m_code->get_opcodes().empty()) {
             //FIXME: this will cause a crash when an error occurs
@@ -88,13 +91,40 @@ namespace bond {
     void CodeGenerator::visit_string_lit(StringLiteral* expr) {
         auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(expr->get_value()));
         m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
-
     }
 
     void CodeGenerator::visit_nil_lit(NilLiteral* expr) {
         m_code->add_code(Opcode::PUSH_NIL, expr->get_span());
     }
 
+    void CodeGenerator::visit_print(Print *stmnt) {
+        stmnt->get_expr()->accept(this);
+        m_code->add_code(Opcode::PRINT, stmnt->get_span());
+    }
+
+    void CodeGenerator::visit_expr_stmnt(ExprStmnt *stmnt) {
+        stmnt->get_expr()->accept(this);
+    }
+
+    void CodeGenerator::visit_identifier(Identifier *expr) {
+        if (expr->is_id_global()) {
+            auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(expr->get_name()));
+            m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
+        }
+
+        //TODO: code generation for local variables
+    }
+
+    void CodeGenerator::visit_new_var(NewVar *stmnt) {
+        stmnt->get_expr()->accept(this);
+
+        if (stmnt->is_var_global()) {
+            auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(stmnt->get_name()));
+            m_code->add_code(Opcode::SET_GLOBAL, idx, stmnt->get_span());
+        }
+
+        //TODO: code generation for local variables
+    }
 
 
 } // bond

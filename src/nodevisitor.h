@@ -1,9 +1,7 @@
 //
 // Created by travor on 3/18/23.
 //
-
-#ifndef BOND_NODEVISITOR_H
-#define BOND_NODEVISITOR_H
+#pragma once
 
 
 namespace bond{
@@ -14,6 +12,11 @@ namespace bond{
     class NumberLiteral;
     class StringLiteral;
     class NilLiteral;
+    class Identifier;
+
+    class Print;
+    class ExprStmnt;
+    class NewVar;
 
     class NodeVisitor{
     public:
@@ -25,8 +28,10 @@ namespace bond{
         virtual void visit_num_lit(NumberLiteral* expr) = 0;
         virtual void visit_string_lit(StringLiteral* expr) = 0;
         virtual void visit_nil_lit(NilLiteral* expr) = 0;
+        virtual void visit_identifier(Identifier* expr) = 0;
+
+        virtual void visit_print(Print* stmnt) = 0;
+        virtual void visit_expr_stmnt(ExprStmnt* stmnt) = 0;
+        virtual void visit_new_var(NewVar* stmnt) = 0;
     };
 }
-
-
-#endif //BOND_NODEVISITOR_H

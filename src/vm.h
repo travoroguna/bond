@@ -26,10 +26,17 @@ namespace bond {
         Opcode get_opcode() { return static_cast<Opcode>(m_code->get_code(m_ip++)); }
         SharedSpan get_span() { return m_code->get_span(m_ip); }
 
-        void set_code(const GcPtr<Code> &code) { m_code = code; }
+        void set_code(const GcPtr<Code> &code) { m_code = code; m_ip=0; }
+        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
+
+        void set_global(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_globals->set(key, value); }
+        bool has_global(const GcPtr<Object> &key) { return m_globals->has(key); }
+        GcPtr<Object> get_global(const GcPtr<Object> &key) { return m_globals->get_unchecked(key); }
+
     private:
         GcPtr<Code> m_code;
         size_t m_ip = 0;
+        GcPtr<Map> m_globals;
 
     };
 
@@ -57,8 +64,8 @@ namespace bond {
         Frame *m_current_frame = nullptr;
 
         void exec();
-
         void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+        GcPtr<Map> m_globals = GarbageCollector::instance().make_immortal<Map>();
     };
 
 } // bond

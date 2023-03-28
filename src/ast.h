@@ -8,60 +8,60 @@
 
 namespace bond{
     enum class NodeType {
-        Expr, BinOp, Unary, FalseLit, TrueLit, NilLit, NumLit, StringLit
+        Node, BinOp, Unary, FalseLit, TrueLit, NilLit, NumLit, StringLit
     };
 
 
-    class Expression {
+    class Node {
     public:
-        Expression() = default;
+        Node() = default;
         std::shared_ptr<Span> get_span() { return m_span; }
         NodeType get_type() { return m_type; }
         virtual void accept(NodeVisitor *visitor) = 0;
 
     protected:
         std::shared_ptr<Span> m_span;
-        NodeType m_type;
+        NodeType m_type {NodeType::Node};
     };
 
 
-    using SharedExpr = std::shared_ptr<Expression>;
+    using SharedNode = std::shared_ptr<Node>;
     using SharedSpan = std::shared_ptr<Span>;
 
-    class BinaryOp : public Expression{
+    class BinaryOp : public Node{
     public:
-        BinaryOp(SharedSpan &span, SharedExpr &left, Token op, SharedExpr &right);
+        BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right);
         void accept(NodeVisitor *visitor) override;
-        SharedExpr get_left() { return m_left; }
-        SharedExpr get_right() { return m_right; }
+        SharedNode get_left() { return m_left; }
+        SharedNode get_right() { return m_right; }
         Token get_op() { return m_op; }
     private:
-        SharedExpr m_left;
-        SharedExpr m_right;
+        SharedNode m_left;
+        SharedNode m_right;
         Token m_op;
     };
 
 
-    class Unary : public Expression{
+    class Unary : public Node{
     public:
-        Unary(const SharedSpan& span, Token op, const SharedExpr& expr);
+        Unary(const SharedSpan& span, Token op, const SharedNode& expr);
         void accept(NodeVisitor *visitor) override;
-        SharedExpr get_expr() { return m_expr; }
+        SharedNode get_expr() { return m_expr; }
         Token get_op() { return m_op; }
 
     private:
         Token m_op;
-        SharedExpr m_expr;
+        SharedNode m_expr;
     };
 
-    class FalseLiteral: public Expression{
+    class FalseLiteral: public Node{
     public:
         explicit FalseLiteral(const SharedSpan& span);
         void accept(NodeVisitor *visitor) override;
 
     };
 
-    class TrueLiteral: public Expression{
+    class TrueLiteral: public Node{
     public:
         explicit TrueLiteral(const SharedSpan& span);
         void accept(NodeVisitor *visitor) override;
@@ -69,14 +69,14 @@ namespace bond{
     };
 
 
-    class NilLiteral: public Expression{
+    class NilLiteral: public Node{
     public:
         explicit NilLiteral(const SharedSpan& span);
         void accept(NodeVisitor *visitor) override;
 
     };
 
-    class NumberLiteral: public Expression{
+    class NumberLiteral: public Node{
     public:
         NumberLiteral(const SharedSpan& span, const std::string& lexeme);
         void accept(NodeVisitor *visitor) override;
@@ -87,7 +87,7 @@ namespace bond{
     };
 
 
-    class StringLiteral: public Expression{
+    class StringLiteral: public Node{
     public:
         StringLiteral(const SharedSpan& span, const std::string& lexeme);
         void accept(NodeVisitor *visitor) override;
@@ -98,6 +98,63 @@ namespace bond{
     };
 
 
+    class Identifier: public Node{
+    public:
+        Identifier(const SharedSpan& span, const std::string& name, bool is_global);
+        void accept(NodeVisitor *visitor) override;
+        std::string get_name() { return m_name; }
+
+        void set_global() { is_global = true; }
+        void set_id(uint32_t id) { m_id = id; }
+        uint32_t get_id() { return m_id; }
+        bool is_id_global() { return is_global; }
 
 
+    private:
+        std::string m_name;
+        bool is_global = false;
+        uint32_t m_id = 0;
+
+    };
+
+
+
+    class NewVar: public Node{
+    public:
+        NewVar(const SharedSpan& span, const std::string& name, const SharedNode &expr, bool is_global);
+        void accept(NodeVisitor *visitor) override;
+        std::string get_name() { return m_name; }
+
+        void set_global() { is_global = true; }
+        bool is_var_global() { return is_global; }
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        std::string m_name;
+        SharedNode m_expr;
+        bool is_global = false;
+
+    };
+
+    class Print: public Node{
+    public:
+        Print(const SharedSpan& span, const SharedNode &expr);
+        void accept(NodeVisitor *visitor) override;
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
+    };
+
+
+    class ExprStmnt: public Node{
+    public:
+        ExprStmnt(const SharedSpan& span, const SharedNode &expr);
+        void accept(NodeVisitor *visitor) override;
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
+
+    };
 };

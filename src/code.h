@@ -19,7 +19,7 @@ namespace bond {
     public:
         explicit CodeGenerator(Context *ctx);
 
-        GcPtr <Code> generate_code(const SharedExpr& expr);
+        GcPtr <Code> generate_code(const std::vector<std::shared_ptr<Node>> &nodes);
         void visit_bin_op(BinaryOp* expr) override;
         void visit_unary(Unary* expr) override;
         void visit_true_lit(TrueLiteral* expr) override;
@@ -27,6 +27,13 @@ namespace bond {
         void visit_num_lit(NumberLiteral* expr) override;
         void visit_string_lit(StringLiteral* expr) override;
         void visit_nil_lit(NilLiteral* expr) override;
+        void visit_print(Print* stmnt) override;
+        void visit_expr_stmnt(ExprStmnt* stmnt) override;
+        void visit_identifier(Identifier* expr) override;
+        void visit_new_var(NewVar* stmnt) override;
+
+
+
     private:
         GcPtr<Code> m_code;
         Context *m_ctx;

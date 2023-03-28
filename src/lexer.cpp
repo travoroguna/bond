@@ -97,7 +97,6 @@ namespace bond {
     }
 
     void Lexer::new_token(TokenType type) {
-        fmt::print("token -> {} {} {}\n", m_source.substr(m_start, m_current), m_start, m_current);
         m_tokens.emplace_back(
                 Token(make_span(),type,
                       m_source.substr(m_start, m_current - m_start)));
@@ -122,7 +121,7 @@ namespace bond {
             return;
         }
 
-        // The closing ".
+        // The closing '"'.
         advance();
 
         // Trim the surrounding quotes.

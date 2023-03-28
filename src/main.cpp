@@ -6,40 +6,36 @@
 #include "context.h"
 #include "code.h"
 #include "vm.h"
+#include "gc.h"
 
 
-void execute_source(std::string& source, const char *path) {
-    bond::Context ctx;
+void execute_source(std::string& source, const char *path, bond::Vm &vm, bond::Context &ctx) {
     auto id = ctx.new_module(std::string(path));
 
     auto lexer = bond::Lexer(source, &ctx, id);
     auto tokens = lexer.tokenize();
 
-    for (auto t: tokens){
-        fmt::print("{}\n", t.as_string());
-    }
-
     auto parser = bond::Parser(tokens, &ctx);
-    auto expr = parser.parse();
+    auto nodes = parser.parse();
 
     if (ctx.has_error()) return;
 
     auto codegen = bond::CodeGenerator(&ctx);
-    auto bytecode = codegen.generate_code(expr);
+    auto bytecode = codegen.generate_code(nodes);
 
-    auto vm = bond::Vm(&ctx);
-    bond::GarbageCollector::instance().add_root(&vm);
     vm.run(bytecode);
-
 }
 
 
 void run_repl() {
-    while (true) {
-        bond::Context ctx;
-        auto path = std::string("<repl>");
-//        auto id = ctx.new_module(path);
+    bond::Context ctx;
 
+    auto vm = bond::Vm(&ctx);
+    bond::GarbageCollector::instance().add_root(&vm);
+
+    while (true) {
+        auto path = std::string("<repl>");
+        ctx.reset_error();
         std::string source;
 
         fmt::print("bond > ");
@@ -51,25 +47,41 @@ void run_repl() {
 
         if (source == "exit") break;
 
-        execute_source(source, path.c_str());
+        execute_source(source, path.c_str(), vm, ctx);
     }
 }
 
 void run_file(const char *path) {
     auto src = bond::Context::read_file(std::string(path));
-    execute_source(src, path);
+    bond::Context ctx;
+
+    auto vm = bond::Vm(&ctx);
+    bond::GarbageCollector::instance().add_root(&vm);
+
+    execute_source(src, path, vm, ctx);
 }
 
 
 
 int main(int32_t argc, const char * argv[]) {
-   fmt::print("bond 0.0.0 {}\n", argc);
+    auto str0 = bond::GarbageCollector::instance().make<bond::String>("hello");
+    auto str1 = bond::GarbageCollector::instance().make<bond::String>("hello");
+    auto str2 = bond::GarbageCollector::instance().make<bond::String>("bello");
+
+
+    fmt::print("hashes: {} and {}, is_equal: {}\n", str0->hash(), str1->hash(), str0->equal(str1));
+
+    auto map= bond::GarbageCollector::instance().make<bond::Map>();
+    map->set(str0, str1);
+
+    fmt::print("hello in map? same key {}, different key {}, test key {}\n", map->has(str0), map->has(str1), map->has(str2));
 
    if (argc > 2) {
        std::cout << "Usage: bond <script path>\n";
        return 1;
    }
    else if (argc == 1){
+       fmt::print("bond 0.0.0 \n");
        run_repl();
    } else {
        run_file(argv[1]);

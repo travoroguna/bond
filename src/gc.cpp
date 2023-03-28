@@ -1,5 +1,6 @@
 #include "gc.h"
 #include <cstdlib>
+#include <fmt/core.h>
 
 namespace bond {
     GarbageCollector &GarbageCollector::instance() {
@@ -10,9 +11,12 @@ namespace bond {
     GarbageCollector::GarbageCollector() = default;
 
     void GarbageCollector::collect() {
+        for (auto root: m_roots) {
+            root->mark();
+        }
+
         for (auto &obj: m_objects) {
             if (obj.is_marked()) {
-                obj.unmark();
             } else {
                 obj.get()->~Object();
                 std::free(obj.get());
@@ -24,30 +28,47 @@ namespace bond {
                                        m_objects.end(),
                         [](GcPtr<Object> &obj) { return obj.get() == nullptr; }),
                         m_objects.end());
+
+        for (auto root: m_roots) {
+            root->unmark();
+        }
+    }
+
+    void GarbageCollector::collect_if_needed() {
+        if (m_objects.size() < m_alloc_limit) return;
+        collect();
+        m_alloc_limit += m_objects.size() * 2;
+
+#ifdef DEBUG
+        fmt::print("[GC] allocated {}, alloc limit {}, immortal {}\n", m_objects.size(), m_alloc_limit, m_immortal.size());
+#endif
     }
 
 
     void Root::mark() {
-        for (auto &obj: m_stack) {
-            if (obj) {
-                obj->mark();
-            }
+        size_t count = 0;
+
+        while (count < m_stack_ptr) {
+            m_stack[count++].mark();
         }
     }
 
 
     void Root::unmark() {
-        for (auto &obj: m_stack) {
-            if (obj) {
-                obj->unmark();
-            }
+        size_t count = 0;
+
+        while (count < m_stack_ptr) {
+            m_stack[count++].unmark();
         }
     }
 
 
     GarbageCollector::~GarbageCollector() {
+#ifdef DEBUG
+        fmt::print("[Gc] at exit, allocated objects: {}, roots {}, immortal objects {}\n", m_objects.size(), m_roots.size(), m_immortal.size());
+#endif
         for (auto &obj: m_objects) {
-            // allocated using malloc but we also want the destructor to be called
+            // allocated using malloc, but we also want the destructor to be called
             obj.get()->~Object();
             std::free(obj.get());
         }

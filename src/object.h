@@ -1,7 +1,7 @@
 #pragma once
 
 #include <utility>
-
+#include <optional>
 #include "gc.h"
 #include "ast.h"
 
@@ -9,8 +9,12 @@
 namespace bond {
 
     enum class Opcode : uint32_t{
+
         LOAD_CONST, BIN_ADD, BIN_SUB, BIN_MUL, BIN_DIV, RETURN,
-        PUSH_TRUE, PUSH_FALSE, PUSH_NIL
+        PUSH_TRUE, PUSH_FALSE, PUSH_NIL, LOAD_GLOBAL, SET_GLOBAL,
+        LOAD_FAST, STORE_FAST,
+
+        PRINT
     };
 
     class Code: public Object {
@@ -31,6 +35,10 @@ namespace bond {
         SharedSpan get_span(size_t index) { return m_spans[index]; }
         SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
 
+        //TODO: implement equal and hash correctly
+        bool equal(const GcPtr<Object> &other) override { return false; }
+        size_t hash() override { return 0; }
+
     private:
         std::vector<uint32_t> m_code{};
         std::vector<GcPtr<Object>> m_constants{};
@@ -49,6 +57,9 @@ namespace bond {
 
         std::string str() override;
 
+        bool equal(const GcPtr<Object> &other) override;
+        size_t hash() override;
+
     private:
         float m_value{0};
     };
@@ -63,6 +74,8 @@ namespace bond {
 
         std::string str() override;
 
+        size_t hash() override;
+        bool equal(const GcPtr <Object> &other) override;
 
     private:
         std::string m_value;
@@ -76,6 +89,8 @@ namespace bond {
 
         std::string str() override;
 
+        bool equal(const GcPtr<Object> &other) override;
+        size_t hash() override;
 
     private:
         bool m_value;
@@ -87,8 +102,30 @@ namespace bond {
         Nil() = default;
         std::string str() override;
 
+        bool equal(const GcPtr<Object> &other) override;
+        size_t hash() override;
+
     };
 
+
+    class Map: public Object {
+    public:
+        Map() = default;
+
+        //TODO: implement equal and hash correctly
+        bool equal(const GcPtr<Object> &other) override { return false; }
+        size_t hash() override { return 0; }
+
+        std::optional<GcPtr<Object>> get(const GcPtr<Object>& key);
+        GcPtr<Object> get_unchecked(const GcPtr<Object>& key);
+
+        void set(const GcPtr<Object>& key, const GcPtr<Object>& value);
+        bool has(const GcPtr<Object>& key);
+
+
+    private:
+        std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe> m_internal_map;
+    };
 
 
 };

@@ -9,6 +9,7 @@
 #include <fmt/core.h>
 #include <memory>
 #include <fstream>
+#include <filesystem>
 #include "span.h"
 
 namespace bond {
@@ -24,7 +25,6 @@ namespace bond {
                 return;
             }
 
-
             auto contents = read_file(m_modules[span->module_id]);
 
             auto line_start = contents.rfind('\n', span->start);
@@ -32,26 +32,27 @@ namespace bond {
 
             auto line_end = contents.find('\n', span->end);
             if (line_end > contents.length()-1) line_end = contents.length()-1;
-
-
             auto line_source = contents.substr(line_start, line_end - line_start);
 
-            fmt::print("Error: {}\n", err);
-            fmt::print("{}\n", line_source);
+            fmt::print("\nError at: {}:{}:{}\n\n", std::filesystem::absolute(get_module_name(span->module_id)).string(), span->line, span->start - line_start);
+            fmt::print("  {}\n", line_source);
 
-            for (int i = 0; i < line_start - span->start; i ++) {
+            fmt::print("  ");
+            for (int i = 0; i < span->start - line_start; i ++) {
                 fmt::print(" ");
             }
 
-            for (int i = 0; i < line_end - line_start; i ++) {
+            for (int i = 0; i < span->end - span->start; i ++) {
                 fmt::print("^");
             }
 
-            fmt::print("\n");
+            fmt::print("\n  {}\n\n", err);
+
         }
 
         static std::string read_file(std::string const& path);
         bool has_error() const { return m_has_error; }
+        void reset_error() { m_has_error = false; }
         bool has_module(uint32_t id) const { return m_modules.find(id) != m_modules.end(); }
         std::string get_module_name(uint32_t id) const { return m_modules.at(id); }
 

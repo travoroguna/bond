@@ -7,7 +7,7 @@
 
 
 namespace bond {
-    BinaryOp::BinaryOp(SharedSpan &span, SharedExpr &left, Token op, SharedExpr &right) : m_op(std::move(op)) {
+    BinaryOp::BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right) : m_op(std::move(op)) {
         m_span = span;
         m_left = left;
         m_right = right;
@@ -18,7 +18,7 @@ namespace bond {
         visitor->visit_bin_op(this);
     }
 
-    Unary::Unary(const SharedSpan& span, Token op, const SharedExpr& expr) : m_op(std::move(op)) {
+    Unary::Unary(const SharedSpan& span, Token op, const SharedNode& expr) : m_op(std::move(op)) {
         m_span = span;
         m_expr = expr;
         m_type = NodeType::Unary;
@@ -73,5 +73,44 @@ namespace bond {
 
     void StringLiteral::accept(NodeVisitor *visitor) {
         visitor->visit_string_lit(this);
+    }
+
+    Print::Print(const SharedSpan &span, const SharedNode &expr) {
+        m_span = span;
+        m_expr = expr;
+    }
+
+    void Print::accept(NodeVisitor *visitor) {
+        visitor->visit_print(this);
+    }
+
+    ExprStmnt::ExprStmnt(const SharedSpan &span, const SharedNode &expr) {
+        m_span = span;
+        m_expr = expr;
+    }
+
+    void ExprStmnt::accept(NodeVisitor *visitor) {
+        visitor->visit_expr_stmnt(this);
+    }
+
+    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, bool is_var_global) {
+        m_span = span;
+        m_name = name;
+        m_expr = expr;
+        is_global = is_var_global;
+    }
+
+    void NewVar::accept(NodeVisitor *visitor) {
+        visitor->visit_new_var(this);
+    }
+
+    Identifier::Identifier(const SharedSpan &span, const std::string &name, bool is_id_global) {
+        m_span = span;
+        m_name = name;
+        is_global = is_id_global;
+    }
+
+    void Identifier::accept(NodeVisitor *visitor) {
+        visitor->visit_identifier(this);
     }
 };
