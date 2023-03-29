@@ -14,7 +14,9 @@ namespace bond {
         PUSH_TRUE, PUSH_FALSE, PUSH_NIL, LOAD_GLOBAL, SET_GLOBAL,
         LOAD_FAST, STORE_FAST,
 
-        PRINT, NE, EQ, LE, GT, GE, LT
+        PRINT, NE, EQ, LE, GT, GE, LT,
+
+        POP_TOP
     };
 
 

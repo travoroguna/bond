@@ -126,6 +126,7 @@ namespace bond {
 
     void CodeGenerator::visit_expr_stmnt(ExprStmnt *stmnt) {
         stmnt->get_expr()->accept(this);
+        m_code->add_code(Opcode::POP_TOP, stmnt->get_span());
     }
 
     void CodeGenerator::visit_identifier(Identifier *expr) {

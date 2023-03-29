@@ -110,6 +110,8 @@ namespace bond {
                     break;
                 case Opcode::STORE_FAST:
                     break;
+                case Opcode::POP_TOP:
+                    pop();
             }
         }
 
