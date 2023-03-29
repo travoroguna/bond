@@ -10,7 +10,13 @@
 #include <fmt/core.h>
 
 
-#define ASSERT( condition )                             \
+#ifdef _MSC_VER
+#define FUNC_P_ __FUNCSIG__
+#else
+#define FUNC_P_ __PRETTY_FUNCTION__
+#endif
+
+#define ASSERT(condition)                             \
 {                                                                   \
   if( !( condition ) )                                              \
   {                                                                 \
@@ -18,12 +24,12 @@
                               + std::string( ":" )                  \
                               + std::to_string( __LINE__ )          \
                               + std::string( " in " )               \
-                              + std::string( __PRETTY_FUNCTION__ )  \
+                              + std::string( FUNC_P_ )  \
     );                                                              \
   }                                                                 \
 }
 
-#define ASSERT_EQUAL( x, y )                                  \
+#define ASSERT_EQUAL(x, y)                                  \
 {                                                                   \
   if( ( x ) != ( y ) )                                              \
   {                                                                 \
@@ -31,7 +37,7 @@
                               + std::string( ":" )                  \
                               + std::to_string( __LINE__ )          \
                               + std::string( " in " )               \
-                              + std::string( __PRETTY_FUNCTION__ )  \
+                              + std::string( FUNC_P_ )  \
                               + std::string( ": " )                 \
                               + std::to_string( ( x ) )             \
                               + std::string( " != " )               \
