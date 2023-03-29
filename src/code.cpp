@@ -3,6 +3,7 @@
 //
 
 #include "code.h"
+#include "object.h"
 
 
 namespace bond {
@@ -23,6 +24,7 @@ namespace bond {
         m_spans.push_back(span);
 
     }
+
 
     GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes){
         m_code = GarbageCollector::instance().make_immortal<Code>();
@@ -84,13 +86,15 @@ namespace bond {
     }
 
     void CodeGenerator::visit_num_lit(NumberLiteral* expr){
-        auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<Number>(expr->get_value()));
+        auto idx = m_code->add_constant<Number>(expr->get_value());
         m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
+
     }
 
     void CodeGenerator::visit_string_lit(StringLiteral* expr) {
-        auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(expr->get_value()));
+        auto idx = m_code->add_constant<String>(expr->get_value());
         m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
+
     }
 
     void CodeGenerator::visit_nil_lit(NilLiteral* expr) {
@@ -108,7 +112,7 @@ namespace bond {
 
     void CodeGenerator::visit_identifier(Identifier *expr) {
         if (expr->is_id_global()) {
-            auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(expr->get_name()));
+            auto idx = m_code->add_constant<String>(expr->get_name());
             m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
         }
 
@@ -119,7 +123,7 @@ namespace bond {
         stmnt->get_expr()->accept(this);
 
         if (stmnt->is_var_global()) {
-            auto idx = m_code->add_constant(GarbageCollector::instance().make_immortal<String>(stmnt->get_name()));
+            auto idx = m_code->add_constant<String>(stmnt->get_name());
             m_code->add_code(Opcode::SET_GLOBAL, idx, stmnt->get_span());
         }
 

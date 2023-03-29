@@ -35,6 +35,7 @@ namespace bond {
     }
 
     void GarbageCollector::collect_if_needed() {
+        if (!m_collect) return;
         if (m_objects.size() < m_alloc_limit) return;
         collect();
         m_alloc_limit += m_objects.size() * 2;

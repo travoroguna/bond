@@ -202,7 +202,6 @@ namespace bond {
 
         void collect();
 
-
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
             auto t = GcPtr<T>(new T(std::forward<Args>(args)...));
@@ -215,7 +214,6 @@ namespace bond {
             return GcPtr<T>(new(instance()) T(std::forward<Args>(args)...));
         }
 
-
         void *allocate(size_t size) {
             collect_if_needed();
             auto ptr = (Object *) std::malloc(size);
@@ -224,15 +222,25 @@ namespace bond {
         }
 
         ~GarbageCollector();
+
         void add_root(Root *root) { m_roots.push_back(root); }
+
+        void stop_gc() { m_collect = false; }
+
+        void resume_gc() { m_collect = true; }
+
 
     private:
         GarbageCollector();
+
         std::vector<GcPtr<Object>> m_objects;
         std::vector<GcPtr<Object>> m_immortal;
         std::vector<Root *> m_roots;
         size_t m_alloc_limit = 100;
+
         void collect_if_needed();
+
+        bool m_collect = true;
     };
 
 }; // namespace bond
