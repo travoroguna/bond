@@ -149,6 +149,19 @@ namespace bond {
 
         virtual OBJ_RESULT $div(const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
+        virtual OBJ_RESULT $eq(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $ne(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $lt(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $le(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $gt(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $ge(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+
         virtual OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $get_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
@@ -156,6 +169,7 @@ namespace bond {
         bool operator==(const GcPtr<Object> &other) { return equal(other); }
 
         virtual std::string str();
+
         virtual bool equal(const GcPtr<Object> &other) = 0;
         virtual size_t hash() = 0;
 

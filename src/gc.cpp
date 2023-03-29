@@ -82,6 +82,7 @@ namespace bond {
     std::string Object::str() {
         return "object";
     }
+
 }; // namespace bond
 
 void *operator new(size_t size, bond::GarbageCollector &gc) {

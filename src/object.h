@@ -14,7 +14,7 @@ namespace bond {
         PUSH_TRUE, PUSH_FALSE, PUSH_NIL, LOAD_GLOBAL, SET_GLOBAL,
         LOAD_FAST, STORE_FAST,
 
-        PRINT
+        PRINT, NE, EQ, LE, GT, GE, LT
     };
 
 
@@ -99,16 +99,33 @@ namespace bond {
     class Number : public Object {
     public:
         explicit Number(float value) { m_value = value; }
+
         [[nodiscard]] float get_value() const { return m_value; }
 
         OBJ_RESULT $add(const GcPtr<Object> &other) override;
+
         OBJ_RESULT $sub(const GcPtr<Object> &other) override;
+
         OBJ_RESULT $mul(const GcPtr<Object> &other) override;
+
         OBJ_RESULT $div(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $le(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
 
         std::string str() override;
 
         bool equal(const GcPtr<Object> &other) override;
+
         size_t hash() override;
 
     private:
@@ -119,14 +136,20 @@ namespace bond {
     class String : public Object {
     public:
         explicit String(std::string value) { m_value = std::move(value); }
+
         [[nodiscard]] std::string get_value() const { return m_value; }
 
         OBJ_RESULT $add(const GcPtr<Object> &other) override;
 
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+
         std::string str() override;
 
         size_t hash() override;
-        bool equal(const GcPtr <Object> &other) override;
+
+        bool equal(const GcPtr<Object> &other) override;
 
     private:
         std::string m_value;
@@ -136,11 +159,17 @@ namespace bond {
     class Bool : public Object {
     public:
         explicit Bool(bool value) { m_value = value; }
+
         [[nodiscard]] bool get_value() const { return m_value; }
+
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
 
         std::string str() override;
 
         bool equal(const GcPtr<Object> &other) override;
+
         size_t hash() override;
 
     private:
@@ -151,9 +180,15 @@ namespace bond {
     class Nil : public Object {
     public:
         Nil() = default;
+
         std::string str() override;
 
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+
         bool equal(const GcPtr<Object> &other) override;
+
         size_t hash() override;
 
     };

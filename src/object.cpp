@@ -73,6 +73,34 @@ namespace bond {
         return std::hash<float>{}(m_value);
     }
 
+    std::expected<GcPtr<Object>, RuntimeError> Number::$eq(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(this->equal(other));
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Number::$ne(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(!this->equal(other));
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Number::$lt(const GcPtr<Object> &other) {
+        if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
+        return GarbageCollector::instance().make<Bool>(m_value < as<Number>(other)->get_value());
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Number::$le(const GcPtr<Object> &other) {
+        if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
+        return GarbageCollector::instance().make<Bool>(m_value <= as<Number>(other)->get_value());
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Number::$gt(const GcPtr<Object> &other) {
+        if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
+        return GarbageCollector::instance().make<Bool>(m_value > as<Number>(other)->get_value());
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Number::$ge(const GcPtr<Object> &other) {
+        if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
+        return GarbageCollector::instance().make<Bool>(m_value >= as<Number>(other)->get_value());
+    }
+
 
     OBJ_RESULT String::$add(const GcPtr<Object> &other) {
         auto res = const_cast<GcPtr<Object> &>(other)
@@ -89,6 +117,14 @@ namespace bond {
     bool String::equal(const GcPtr<Object> &other) {
         if (!is<String>(other)) return false;
         return m_value == as<String>(other)->get_value();
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> String::$eq(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(this->equal(other));
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> String::$ne(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
     size_t String::hash() {
@@ -108,6 +144,14 @@ namespace bond {
         return m_value == as<Bool>(other)->get_value();
     }
 
+    std::expected<GcPtr<Object>, RuntimeError> Bool::$eq(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(this->equal(other));
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Bool::$ne(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(!this->equal(other));
+    }
+
     size_t Bool::hash() {
         return std::hash<bool>{}(m_value);
     }
@@ -118,6 +162,14 @@ namespace bond {
 
     bool Nil::equal(const GcPtr<Object> &other) {
         return is<Nil>(other);
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Nil::$eq(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(this->equal(other));
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Nil::$ne(const GcPtr<Object> &other) {
+        return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
     size_t Nil::hash() {

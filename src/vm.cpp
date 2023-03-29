@@ -64,6 +64,12 @@ namespace bond {
                 case Opcode::BIN_SUB: BINARY_OP(sub)
                 case Opcode::BIN_MUL: BINARY_OP(mul)
                 case Opcode::BIN_DIV: BINARY_OP(div)
+                case Opcode::NE: BINARY_OP(ne)
+                case Opcode::EQ: BINARY_OP(eq)
+                case Opcode::LT: BINARY_OP(lt)
+                case Opcode::LE: BINARY_OP(le)
+                case Opcode::GT: BINARY_OP(gt)
+                case Opcode::GE: BINARY_OP(ge)
                 case Opcode::RETURN:
                     if (m_stack_ptr > 0) {
                         fmt::print("  {}\n", pop()->str());

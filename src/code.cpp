@@ -61,6 +61,24 @@ namespace bond {
             case TokenType::SLASH:
                 m_code->add_code(Opcode::BIN_DIV, expr->get_op().get_span());
                 break;
+            case TokenType::BANG_EQUAL:
+                m_code->add_code(Opcode::NE, expr->get_op().get_span());
+                break;
+            case TokenType::EQUAL_EQUAL:
+                m_code->add_code(Opcode::EQ, expr->get_op().get_span());
+                break;
+            case TokenType::LESS:
+                m_code->add_code(Opcode::LT, expr->get_op().get_span());
+                break;
+            case TokenType::LESS_EQUAL:
+                m_code->add_code(Opcode::LE, expr->get_op().get_span());
+                break;
+            case TokenType::GREATER:
+                m_code->add_code(Opcode::GT, expr->get_op().get_span());
+                break;
+            case TokenType::GREATER_EQUAL:
+                m_code->add_code(Opcode::GE, expr->get_op().get_span());
+                break;
             default:
                 break;
         }
