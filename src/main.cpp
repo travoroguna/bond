@@ -20,8 +20,9 @@ void execute_source(std::string& source, const char *path, bond::Vm &vm, bond::C
 
     if (ctx.has_error()) return;
 
-    auto codegen = bond::CodeGenerator(&ctx);
+    auto codegen = bond::CodeGenerator(&ctx, parser.get_symbols());
     auto bytecode = codegen.generate_code(nodes);
+    fmt::print("disassembly of opcode\n{}\n", bytecode->dissasemble());
 
     vm.run(bytecode);
 }

@@ -15,6 +15,7 @@ namespace bond {
         exec();
     }
 
+
     void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
         std::string err;
         switch (e) {
@@ -99,9 +100,16 @@ namespace bond {
                     push(m_current_frame->get_global(name));
                     break;
                 }
-                case Opcode::SET_GLOBAL: {
+                case Opcode::CREATE_GLOBAL: {
                     auto name = m_current_frame->get_constant();
                     auto expr = pop();
+
+                    m_current_frame->set_global(name, expr);
+                    break;
+                }
+                case Opcode::STORE_GLOBAL: {
+                    auto name = m_current_frame->get_constant();
+                    auto expr = peek();
 
                     m_current_frame->set_global(name, expr);
                     break;

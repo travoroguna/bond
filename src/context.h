@@ -31,18 +31,22 @@ namespace bond {
             if (line_start == std::string::npos) line_start = 0;
 
             auto line_end = contents.find('\n', span->end);
-            if (line_end > contents.length()-1) line_end = contents.length()-1;
-            auto line_source = contents.substr(line_start, line_end - line_start);
+            if (line_end > contents.length() - 1) line_end = contents.length() - 1;
 
-            fmt::print("\nError at: {}:{}:{}\n\n", std::filesystem::absolute(get_module_name(span->module_id)).string(), span->line, span->start - line_start);
+            auto diff = span->line > 1 ? 1 : 0;
+
+            auto line_source = contents.substr(line_start + diff, line_end - line_start - diff);
+
+            fmt::print("\nError at: {}:{}:{}\n", std::filesystem::absolute(get_module_name(span->module_id)).string(),
+                       span->line, span->end - line_start);
             fmt::print("  {}\n", line_source);
 
             fmt::print("  ");
-            for (int i = 0; i < span->start - line_start; i ++) {
+            for (int i = 0; i < span->start - line_start - diff; i++) {
                 fmt::print(" ");
             }
 
-            for (int i = 0; i < span->end - span->start; i ++) {
+            for (int i = 0; i < span->end - span->start; i++) {
                 fmt::print("^");
             }
 

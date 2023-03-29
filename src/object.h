@@ -11,12 +11,12 @@ namespace bond {
     enum class Opcode : uint32_t {
 
         LOAD_CONST, BIN_ADD, BIN_SUB, BIN_MUL, BIN_DIV, RETURN,
-        PUSH_TRUE, PUSH_FALSE, PUSH_NIL, LOAD_GLOBAL, SET_GLOBAL,
+        PUSH_TRUE, PUSH_FALSE, PUSH_NIL, LOAD_GLOBAL, STORE_GLOBAL,
         LOAD_FAST, STORE_FAST,
 
         PRINT, NE, EQ, LE, GT, GE, LT,
 
-        POP_TOP
+        POP_TOP, CREATE_GLOBAL, CREATE_LOCAL
     };
 
 
@@ -85,8 +85,11 @@ namespace bond {
 
         SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
 
+        std::string dissasemble();
+
         //TODO: implement equal and hash correctly
         bool equal(const GcPtr<Object> &other) override { return false; }
+
         size_t hash() override { return 0; }
 
     private:
@@ -96,6 +99,11 @@ namespace bond {
         std::vector<SharedSpan> m_spans{};
 
 
+        size_t simple_instruction(const std::stringstream &ss, const std::string &name, size_t offset);
+
+        static size_t simple_instruction(std::stringstream &ss, const char *name, size_t offset);
+
+        size_t constant_instruction(std::stringstream &ss, const char *name, size_t offset);
     };
 
     class Number : public Object {
@@ -194,9 +202,5 @@ namespace bond {
         size_t hash() override;
 
     };
-
-
-
-
 
 };

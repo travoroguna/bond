@@ -100,20 +100,13 @@ namespace bond{
 
     class Identifier: public Node{
     public:
-        Identifier(const SharedSpan& span, const std::string& name, bool is_global);
+        Identifier(const SharedSpan &span, const std::string &name);
+
         void accept(NodeVisitor *visitor) override;
         std::string get_name() { return m_name; }
 
-        void set_global() { is_global = true; }
-        void set_id(uint32_t id) { m_id = id; }
-        uint32_t get_id() { return m_id; }
-        bool is_id_global() { return is_global; }
-
-
     private:
         std::string m_name;
-        bool is_global = false;
-        uint32_t m_id = 0;
 
     };
 
@@ -121,18 +114,16 @@ namespace bond{
 
     class NewVar: public Node{
     public:
-        NewVar(const SharedSpan& span, const std::string& name, const SharedNode &expr, bool is_global);
+        NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr);
+
         void accept(NodeVisitor *visitor) override;
         std::string get_name() { return m_name; }
 
-        void set_global() { is_global = true; }
-        bool is_var_global() { return is_global; }
         SharedNode get_expr() { return m_expr; }
 
     private:
         std::string m_name;
         SharedNode m_expr;
-        bool is_global = false;
 
     };
 
@@ -147,14 +138,32 @@ namespace bond{
     };
 
 
-    class ExprStmnt: public Node{
+    class ExprStmnt : public Node {
     public:
-        ExprStmnt(const SharedSpan& span, const SharedNode &expr);
+        ExprStmnt(const SharedSpan &span, const SharedNode &expr);
+
         void accept(NodeVisitor *visitor) override;
+
         SharedNode get_expr() { return m_expr; }
 
     private:
         SharedNode m_expr;
+
+    };
+
+    class Assign : public Node {
+    public:
+        Assign(const SharedSpan &span, const std::string &name, const SharedNode &node);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        SharedNode get_expr() { return m_node; }
+
+    private:
+        std::string m_name;
+        SharedNode m_node;
 
     };
 };

@@ -4,20 +4,23 @@
 
 #include "code.h"
 #include "object.h"
+#include "parser.h"
 
 
 namespace bond {
 
-    CodeGenerator::CodeGenerator(Context *ctx) {
+    CodeGenerator::CodeGenerator(Context *ctx, Symbols *symbols) {
         m_ctx = ctx;
+        m_symbols = symbols;
         m_code = GarbageCollector::instance().make_immortal<Code>();
     }
-    void Code::add_code(Opcode code, const SharedSpan& span) {
+
+    void Code::add_code(Opcode code, const SharedSpan &span) {
         m_code.push_back(static_cast<uint8_t>(code));
         m_spans.push_back(span);
     }
 
-    void Code::add_code(Opcode code, uint32_t oprand, const SharedSpan& span) {
+    void Code::add_code(Opcode code, uint32_t oprand, const SharedSpan &span) {
         m_code.push_back(static_cast<uint8_t>(code));
         m_code.push_back(oprand);
         m_spans.push_back(span);
@@ -25,11 +28,73 @@ namespace bond {
 
     }
 
+    std::string Code::dissasemble() {
+        std::stringstream ss;
 
-    GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes){
+        size_t count = 0;
+
+#define SIMPLE_INSTRUCTION(name) \
+        case Opcode::name:    \
+            count = simple_instruction(ss, #name, count);\
+            break
+
+#define CONSTANT_INSTRUCTION(name) \
+        case Opcode::name:    \
+            count = constant_instruction(ss, #name, count);\
+            break
+
+        while (count < m_code.size()) {
+            auto opcode = static_cast<Opcode>(m_code[count]);
+            switch (opcode) {
+                CONSTANT_INSTRUCTION(LOAD_CONST);
+                CONSTANT_INSTRUCTION(STORE_GLOBAL);
+                CONSTANT_INSTRUCTION(LOAD_GLOBAL);
+                CONSTANT_INSTRUCTION(CREATE_GLOBAL);
+                CONSTANT_INSTRUCTION(CREATE_LOCAL);
+
+                SIMPLE_INSTRUCTION(BIN_ADD);
+                SIMPLE_INSTRUCTION(BIN_SUB);
+                SIMPLE_INSTRUCTION(BIN_MUL);
+                SIMPLE_INSTRUCTION(BIN_DIV);
+                SIMPLE_INSTRUCTION(RETURN);
+                SIMPLE_INSTRUCTION(PUSH_TRUE);
+                SIMPLE_INSTRUCTION(PUSH_FALSE);
+                SIMPLE_INSTRUCTION(PUSH_NIL);
+                SIMPLE_INSTRUCTION(LOAD_FAST);
+                SIMPLE_INSTRUCTION(STORE_FAST);
+                SIMPLE_INSTRUCTION(PRINT);
+                SIMPLE_INSTRUCTION(NE);
+                SIMPLE_INSTRUCTION(EQ);
+                SIMPLE_INSTRUCTION(LE);
+                SIMPLE_INSTRUCTION(GT);
+                SIMPLE_INSTRUCTION(GE);
+                SIMPLE_INSTRUCTION(LT);
+                SIMPLE_INSTRUCTION(POP_TOP);
+            }
+
+        }
+
+#undef SIMPLE_INSTRUCTION
+#undef CONSTANT_INSTRUCTION
+        return ss.str();
+    }
+
+    size_t Code::simple_instruction(std::stringstream &ss, const char *name, size_t offset) {
+        ss << name << "\n";
+        return offset + 1;
+    }
+
+    size_t Code::constant_instruction(std::stringstream &ss, const char *name, size_t offset) {
+        auto constant = m_constants[m_code[offset + 1]];
+        ss << name << "     " << m_code[offset + 1] << ",  " << constant->str() << "\n";
+        return offset + 2;
+    }
+
+
+    GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes) {
         m_code = GarbageCollector::instance().make_immortal<Code>();
 
-        for (const auto& node: nodes){
+        for (const auto &node: nodes) {
             node->accept(this);
         }
 
@@ -130,23 +195,58 @@ namespace bond {
     }
 
     void CodeGenerator::visit_identifier(Identifier *expr) {
-        if (expr->is_id_global()) {
+        auto symbol = m_symbols->get_variable(expr->get_name());
+        if (!symbol.has_value()) {
+            m_ctx->error(expr->get_span(), fmt::format("Undefined variable {}", expr->get_name()));
+        }
+
+        auto sym = symbol.value();
+
+        fmt::print("Id Assigning to {} at scope level {}\n", expr->get_name(), sym->m_scope_level);
+
+
+        if (sym->m_scope_level == 1) {
             auto idx = m_code->add_constant<String>(expr->get_name());
             m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
         }
-
         //TODO: code generation for local variables
+
     }
 
     void CodeGenerator::visit_new_var(NewVar *stmnt) {
         stmnt->get_expr()->accept(this);
 
-        if (stmnt->is_var_global()) {
-            auto idx = m_code->add_constant<String>(stmnt->get_name());
-            m_code->add_code(Opcode::SET_GLOBAL, idx, stmnt->get_span());
+        auto symbol = m_symbols->get_variable(stmnt->get_name());
+        if (!symbol.has_value()) {
+            m_ctx->error(stmnt->get_span(), fmt::format("Undefined variable {}", stmnt->get_name()));
         }
 
+        auto sym = symbol.value();
+
+        fmt::print("Assigning to {} at scope level {}\n", stmnt->get_name(), sym->m_scope_level);
+
+        if (sym->m_scope_level == 1) {
+            auto idx = m_code->add_constant<String>(stmnt->get_name());
+            m_code->add_code(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
+        }
         //TODO: code generation for local variables
+    }
+
+    void CodeGenerator::visit_assign(Assign *stmnt) {
+        stmnt->get_expr()->accept(this);
+
+        auto symbol = m_symbols->get_variable(stmnt->get_name());
+        if (!symbol.has_value()) {
+            m_ctx->error(stmnt->get_span(), fmt::format("Undefined variable {}", stmnt->get_name()));
+        }
+
+        auto sym = symbol.value();
+
+
+        if (sym->m_scope_level == 1) {
+            auto idx = m_code->add_constant<String>(stmnt->get_name());
+            m_code->add_code(Opcode::STORE_GLOBAL, idx, stmnt->get_span());
+        }
     }
 
 

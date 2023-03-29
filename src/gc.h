@@ -204,6 +204,8 @@ namespace bond {
 
         GcPtr<Object> pop() { return m_stack[--m_stack_ptr]; }
 
+        GcPtr<Object> peek() { return m_stack[m_stack_ptr - 1]; }
+
     protected:
         size_t m_stack_ptr = 0;
         std::array<GcPtr<Object>, STACK_MAX> m_stack;

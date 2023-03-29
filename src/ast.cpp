@@ -93,24 +93,34 @@ namespace bond {
         visitor->visit_expr_stmnt(this);
     }
 
-    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, bool is_var_global) {
+    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr) {
         m_span = span;
         m_name = name;
         m_expr = expr;
-        is_global = is_var_global;
     }
 
     void NewVar::accept(NodeVisitor *visitor) {
         visitor->visit_new_var(this);
     }
 
-    Identifier::Identifier(const SharedSpan &span, const std::string &name, bool is_id_global) {
+    Identifier::Identifier(const SharedSpan &span, const std::string &name) {
         m_span = span;
         m_name = name;
-        is_global = is_id_global;
     }
 
     void Identifier::accept(NodeVisitor *visitor) {
         visitor->visit_identifier(this);
     }
+
+    Assign::Assign(const SharedSpan &span, const std::string &name, const SharedNode &node) {
+        m_span = span;
+        m_name = name;
+        m_node = node;
+    }
+
+    void Assign::accept(NodeVisitor *visitor) {
+        visitor->visit_assign(this);
+    }
+
+
 };
