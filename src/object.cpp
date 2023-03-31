@@ -1,6 +1,6 @@
 #include "object.h"
 #include <functional>
-
+#include <cmath>
 
 namespace bond {
     OBJ_RESULT Number::$add(const GcPtr<Object> &other) {
@@ -101,6 +101,9 @@ namespace bond {
         return GarbageCollector::instance().make<Bool>(m_value >= as<Number>(other)->get_value());
     }
 
+    std::expected<GcPtr<Object>, RuntimeError> Number::$_bool() {
+        return GarbageCollector::instance().make<Bool>(m_value != 0);
+    }
 
     OBJ_RESULT String::$add(const GcPtr<Object> &other) {
         auto res = const_cast<GcPtr<Object> &>(other)
@@ -135,6 +138,10 @@ namespace bond {
         return fmt::format("\"{}\"", m_value);
     }
 
+    std::expected<GcPtr<Object>, RuntimeError> String::$_bool() {
+        return GarbageCollector::instance().make<Bool>(!m_value.empty());
+    }
+
     std::string Bool::str() {
         return m_value ? "true" : "false";
     }
@@ -154,6 +161,10 @@ namespace bond {
 
     size_t Bool::hash() {
         return std::hash<bool>{}(m_value);
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Bool::$_bool() {
+        return GarbageCollector::instance().make<Bool>(m_value);
     }
 
     std::string Nil::str() {
@@ -178,6 +189,10 @@ namespace bond {
         return 7654345678900987654;
     }
 
+    std::expected<GcPtr<Object>, RuntimeError> Nil::$_bool() {
+        return GarbageCollector::instance().make<Bool>(false);
+    }
+
     void Map::set(const GcPtr<Object> &key, const GcPtr<Object> &value) {
         m_internal_map[key] = value;
     }
@@ -199,5 +214,104 @@ namespace bond {
 
     }
 
+    void Map::mark() {
+        Object::mark();
 
+        for (auto &pair: m_internal_map) {
+            pair.first->mark();
+            pair.second->mark();
+        }
+    }
+
+    void Map::unmark() {
+        Object::unmark();
+
+        for (auto &pair: m_internal_map) {
+            pair.first->unmark();
+            pair.second->unmark();
+        }
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Map::$_bool() {
+        return GarbageCollector::instance().make<Bool>(!m_internal_map.empty());
+    }
+
+
+    std::expected<GcPtr<Object>, RuntimeError>
+    ListObj::$set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) {
+        if (!is<Number>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
+        auto index_value = as<Number>(index)->get_value();
+
+        if (std::floor(index_value) != index_value) {
+            return std::unexpected(RuntimeError::ExpectedWholeNumberIndex);
+        }
+
+        auto i = static_cast<size_t>(index_value);
+
+        if (i < 0 || i >= m_internal_list.size()) {
+            return std::unexpected(RuntimeError::IndexOutOfBounds);
+        }
+
+        m_internal_list[i] = value;
+        return value;
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError>
+    ListObj::$get_item(const GcPtr<Object> &index) {
+        if (!is<Number>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
+        auto index_value = as<Number>(index)->get_value();
+
+        if (std::floor(index_value) != index_value) {
+            return std::unexpected(RuntimeError::ExpectedWholeNumberIndex);
+        }
+
+        auto i = static_cast<size_t>(index_value);
+
+        if (i < 0 || i >= m_internal_list.size()) {
+            return std::unexpected(RuntimeError::IndexOutOfBounds);
+        }
+
+        return m_internal_list[i];
+    }
+
+    void ListObj::mark() {
+        Object::mark();
+
+        for (auto &item: m_internal_list) {
+            item->mark();
+        }
+    }
+
+    void ListObj::unmark() {
+        Object::unmark();
+
+        for (auto &item: m_internal_list) {
+            item->unmark();
+        }
+    }
+
+    void ListObj::prepend(const GcPtr<Object> &value) {
+        m_internal_list.insert(m_internal_list.begin(), value);
+    }
+
+    std::string ListObj::str() {
+        std::string result = "[";
+
+        for (auto &item: m_internal_list) {
+            result += item->str() + ", ";
+        }
+
+        if (result.size() > 1) {
+            result.pop_back();
+            result.pop_back();
+        }
+
+        result += "]";
+
+        return result;
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> ListObj::$_bool() {
+        return GarbageCollector::instance().make<Bool>(!m_internal_list.empty());
+    }
 }

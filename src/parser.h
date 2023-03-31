@@ -13,41 +13,34 @@
 namespace bond {
 
     struct Variable {
-        Variable(const std::shared_ptr<Span> &span, size_t scope_level) {
-            m_span = span;
-            m_scope_level = scope_level;
+        Variable(const std::string &name, const std::shared_ptr<Span> &span, bool is_global, bool is_mut) {
+            this->name = name;
+            this->span = span;
+            this->is_global = is_global;
+            this->is_mut = is_mut;
         }
 
-        bool is_global{false};
-        bool is_used{false};
-        std::shared_ptr<Span> m_span;
-        size_t m_scope_level;
-
+        std::string name;
+        std::shared_ptr<Span> span;
+        bool is_mut = true;
+        bool is_global = false;
     };
 
-    class Symbols {
+    class Scopes {
     public:
-        explicit Symbols(Context *ctx) { m_ctx = ctx; }
+        explicit Scopes(Context *context) { m_ctx = context; }
 
-        void new_scope() { m_scopes.emplace_back(std::unordered_map<std::string, std::shared_ptr<Variable>>()); }
+        void new_scope();
 
-        std::unordered_map<std::string, std::shared_ptr<Variable>> pop_scope() {
-            auto last = m_scopes[m_scopes.size() - 1];
-            m_scopes.pop_back();
-            return last;
-        }
+        void end_scope();
 
-        std::unordered_map<std::string, std::shared_ptr<Variable>> &current_scope() {
-            return m_scopes[m_scopes.size() - 1];
-        }
+        void declare(const std::string &name, const std::shared_ptr<Span> &span, bool is_mut);
 
-        std::optional<std::shared_ptr<Variable>> get_variable(const std::string &name);
+        void declare(const std::string &name, const std::shared_ptr<Span> &span, bool is_mut, bool is_global);
 
-        std::optional<std::shared_ptr<Variable>> declare(const std::string &name, const std::shared_ptr<Span> &span);
+        bool is_declared(const std::string &name);
 
-        void use(const std::string &name);
-
-        std::unordered_map<std::string, std::shared_ptr<Variable>> symbols;
+        std::optional<std::shared_ptr<Variable>> get(const std::string &name);
 
     private:
         std::vector<std::unordered_map<std::string, std::shared_ptr<Variable>>> m_scopes;
@@ -56,17 +49,19 @@ namespace bond {
 
     class Parser {
     public:
-        Parser(std::vector<Token> &tokens, Context *context) : m_tokens(tokens), symbols(context) { ctx = context; }
+        Parser(std::vector<Token> &tokens, Context *context) : m_tokens(tokens), m_scopes(context) { ctx = context; }
 
         std::vector<std::shared_ptr<Node>> parse();
 
-        Symbols *get_symbols() { return &symbols; }
+        Scopes *get_scopes() { return &m_scopes; }
+
 
     private:
+
+        Scopes m_scopes;
         std::vector<Token> &m_tokens;
         Context *ctx;
         uint32_t m_current = 0;
-        Symbols symbols;
 
         std::shared_ptr<Node> expression();
 
@@ -112,6 +107,12 @@ namespace bond {
         span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end);
 
         std::shared_ptr<Node> assignment();
+
+        std::shared_ptr<Node> block();
+
+        std::vector<std::shared_ptr<Node>> expr_list(TokenType end_token);
+
+        std::shared_ptr<Node> get_item();
     };
 
 } // bond

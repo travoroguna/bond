@@ -103,7 +103,10 @@ namespace bond {
         TypeError,
         Unimplemented,
         DivisionByZero,
-        GenericError
+        GenericError,
+        ExpectedNumberIndex,
+        ExpectedWholeNumberIndex,
+        IndexOutOfBounds,
     };
 
 #define UNIMPLEMENTED return std::unexpected(RuntimeError::Unimplemented)
@@ -161,10 +164,11 @@ namespace bond {
 
         virtual OBJ_RESULT $ge(const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
+        virtual OBJ_RESULT $_bool() { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $get_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $get_item(const GcPtr<Object> &index) { UNIMPLEMENTED; }
 
         bool operator==(const GcPtr<Object> &other) { return equal(other); }
 

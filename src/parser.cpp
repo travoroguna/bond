@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <exception>
 #include <optional>
+#include <ranges>
 #include "gc.h"
 
 
@@ -27,9 +28,8 @@ namespace bond {
     };
 
     std::vector<std::shared_ptr<Node>> Parser::parse() {
-        //why? because I can
         std::vector<std::shared_ptr<Node>> nodes;
-        symbols.new_scope();
+        m_scopes.new_scope();
 
         while (!is_at_end()) {
             auto res = declaration();
@@ -65,7 +65,9 @@ namespace bond {
     std::optional<std::shared_ptr<Node>> Parser::declaration() {
         try {
             if (match({TokenType::VAR})) return variable_declaration();
-            return statement();
+            auto st = statement();
+//            m_scopes.end_scope();
+            return st;
         }
         catch (ParserError& e) {
             ctx->error(e.span, e.error);
@@ -80,19 +82,59 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::variable_declaration() {
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
-        symbols.declare(id.get_lexeme(), id.get_span());
+
+        if (m_scopes.is_declared(id.get_lexeme())) {
+            ctx->error(id.get_span(), fmt::format("Variable {} is already declared in this scope", id.get_lexeme()));
+            auto sp = m_scopes.get(id.get_lexeme()).value()->span;
+            throw ParserError(fmt::format("Note Variable {} is already declared here", id.get_lexeme()), sp);
+        }
 
         consume(TokenType::EQUAL, peek().get_span(), "Expected '=' after variable name");
         auto initializer = expression();
         consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after expression in variable declaration");
 
+
+        m_scopes.declare(id.get_lexeme(), id.get_span(), true);
+
         return std::make_shared<NewVar>(span_from_spans(id.get_span(), previous().get_span()), id.get_lexeme(),
                                         initializer);
     }
 
+    std::vector<std::shared_ptr<Node>> Parser::expr_list(TokenType end_token) {
+        std::vector<std::shared_ptr<Node>> exprs;
+
+        if (!check(end_token)) {
+            do {
+                exprs.push_back(expression());
+            } while (match({TokenType::COMMA}));
+        }
+
+        return exprs;
+    }
+
     std::shared_ptr<Node> Parser::statement() {
         if (match({TokenType::PRINT})) return print_stmnt();
+        if (match({TokenType::LEFT_BRACE})) return block();
         return expr_stmnt();
+    }
+
+    std::shared_ptr<Node> Parser::block() {
+        m_scopes.new_scope();
+        std::vector<std::shared_ptr<Node>> statements;
+
+
+        while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
+            auto res = declaration();
+            if (!res.has_value()) continue;
+            statements.push_back(res.value());
+        }
+
+        consume(TokenType::RIGHT_BRACE, peek().get_span(), "Expected '}' after block");
+
+        m_scopes.end_scope();
+
+        if (statements.empty()) return std::make_shared<Block>(peek().get_span(), statements);
+        return std::make_shared<Block>(statements.front()->get_span(), statements);
     }
 
     std::shared_ptr<Node> Parser::print_stmnt() {
@@ -123,6 +165,10 @@ namespace bond {
                 auto sp = span_from_spans(expr->get_span(), value->get_span());
                 auto e = dynamic_cast<Identifier *>(expr.get());
                 return std::make_shared<Assign>(sp, e->get_name(), value);
+            } else if (instanceof<GetItem>(expr.get())) {
+                auto sp = span_from_spans(expr->get_span(), value->get_span());
+                auto e = dynamic_cast<GetItem *>(expr.get());
+                return std::make_shared<SetItem>(sp, e->get_expr(), e->get_index(), value);
             }
 
             throw ParserError("invalid assignment target", expr->get_span());
@@ -198,7 +244,23 @@ namespace bond {
             return std::make_shared<Unary>(right->get_span(), op, right);
         }
 
-        return primary();
+        return get_item();
+    }
+
+    std::shared_ptr<Node> Parser::get_item() {
+        auto expr = primary();
+
+        while (true) {
+            if (match({TokenType::LEFT_SQ})) {
+                auto index = expression();
+                consume(TokenType::RIGHT_SQ, expr->get_span(), "Expected ']' after expression");
+                expr = std::make_shared<GetItem>(expr->get_span(), expr, index);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
     }
 
     std::shared_ptr<Node> Parser::primary() {
@@ -206,8 +268,10 @@ namespace bond {
         if (match({TokenType::TRUE})) return std::make_shared<TrueLiteral>(previous().get_span());
         if (match({TokenType::NIL})) return std::make_shared<NilLiteral>(previous().get_span());
 
-        if (match({TokenType::NUMBER})) return std::make_shared<NumberLiteral>(previous().get_span(), previous().get_lexeme());
-        if (match({TokenType::STRING})) return std::make_shared<StringLiteral>(previous().get_span(), previous().get_lexeme());
+        if (match({TokenType::NUMBER}))
+            return std::make_shared<NumberLiteral>(previous().get_span(), previous().get_lexeme());
+        if (match({TokenType::STRING}))
+            return std::make_shared<StringLiteral>(previous().get_span(), previous().get_lexeme());
 
         if (match({TokenType::IDENTIFIER}))
             return std::make_shared<Identifier>(previous().get_span(), previous().get_lexeme());
@@ -215,6 +279,12 @@ namespace bond {
             auto expr = expression();
             consume(TokenType::RIGHT_PAREN, expr->get_span(), "Expected ')' after expression.");
             return expr;
+        }
+        if (match({TokenType::LEFT_SQ})) {
+            auto start = previous().get_span();
+            auto exprs = expr_list(TokenType::RIGHT_SQ);
+            consume(TokenType::RIGHT_SQ, previous().get_span(), "Expected ']' after expression.");
+            return std::make_shared<List>(span_from_spans(start, previous().get_span()), exprs);
         }
 
         throw ParserError("Expected expression.", peek().get_span());
@@ -257,29 +327,55 @@ namespace bond {
         return m_tokens[m_current - 1];
     }
 
+    void Scopes::new_scope() {
+        m_scopes.emplace_back();
+    }
 
-    std::optional<std::shared_ptr<Variable>> Symbols::get_variable(const std::string &name) {
-        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
-            if (it->contains(name)) return it->at(name);
+    void Scopes::end_scope() {
+        m_scopes.pop_back();
+    }
+
+    void Scopes::declare(const std::string &name, const std::shared_ptr<Span> &span, bool is_mut) {
+        if (m_scopes.empty()) return;
+
+        for (auto &scope: std::ranges::reverse_view(m_scopes)) {
+            if (scope.find(name) != scope.end()) {
+                throw ParserError("Variable with this name already declared in this scope.", span);
+            }
         }
+
+        m_scopes[m_scopes.size() - 1][name] = std::make_shared<Variable>(name, span, m_scopes.size() == 1, is_mut);
+    }
+
+    bool Scopes::is_declared(const std::string &name) {
+        for (auto &scope: std::ranges::reverse_view(m_scopes)) {
+            if (scope.find(name) != scope.end()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    std::optional<std::shared_ptr<Variable>> Scopes::get(const std::string &name) {
+        for (auto &scope: std::ranges::reverse_view(m_scopes)) {
+            if (scope.contains(name)) {
+                return scope[name];
+            }
+        }
+
         return std::nullopt;
     }
 
+    void Scopes::declare(const std::string &name, const std::shared_ptr<Span> &span, bool is_mut, bool is_global) {
+        if (m_scopes.empty()) return;
 
-    void Symbols::use(const std::string &name) {
-
-    }
-
-    std::optional<std::shared_ptr<Variable>>
-    Symbols::declare(const std::string &name, const std::shared_ptr<Span> &span) {
-        auto var = get_variable(name);
-        if (var.has_value()) {
-            m_ctx->error(span, fmt::format("variable {} is already declared", name));
-            m_ctx->error(var.value()->m_span, fmt::format("Note, variable {} is declared here", name));
-            return std::nullopt;
+        for (auto &scope: std::ranges::reverse_view(m_scopes)) {
+            if (scope.find(name) != scope.end()) {
+                throw ParserError("Variable with this name already declared in this scope.", span);
+            }
         }
 
-        current_scope()[name] = std::make_shared<Variable>(span, m_scopes.size());
-        return current_scope()[name];
+        m_scopes[m_scopes.size() - 1][name] = std::make_shared<Variable>(name, span, is_global, is_mut);
     }
 } // bond

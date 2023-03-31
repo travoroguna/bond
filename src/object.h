@@ -16,7 +16,7 @@ namespace bond {
 
         PRINT, NE, EQ, LE, GT, GE, LT,
 
-        POP_TOP, CREATE_GLOBAL, CREATE_LOCAL
+        POP_TOP, CREATE_GLOBAL, CREATE_LOCAL, BUILD_LIST, GET_ITEM, SET_ITEM
     };
 
 
@@ -37,9 +37,40 @@ namespace bond {
 
         bool has(const GcPtr<Object> &key);
 
+        OBJ_RESULT $_bool() override;
+
+        void mark() override;
+
+        void unmark() override;
 
     private:
         std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe> m_internal_map;
+    };
+
+    class ListObj : public Object {
+    public:
+        ListObj() = default;
+
+        OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) override;
+
+        OBJ_RESULT $get_item(const GcPtr<Object> &index) override;
+
+        OBJ_RESULT $_bool() override;
+
+        void prepend(const GcPtr<Object> &value);
+
+        bool equal(const GcPtr<Object> &other) override { return false; }
+
+        size_t hash() override { return 0; }
+
+        void mark() override;
+
+        void unmark() override;
+
+        std::string str() override;
+
+    private:
+        std::vector<GcPtr<Object>> m_internal_list;
     };
 
     class Code : public Object {
@@ -92,18 +123,19 @@ namespace bond {
 
         size_t hash() override { return 0; }
 
+        OBJ_RESULT $_bool() override;
+
     private:
         std::vector<uint32_t> m_code{};
         std::vector<GcPtr<Object>> m_constants{};
         std::unordered_map<GcPtr<Object>, uint32_t, Object::HashMe> m_const_map{};
         std::vector<SharedSpan> m_spans{};
 
-
-        size_t simple_instruction(const std::stringstream &ss, const std::string &name, size_t offset);
-
         static size_t simple_instruction(std::stringstream &ss, const char *name, size_t offset);
 
         size_t constant_instruction(std::stringstream &ss, const char *name, size_t offset);
+
+        size_t oprand_instruction(std::stringstream &ss, const char *name, size_t offset);
     };
 
     class Number : public Object {
@@ -132,6 +164,9 @@ namespace bond {
 
         OBJ_RESULT $ge(const GcPtr<Object> &other) override;
 
+        OBJ_RESULT $_bool() override;
+
+
         std::string str() override;
 
         bool equal(const GcPtr<Object> &other) override;
@@ -153,6 +188,8 @@ namespace bond {
 
         OBJ_RESULT $eq(const GcPtr<Object> &other) override;
 
+        OBJ_RESULT $_bool() override;
+
         OBJ_RESULT $ne(const GcPtr<Object> &other) override;
 
         std::string str() override;
@@ -160,6 +197,7 @@ namespace bond {
         size_t hash() override;
 
         bool equal(const GcPtr<Object> &other) override;
+
 
     private:
         std::string m_value;
@@ -182,6 +220,8 @@ namespace bond {
 
         size_t hash() override;
 
+        OBJ_RESULT $_bool() override;
+
     private:
         bool m_value;
     };
@@ -198,6 +238,8 @@ namespace bond {
         OBJ_RESULT $ne(const GcPtr<Object> &other) override;
 
         bool equal(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $_bool() override;
 
         size_t hash() override;
 

@@ -4,23 +4,40 @@
 #pragma once
 
 
-namespace bond{
+namespace bond {
     class BinaryOp;
+
     class Unary;
+
     class TrueLiteral;
+
     class FalseLiteral;
+
     class NumberLiteral;
+
     class StringLiteral;
+
     class NilLiteral;
+
     class Identifier;
 
+    class List;
+
+    class GetItem;
+
+    class SetItem;
+
     class Print;
+
     class ExprStmnt;
+
     class NewVar;
+
+    class Block;
 
     class Assign;
 
-    class NodeVisitor{
+    class NodeVisitor {
     public:
         NodeVisitor();
         virtual void visit_bin_op(BinaryOp* expr) = 0;
@@ -45,6 +62,14 @@ namespace bond{
         virtual void visit_new_var(NewVar *stmnt) = 0;
 
         virtual void visit_assign(Assign *stmnt) = 0;
+
+        virtual void visit_block(Block *stmnt) = 0;
+
+        virtual void visit_list(List *expr) = 0;
+
+        virtual void visit_get_item(GetItem *expr) = 0;
+
+        virtual void visit_set_item(SetItem *expr) = 0;
 
     };
 }

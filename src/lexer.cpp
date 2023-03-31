@@ -186,6 +186,8 @@ namespace bond {
             ADD_TOKEN('+', TokenType::PLUS);
             ADD_TOKEN(';', TokenType::SEMICOLON);
             ADD_TOKEN('*', TokenType::STAR);
+            ADD_TOKEN('[', TokenType::LEFT_SQ);
+            ADD_TOKEN(']', TokenType::RIGHT_SQ);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);
@@ -194,8 +196,7 @@ namespace bond {
             case '/':
                 if (match('/')) {
                     while (peek() != '\n' && !is_at_end()) advance();
-                }
-                else {
+                } else {
                     new_token(TokenType::SLASH);
                 }
                 break;

@@ -19,7 +19,7 @@ namespace bond {
     class CodeGenerator : public NodeVisitor {
     public:
 
-        CodeGenerator(Context *ctx, Symbols *symbols);
+        CodeGenerator(Context *ctx, Scopes *scopes);
 
         GcPtr<Code> generate_code(const std::vector<std::shared_ptr<Node>> &nodes);
 
@@ -38,18 +38,28 @@ namespace bond {
         void visit_nil_lit(NilLiteral *expr) override;
 
         void visit_print(Print *stmnt) override;
-        void visit_expr_stmnt(ExprStmnt* stmnt) override;
-        void visit_identifier(Identifier* expr) override;
+
+        void visit_expr_stmnt(ExprStmnt *stmnt) override;
+
+        void visit_identifier(Identifier *expr) override;
 
         void visit_new_var(NewVar *stmnt) override;
 
         void visit_assign(Assign *stmnt) override;
 
+        void visit_block(Block *stmnt) override;
+
+        void visit_list(List *expr) override;
+
+        void visit_get_item(GetItem *expr) override;
+
+        void visit_set_item(SetItem *expr) override;
 
     private:
         GcPtr<Code> m_code;
+        bool m_in_function = false;
         Context *m_ctx;
-        Symbols *m_symbols;
+        Scopes *m_scopes;
     };
 
 } // bond

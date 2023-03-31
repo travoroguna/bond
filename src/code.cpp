@@ -4,14 +4,11 @@
 
 #include "code.h"
 #include "object.h"
-#include "parser.h"
 
 
 namespace bond {
 
-    CodeGenerator::CodeGenerator(Context *ctx, Symbols *symbols) {
-        m_ctx = ctx;
-        m_symbols = symbols;
+    CodeGenerator::CodeGenerator(Context *ctx, Scopes *scopes) : m_ctx(ctx), m_scopes(scopes) {
         m_code = GarbageCollector::instance().make_immortal<Code>();
     }
 
@@ -25,12 +22,10 @@ namespace bond {
         m_code.push_back(oprand);
         m_spans.push_back(span);
         m_spans.push_back(span);
-
     }
 
     std::string Code::dissasemble() {
         std::stringstream ss;
-
         size_t count = 0;
 
 #define SIMPLE_INSTRUCTION(name) \
@@ -42,6 +37,10 @@ namespace bond {
         case Opcode::name:    \
             count = constant_instruction(ss, #name, count);\
             break
+#define OPRAND_INSTRUCTION(name) \
+        case Opcode::name:    \
+            count = oprand_instruction(ss, #name, count);\
+            break
 
         while (count < m_code.size()) {
             auto opcode = static_cast<Opcode>(m_code[count]);
@@ -51,6 +50,10 @@ namespace bond {
                 CONSTANT_INSTRUCTION(LOAD_GLOBAL);
                 CONSTANT_INSTRUCTION(CREATE_GLOBAL);
                 CONSTANT_INSTRUCTION(CREATE_LOCAL);
+                CONSTANT_INSTRUCTION(STORE_FAST);
+                CONSTANT_INSTRUCTION(LOAD_FAST);
+
+                OPRAND_INSTRUCTION(BUILD_LIST);
 
                 SIMPLE_INSTRUCTION(BIN_ADD);
                 SIMPLE_INSTRUCTION(BIN_SUB);
@@ -60,8 +63,6 @@ namespace bond {
                 SIMPLE_INSTRUCTION(PUSH_TRUE);
                 SIMPLE_INSTRUCTION(PUSH_FALSE);
                 SIMPLE_INSTRUCTION(PUSH_NIL);
-                SIMPLE_INSTRUCTION(LOAD_FAST);
-                SIMPLE_INSTRUCTION(STORE_FAST);
                 SIMPLE_INSTRUCTION(PRINT);
                 SIMPLE_INSTRUCTION(NE);
                 SIMPLE_INSTRUCTION(EQ);
@@ -70,6 +71,8 @@ namespace bond {
                 SIMPLE_INSTRUCTION(GE);
                 SIMPLE_INSTRUCTION(LT);
                 SIMPLE_INSTRUCTION(POP_TOP);
+                SIMPLE_INSTRUCTION(GET_ITEM);
+                SIMPLE_INSTRUCTION(SET_ITEM);
             }
 
         }
@@ -88,6 +91,15 @@ namespace bond {
         auto constant = m_constants[m_code[offset + 1]];
         ss << name << "     " << m_code[offset + 1] << ",  " << constant->str() << "\n";
         return offset + 2;
+    }
+
+    size_t Code::oprand_instruction(std::stringstream &ss, const char *name, size_t offset) {
+        ss << name << "     " << m_code[offset + 1] << "\n";
+        return offset + 2;
+    }
+
+    std::expected<GcPtr<Object>, RuntimeError> Code::$_bool() {
+        return GarbageCollector::instance().make_immortal<Bool>(true);
     }
 
 
@@ -195,58 +207,79 @@ namespace bond {
     }
 
     void CodeGenerator::visit_identifier(Identifier *expr) {
-        auto symbol = m_symbols->get_variable(expr->get_name());
-        if (!symbol.has_value()) {
-            m_ctx->error(expr->get_span(), fmt::format("Undefined variable {}", expr->get_name()));
+        auto var = m_scopes->get(expr->get_name());
+        auto idx = m_code->add_constant<String>(expr->get_name());
+
+        if (var.has_value()) {
+            auto v = var.value();
+
+            if (v->is_global) {
+                m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
+                return;
+            }
+            m_code->add_code(Opcode::LOAD_FAST, idx, expr->get_span());
+            return;
         }
-
-        auto sym = symbol.value();
-
-        fmt::print("Id Assigning to {} at scope level {}\n", expr->get_name(), sym->m_scope_level);
-
-
-        if (sym->m_scope_level == 1) {
-            auto idx = m_code->add_constant<String>(expr->get_name());
-            m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
-        }
-        //TODO: code generation for local variables
-
+        m_ctx->error(expr->get_span(), fmt::format("Undefined variable {}", expr->get_name()));
     }
 
     void CodeGenerator::visit_new_var(NewVar *stmnt) {
         stmnt->get_expr()->accept(this);
+        auto var = m_scopes->get(stmnt->get_name());
+        auto idx = m_code->add_constant<String>(stmnt->get_name());
 
-        auto symbol = m_symbols->get_variable(stmnt->get_name());
-        if (!symbol.has_value()) {
-            m_ctx->error(stmnt->get_span(), fmt::format("Undefined variable {}", stmnt->get_name()));
-        }
-
-        auto sym = symbol.value();
-
-        fmt::print("Assigning to {} at scope level {}\n", stmnt->get_name(), sym->m_scope_level);
-
-        if (sym->m_scope_level == 1) {
-            auto idx = m_code->add_constant<String>(stmnt->get_name());
+        if (var.has_value()) {
             m_code->add_code(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
+            return;
         }
-        //TODO: code generation for local variables
+
+        m_scopes->declare(stmnt->get_name(), stmnt->get_span(), true, false);
+        m_code->add_code(Opcode::CREATE_LOCAL, idx, stmnt->get_span());
     }
 
     void CodeGenerator::visit_assign(Assign *stmnt) {
         stmnt->get_expr()->accept(this);
+        auto var = m_scopes->get(stmnt->get_name());
+        auto idx = m_code->add_constant<String>(stmnt->get_name());
 
-        auto symbol = m_symbols->get_variable(stmnt->get_name());
-        if (!symbol.has_value()) {
-            m_ctx->error(stmnt->get_span(), fmt::format("Undefined variable {}", stmnt->get_name()));
+        if (var.has_value()) {
+            auto v = var.value();
+            if (v->is_global) {
+                m_code->add_code(Opcode::STORE_GLOBAL, idx, stmnt->get_span());
+                return;
+            }
+            m_code->add_code(Opcode::STORE_FAST, idx, stmnt->get_span());
+            return;
         }
+        m_ctx->error(stmnt->get_span(), "Undefined variable '" + stmnt->get_name() + "'.");
+    }
 
-        auto sym = symbol.value();
-
-
-        if (sym->m_scope_level == 1) {
-            auto idx = m_code->add_constant<String>(stmnt->get_name());
-            m_code->add_code(Opcode::STORE_GLOBAL, idx, stmnt->get_span());
+    void CodeGenerator::visit_block(Block *stmnt) {
+        m_scopes->new_scope();
+        for (auto &s: stmnt->get_nodes()) {
+            s->accept(this);
         }
+        m_scopes->end_scope();
+    }
+
+    void CodeGenerator::visit_list(List *expr) {
+        for (auto &e: expr->get_nodes()) {
+            e->accept(this);
+        }
+        m_code->add_code(Opcode::BUILD_LIST, expr->get_nodes().size(), expr->get_span());
+    }
+
+    void CodeGenerator::visit_get_item(GetItem *expr) {
+        expr->get_expr()->accept(this);
+        expr->get_index()->accept(this);
+        m_code->add_code(Opcode::GET_ITEM, expr->get_span());
+    }
+
+    void CodeGenerator::visit_set_item(SetItem *expr) {
+        expr->get_expr()->accept(this);
+        expr->get_index()->accept(this);
+        expr->get_value()->accept(this);
+        m_code->add_code(Opcode::SET_ITEM, expr->get_span());
     }
 
 
