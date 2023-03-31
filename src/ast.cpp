@@ -122,5 +122,42 @@ namespace bond {
         visitor->visit_assign(this);
     }
 
+    Block::Block(const SharedSpan &span, const std::vector<SharedNode> &nodes) {
+        m_span = span;
+        m_nodes = nodes;
+    }
 
+    void Block::accept(NodeVisitor *visitor) {
+        visitor->visit_block(this);
+    }
+
+    List::List(const SharedSpan &span, const std::vector<SharedNode> &nodes) {
+        m_span = span;
+        m_nodes = nodes;
+    }
+
+    void List::accept(NodeVisitor *visitor) {
+        visitor->visit_list(this);
+    }
+
+    GetItem::GetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index) {
+        m_span = span;
+        m_expr = expr;
+        m_index = index;
+    }
+
+    void GetItem::accept(NodeVisitor *visitor) {
+        visitor->visit_get_item(this);
+    }
+
+    SetItem::SetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index, const SharedNode &value) {
+        m_span = span;
+        m_expr = expr;
+        m_index = index;
+        m_value = value;
+    }
+
+    void SetItem::accept(NodeVisitor *visitor) {
+        visitor->visit_set_item(this);
+    }
 };

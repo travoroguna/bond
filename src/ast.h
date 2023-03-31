@@ -166,4 +166,62 @@ namespace bond{
         SharedNode m_node;
 
     };
+
+    class Block : public Node {
+    public:
+        Block(const SharedSpan &span, const std::vector<SharedNode> &nodes);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::vector<SharedNode> get_nodes() { return m_nodes; }
+
+    private:
+        std::vector<SharedNode> m_nodes;
+    };
+
+    class List : public Node {
+    public:
+        List(const SharedSpan &span, const std::vector<SharedNode> &nodes);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::vector<SharedNode> get_nodes() { return m_nodes; }
+
+    private:
+        std::vector<SharedNode> m_nodes;
+    };
+
+    class GetItem : public Node {
+    public:
+        GetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        SharedNode get_index() { return m_index; }
+
+    private:
+        SharedNode m_expr;
+        SharedNode m_index;
+    };
+
+    class SetItem : public Node {
+    public:
+        SetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index, const SharedNode &value);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        SharedNode get_index() { return m_index; }
+
+        SharedNode get_value() { return m_value; }
+
+    private:
+        SharedNode m_expr;
+        SharedNode m_index;
+        SharedNode m_value;
+    };
+
 };
