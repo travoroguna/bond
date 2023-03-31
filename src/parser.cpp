@@ -112,21 +112,40 @@ namespace bond {
         return exprs;
     }
 
-    std::shared_ptr<Node> Parser::statement() {
-        if (match({TokenType::PRINT})) return print_stmnt();
-        if (match({TokenType::LEFT_BRACE})) return block();
-        return expr_stmnt();
+std::shared_ptr<Node> Parser::statement() {
+    if (match({TokenType::IF})) return if_stmnt();
+    if (match({TokenType::PRINT})) return print_stmnt();
+    if (match({TokenType::LEFT_BRACE})) return block();
+    return expr_stmnt();
+}
+
+std::shared_ptr<Node> Parser::if_stmnt() {
+    consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after if keyword");
+    auto condition = expression();
+    consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after if condition");
+
+    auto then_branch = statement();
+
+    std::optional<std::shared_ptr<Node>> else_branch = std::nullopt;
+
+    if (match({TokenType::ELSE})) {
+        else_branch = statement();
     }
 
-    std::shared_ptr<Node> Parser::block() {
-        m_scopes.new_scope();
-        std::vector<std::shared_ptr<Node>> statements;
+    return std::make_shared<If>(span_from_spans(condition->get_span(), previous().get_span()),
+                                condition,
+                                then_branch,
+                                else_branch);
+}
 
+std::shared_ptr<Node> Parser::block() {
+    m_scopes.new_scope();
+    std::vector<std::shared_ptr<Node>> statements;
 
-        while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
-            auto res = declaration();
-            if (!res.has_value()) continue;
-            statements.push_back(res.value());
+    while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
+        auto res = declaration();
+        if (!res.has_value()) continue;
+        statements.push_back(res.value());
         }
 
         consume(TokenType::RIGHT_BRACE, peek().get_span(), "Expected '}' after block");

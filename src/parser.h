@@ -103,16 +103,18 @@ namespace bond {
 
         std::shared_ptr<Node> variable_declaration();
 
-        static std::shared_ptr<Span>
-        span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end);
+      static std::shared_ptr<Span>
+      span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end);
 
-        std::shared_ptr<Node> assignment();
+      std::shared_ptr<Node> assignment();
 
-        std::shared_ptr<Node> block();
+      std::shared_ptr<Node> block();
 
-        std::vector<std::shared_ptr<Node>> expr_list(TokenType end_token);
+      std::vector<std::shared_ptr<Node>> expr_list(TokenType end_token);
 
-        std::shared_ptr<Node> get_item();
+      std::shared_ptr<Node> get_item();
+
+      std::shared_ptr<Node> if_stmnt();
     };
 
 } // bond
