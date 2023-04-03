@@ -140,9 +140,14 @@ public:
   virtual OBJ_RESULT $le(const GcPtr<Object> &other) { UNIMPLEMENTED; }
   virtual OBJ_RESULT $gt(const GcPtr<Object> &other) { UNIMPLEMENTED; }
   virtual OBJ_RESULT $ge(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+  virtual OBJ_RESULT $call(const GcPtr<Object> &other) { UNIMPLEMENTED; }
   virtual OBJ_RESULT $_bool() { UNIMPLEMENTED; }
   virtual OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
   virtual OBJ_RESULT $get_item(const GcPtr<Object> &index) { UNIMPLEMENTED; }
+
+  virtual OBJ_RESULT $iter(const GcPtr<Object> &self) { UNIMPLEMENTED; }
+  virtual OBJ_RESULT $next() { UNIMPLEMENTED; }
+  virtual OBJ_RESULT $has_next() { UNIMPLEMENTED; }
 
   bool operator==(const GcPtr<Object> &other) { return equal(other); }
 

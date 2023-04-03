@@ -34,7 +34,7 @@ public:
   }
 
   void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
-
+  void jump_absolute(size_t ip) { m_ip = ip; }
   void set_locals(const GcPtr<Map> &locals) { m_locals = locals; }
 
   void set_global(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_globals->set(key, value); }
@@ -100,6 +100,7 @@ private:
   void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
 
   GcPtr<Map> m_globals = GarbageCollector::instance().make_immortal<Map>();
+  void print_stack();
 };
 
 } // bond

@@ -21,9 +21,12 @@ class NewVar;
 class Block;
 class Assign;
 class If;
+class While;
+class Call;
+class For;
 
 class NodeVisitor {
-public:
+ public:
   NodeVisitor();
   virtual void visit_bin_op(BinaryOp *expr) = 0;
   virtual void visit_unary(Unary *expr) = 0;
@@ -42,5 +45,8 @@ public:
   virtual void visit_get_item(GetItem *expr) = 0;
   virtual void visit_set_item(SetItem *expr) = 0;
   virtual void visit_if(If *stmnt) = 0;
+  virtual void visit_while(While *stmnt) = 0;
+  virtual void visit_call(Call *expr) = 0;
+  virtual void visit_for(For *stmnt) = 0;
 };
 }

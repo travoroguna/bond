@@ -40,7 +40,7 @@ void Context::error(const std::shared_ptr<Span> &span, const std::basic_string<c
     auto line_start = contents.rfind('\n', span->start);
     if (line_start==std::string::npos) line_start = 0;
 
-    auto line_end = contents.find('\n', span->end);
+    auto line_end = contents.find('\n', span->start);
     if (line_end > contents.length() - 1) line_end = contents.length() - 1;
 
     auto diff = span->line > 1 ? 1 : 0;

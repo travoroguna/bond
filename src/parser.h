@@ -115,6 +115,12 @@ namespace bond {
       std::shared_ptr<Node> get_item();
 
       std::shared_ptr<Node> if_stmnt();
+      std::shared_ptr<Node> _or();
+      std::shared_ptr<Node> _and();
+      std::shared_ptr<Node> while_statement();
+      std::shared_ptr<Node> call();
+      std::shared_ptr<Node> f_call(std::shared_ptr<Node> callee);
+      std::shared_ptr<Node> for_statement();
     };
 
 } // bond

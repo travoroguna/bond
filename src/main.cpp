@@ -22,7 +22,8 @@ void execute_source(std::string& source, const char *path, bond::Vm &vm, bond::C
 
     auto codegen = bond::CodeGenerator(&ctx, parser.get_scopes());
     auto bytecode = codegen.generate_code(nodes);
-    if (ctx.has_error()) return;
+
+  if (ctx.has_error()) return;
     fmt::print("disassembly of opcode\n{}\n", bytecode->dissasemble());
 
     vm.run(bytecode);

@@ -35,8 +35,12 @@ public:
   void visit_list(List *expr) override;
   void visit_get_item(GetItem *expr) override;
   void visit_set_item(SetItem *expr) override;
+  void visit_if(If *stmnt) override;
+  void visit_while(While *stmnt) override;
+  void visit_call(Call *expr) override;
+  void visit_for(For *stmnt) override;
 
-private:
+ private:
   GcPtr<Code> m_code;
   bool m_in_function = false;
   Context *m_ctx;

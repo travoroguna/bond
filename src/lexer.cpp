@@ -26,6 +26,7 @@ std::unordered_map<std::string, TokenType> keywords = {
     {"true", TokenType::TRUE},
     {"var", TokenType::VAR},
     {"while", TokenType::WHILE},
+    {"in", TokenType::IN},
 };
 
 Span::Span(uint32_t module_id, uint32_t start, uint32_t end, uint32_t line) {
@@ -96,8 +97,8 @@ char Lexer::peek() {
 
 void Lexer::new_token(TokenType type) {
     m_tokens.emplace_back(
-        Token(make_span(), type,
-              m_source.substr(m_start, m_current - m_start)));
+        make_span(), type,
+        m_source.substr(m_start, m_current - m_start));
 }
 
 void Lexer::new_token(TokenType type, std::string &lexeme) {
