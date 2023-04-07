@@ -24,6 +24,9 @@ class If;
 class While;
 class Call;
 class For;
+class FuncDef;
+class ClosureDef;
+class Return;
 
 class NodeVisitor {
  public:
@@ -48,5 +51,9 @@ class NodeVisitor {
   virtual void visit_while(While *stmnt) = 0;
   virtual void visit_call(Call *expr) = 0;
   virtual void visit_for(For *stmnt) = 0;
+  virtual void visit_func_def(FuncDef *stmnt) = 0;
+  virtual void visit_return(Return *stmnt) = 0;
+  virtual void visit_closure_def(ClosureDef *stmnt) = 0;
+
 };
 }

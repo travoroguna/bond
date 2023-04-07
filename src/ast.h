@@ -248,4 +248,43 @@ class For : public Node {
   SharedNode m_statement;
 };
 
+class FuncDef : public Node {
+ public:
+  FuncDef(const SharedSpan &span,
+          const std::string &name,
+          const std::vector<std::pair<std::string, SharedSpan>> &params,
+          const SharedNode &body);
+  void accept(NodeVisitor *visitor) override;
+  std::string get_name() { return m_name; }
+  std::vector<std::pair<std::string, SharedSpan>> get_params() { return m_params; }
+  SharedNode get_body() { return m_body; }
+ private:
+  std::string m_name;
+  std::vector<std::pair<std::string, SharedSpan>> m_params;
+  SharedNode m_body;
+};
+
+class Return : public Node {
+ public:
+  Return(const SharedSpan &span, const SharedNode &expr);
+  void accept(NodeVisitor *visitor) override;
+  SharedNode get_expr() { return m_expr; }
+
+ private:
+  SharedNode m_expr;
+};
+
+class ClosureDef : public Node {
+ public:
+  ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def);
+  void accept(NodeVisitor *visitor) override;
+
+  std::string get_name() { return m_name; }
+  std::shared_ptr<FuncDef> get_func_def() { return m_func_def; }
+
+ private:
+  std::string m_name;
+  std::shared_ptr<FuncDef> m_func_def;
+};
+
 };

@@ -30,6 +30,8 @@ std::vector<std::shared_ptr<Node>> Parser::parse() {
   std::vector<std::shared_ptr<Node>> nodes;
   m_scopes.new_scope();
 
+  m_scopes.declare("println", std::make_shared<Span>(0, 0, 0, 1), false);
+
   while (!is_at_end()) {
     auto res = declaration();
     if (!res.has_value()) continue;
@@ -63,6 +65,7 @@ void Parser::synchronize() {
 std::optional<std::shared_ptr<Node>> Parser::declaration() {
   try {
     if (match({TokenType::VAR})) return variable_declaration();
+    else if (match({TokenType::FUN})) return function_declaration();
     auto st = statement();
 //            m_scopes.end_scope();
     return st;
@@ -76,6 +79,50 @@ std::optional<std::shared_ptr<Node>> Parser::declaration() {
 
 std::shared_ptr<Span> Parser::span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end) {
   return std::make_shared<Span>(start->module_id, start->start, end->end, end->line);
+}
+
+std::shared_ptr<Node> Parser::function_declaration() {
+  bool pre = in_function;
+  in_function = true;
+  auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected function name after fun keyword");
+
+  if (m_scopes.is_declared(id.get_lexeme())) {
+    ctx->error(id.get_span(), fmt::format("Function {} is already declared in this scope", id.get_lexeme()));
+    auto sp = m_scopes.get(id.get_lexeme()).value()->span;
+    throw ParserError(fmt::format("Note Function {} is already declared here", id.get_lexeme()), sp);
+  }
+
+  m_scopes.declare(id.get_lexeme(), id.get_span(), false);
+
+  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after function name");
+
+  std::vector<std::pair<std::string, SharedSpan>> params;
+
+  if (!check(TokenType::RIGHT_PAREN)) {
+    do {
+      if (params.size() >= 1024) {
+        ctx->error(peek().get_span(), "Cannot have more than 1024 parameters");
+      }
+      auto param = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected parameter name");
+      params.emplace_back(param.get_lexeme(), param.get_span());
+    } while (match({TokenType::COMMA}));
+  }
+  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after parameters");
+
+  consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' before function body");
+
+  m_scopes.new_scope();
+  for (auto &param : params) {
+    m_scopes.declare(param.first, param.second, true);
+  }
+
+  auto body = block(false);
+  m_scopes.end_scope();
+  in_function = pre;
+  return std::make_shared<FuncDef>(span_from_spans(id.get_span(), previous().get_span()),
+                                   id.get_lexeme(),
+                                   params,
+                                   body);
 }
 
 std::shared_ptr<Node> Parser::variable_declaration() {
@@ -111,16 +158,39 @@ std::vector<std::shared_ptr<Node>> Parser::expr_list(TokenType end_token) {
 
 std::shared_ptr<Node> Parser::statement() {
   if (match({TokenType::IF})) return if_stmnt();
-  if (match({TokenType::PRINT})) return print_stmnt();
-  if (match({TokenType::WHILE})) return while_statement();
-  if (match({TokenType::LEFT_BRACE})) return block();
-  if (match({TokenType::FOR})) return for_statement();
+  else if (match({TokenType::PRINT})) return print_stmnt();
+  else if (match({TokenType::WHILE})) return while_statement();
+  else if (match({TokenType::LEFT_BRACE})) return block(true);
+  else if (match({TokenType::FOR})) return for_statement();
+  else if (match({TokenType::VAR})) return variable_declaration();
+  else if (match({TokenType::FUN})) return closure_declaration();
+  else if (match({TokenType::RETURN})) return return_statement();
   return expr_stmnt();
+}
+
+std::shared_ptr<Node> Parser::closure_declaration() {
+  auto function = dynamic_cast<FuncDef *>(function_declaration().get());
+  return std::make_shared<ClosureDef>(function->get_span(), function->get_name(), std::make_shared<FuncDef>(*function));
+}
+
+std::shared_ptr<Node> Parser::return_statement() {
+  auto keyword = previous();
+
+  if (!in_function) {
+    ctx->error(keyword.get_span(), "Cannot return outside of a function");
+  }
+  std::shared_ptr<Node> value = nullptr;
+  if (!check(TokenType::SEMICOLON)) {
+    value = expression();
+  }
+
+  consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after return value");
+  return std::make_shared<Return>(span_from_spans(keyword.get_span(), previous().get_span()), value);
 }
 
 std::shared_ptr<Node> Parser::for_statement() {
 
-  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
+//  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
   consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
   auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
 
@@ -129,7 +199,7 @@ std::shared_ptr<Node> Parser::for_statement() {
 
   m_scopes.new_scope();
   m_scopes.declare(id.get_lexeme(), id.get_span(), true);
-  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after for condition");
+//  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after for condition");
   m_scopes.end_scope();
 
   auto body = statement();
@@ -138,9 +208,9 @@ std::shared_ptr<Node> Parser::for_statement() {
 }
 
 std::shared_ptr<Node> Parser::if_stmnt() {
-  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after if keyword");
+//  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after if keyword");
   auto condition = expression();
-  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after if condition");
+//  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after if condition");
 
   auto then_branch = statement();
 
@@ -156,28 +226,26 @@ std::shared_ptr<Node> Parser::if_stmnt() {
                               else_branch);
 }
 
-std::shared_ptr<Node> Parser::block() {
-  m_scopes.new_scope();
+std::shared_ptr<Node> Parser::block(bool create_scope = true) {
+  if (create_scope) m_scopes.new_scope();
   std::vector<std::shared_ptr<Node>> statements;
 
   while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
-    auto res = declaration();
-    if (!res.has_value()) continue;
-    statements.push_back(res.value());
+    statements.push_back(statement());
   }
 
   consume(TokenType::RIGHT_BRACE, peek().get_span(), "Expected '}' after block");
 
-  m_scopes.end_scope();
+  if (create_scope) m_scopes.end_scope();
 
   if (statements.empty()) return std::make_shared<Block>(peek().get_span(), statements);
   return std::make_shared<Block>(statements.front()->get_span(), statements);
 }
 
 std::shared_ptr<Node> Parser::while_statement() {
-  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after while keyword");
+//  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after while keyword");
   auto condition = expression();
-  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after while condition");
+//  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after while condition");
 
   return std::make_shared<While>(span_from_spans(condition->get_span(), previous().get_span()),
                                  condition,
@@ -371,7 +439,7 @@ std::shared_ptr<Node> Parser::f_call(std::shared_ptr<Node> callee) {
   }
 
   auto paren = consume(TokenType::RIGHT_PAREN, callee->get_span(), "Expected ')' after arguments.");
-
+  fmt::print("arguments: {}\n", arguments.size());
   return std::make_shared<Call>(span_from_spans(callee->get_span(), paren.get_span()), callee, arguments);
 }
 

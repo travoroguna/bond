@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cstdint>
+#include "lsp/lsp.h"
 
 #include "lexer.h"
 #include "parser.h"
@@ -8,74 +8,90 @@
 #include "vm.h"
 #include "gc.h"
 
+void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::Context &ctx) {
+  auto id = ctx.new_module(std::string(path));
 
-void execute_source(std::string& source, const char *path, bond::Vm &vm, bond::Context &ctx) {
-    auto id = ctx.new_module(std::string(path));
+  auto lexer = bond::Lexer(source, &ctx, id);
+  auto tokens = lexer.tokenize();
 
-    auto lexer = bond::Lexer(source, &ctx, id);
-    auto tokens = lexer.tokenize();
-
-    auto parser = bond::Parser(tokens, &ctx);
-    auto nodes = parser.parse();
-
-    if (ctx.has_error()) return;
-
-    auto codegen = bond::CodeGenerator(&ctx, parser.get_scopes());
-    auto bytecode = codegen.generate_code(nodes);
+  auto parser = bond::Parser(tokens, &ctx);
+  auto nodes = parser.parse();
 
   if (ctx.has_error()) return;
-    fmt::print("disassembly of opcode\n{}\n", bytecode->dissasemble());
 
-    vm.run(bytecode);
+  auto codegen = bond::CodeGenerator(&ctx, parser.get_scopes());
+  auto bytecode = codegen.generate_code(nodes);
+
+  if (ctx.has_error()) return;
+  fmt::print("disassembly of opcode\n{}\n", bytecode->dissasemble());
+
+  fmt::print("[VM] start\n");
+  vm.run(bytecode);
+  fmt::print("[VM] end\n");
 }
 
-
 void run_repl() {
-    bond::Context ctx;
+  bond::Context ctx;
 
-    auto vm = bond::Vm(&ctx);
-    bond::GarbageCollector::instance().add_root(&vm);
+  auto vm = bond::Vm(&ctx);
+  bond::GarbageCollector::instance().add_root(&vm);
 
-    while (true) {
-        auto path = std::string("<repl>");
-        ctx.reset_error();
-        std::string source;
+  while (true) {
+    auto path = std::string("<repl>");
+    ctx.reset_error();
+    std::string source;
 
-        fmt::print("bond > ");
+    fmt::print("bond > ");
 
-        while (char c = getchar()) {
-            if (c == '\n') break;
-            source += c;
-        }
-
-        if (source == "exit") break;
-
-        execute_source(source, path.c_str(), vm, ctx);
+    while (char c = getchar()) {
+      if (c == '\n') break;
+      source += c;
     }
+
+    if (source == "exit") break;
+
+    execute_source(source, path.c_str(), vm, ctx);
+  }
 }
 
 void run_file(const char *path) {
-    auto src = bond::Context::read_file(std::string(path));
-    bond::Context ctx;
+  auto src = bond::Context::read_file(std::string(path));
+  bond::Context ctx;
 
-    auto vm = bond::Vm(&ctx);
-    bond::GarbageCollector::instance().add_root(&vm);
+  auto vm = bond::Vm(&ctx);
+  bond::GarbageCollector::instance().add_root(&vm);
 
-    execute_source(src, path, vm, ctx);
+  execute_source(src, path, vm, ctx);
 }
 
-
-
-int main(int32_t argc, const char * argv[]) {
-   if (argc > 2) {
-       std::cout << "Usage: bond <script path>\n";
-       return 1;
-   }
-   else if (argc == 1){
-       fmt::print("bond 0.0.0 \n");
-       run_repl();
-   } else {
-       run_file(argv[1]);
-   }
-
+#ifdef _WIN32
+int main(int32_t argc, char **argv) {
+#else
+  int main(int argc, const char *argv[]) {
+#endif
+  if (argc > 200) {
+    std::cout << "Usage: bond <script path>\n";
+    return 1;
+  } else if (argc == 1) {
+    fmt::print("bond 0.0.0 \n");
+    run_repl();
+  } else {
+    if (std::string(argv[1]) == "--rpc") {
+      auto client = bond::LspClient();
+      client.start();
+      return 0;
+    }
+    run_file(argv[1]);
+  }
 }
+
+#ifdef _WIN32
+#include <Windows.h>
+
+int APIENTRY WinMain(HINSTANCE hInstance,
+                     HINSTANCE hPrevInstance,
+                     LPSTR lpCmdLine, int nCmdShow) {
+  fmt::print("bond 0.0.0 \n");
+  return main(__argc, __argv);
+}
+#endif

@@ -62,6 +62,7 @@ namespace bond {
         std::vector<Token> &m_tokens;
         Context *ctx;
         uint32_t m_current = 0;
+      bool in_function = false;
 
         std::shared_ptr<Node> expression();
 
@@ -108,7 +109,6 @@ namespace bond {
 
       std::shared_ptr<Node> assignment();
 
-      std::shared_ptr<Node> block();
 
       std::vector<std::shared_ptr<Node>> expr_list(TokenType end_token);
 
@@ -121,6 +121,10 @@ namespace bond {
       std::shared_ptr<Node> call();
       std::shared_ptr<Node> f_call(std::shared_ptr<Node> callee);
       std::shared_ptr<Node> for_statement();
+      std::shared_ptr<Node> function_declaration();
+      std::shared_ptr<Node> block(bool create_scope);
+      std::shared_ptr<Node> closure_declaration();
+      std::shared_ptr<Node> return_statement();
     };
 
 } // bond

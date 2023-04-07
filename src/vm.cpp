@@ -8,12 +8,41 @@ namespace bond {
 
 void Vm::run(const GcPtr<Code> &code) {
   m_stop = false;
-  auto frame = &m_frames[m_frame_pointer++];
-  frame->set_code(code);
-  frame->set_globals(m_globals);
-  frame->set_locals(GarbageCollector::instance().make<Map>());
-  m_current_frame = frame;
+  auto func =
+      GarbageCollector::instance().make<Function>(code, std::vector<std::pair<std::string, SharedSpan>>(), "__main__");
+  push(func);
+  call_function(func, std::vector<GcPtr<Object>>());
   exec();
+}
+
+void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
+  GarbageCollector::instance().stop_gc();
+  auto frame = &m_frames[m_frame_pointer++];
+
+  if (m_frame_pointer >= FRAME_MAX) {
+    runtime_error("stack overflow", RuntimeError::GenericError, m_current_frame->get_span());
+    return;
+  }
+  auto params = function->get_params();
+
+  if (args.size() != params.size()) {
+    runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
+                  RuntimeError::GenericError,
+                  m_current_frame->get_span());
+    return;
+  }
+
+  auto local_args = GarbageCollector::instance().make<Map>();
+
+  for (size_t i = 0; i < args.size(); i++) {
+    local_args->set(GarbageCollector::instance().make<String>(params[i].first), args[i]);
+  }
+
+  frame->set_function(function);
+  frame->set_globals(m_globals);
+  frame->set_locals(local_args);
+  m_current_frame = frame;
+  GarbageCollector::instance().resume_gc();
 }
 
 void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
@@ -33,6 +62,7 @@ void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpa
 }
 
 #define BINARY_OP(X) { \
+    GarbageCollector::instance().stop_gc();                   \
     auto right = pop(); \
     auto left = pop();  \
     auto result = left->$##X(right); \
@@ -40,7 +70,8 @@ void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpa
         runtime_error(fmt::format("unable to " #X " {} and {}", left->str(), right->str()), result.error(), m_current_frame->get_span());\
         continue;\
     }\
-    push(result.value());\
+    push(result.value());                                    \
+    GarbageCollector::instance().resume_gc();                   \
     break;\
     }
 
@@ -54,10 +85,8 @@ void Vm::print_stack() {
 
 void Vm::exec() {
   if (m_frame_pointer == 0) return;
-
   while (!m_stop) {
     auto opcode = m_current_frame->get_opcode();
-
     switch (opcode) {
       case Opcode::LOAD_CONST:push(m_current_frame->get_constant());
         break;
@@ -73,11 +102,12 @@ void Vm::exec() {
       case Opcode::GT: BINARY_OP(gt)
       case Opcode::GE: BINARY_OP(ge)
       case Opcode::RETURN:
-        if (m_stack_ptr > 0) {
-          fmt::print("  {}\n", pop()->str());
+        if (m_frame_pointer == 1) {
+          m_stop = true;
+          break;
         }
-        m_stop = true;
         m_frame_pointer--;
+        m_current_frame = &m_frames[m_frame_pointer - 1];
         break;
       case Opcode::PUSH_TRUE:push(m_True);
         break;
@@ -89,12 +119,12 @@ void Vm::exec() {
         break;
       case Opcode::LOAD_GLOBAL: {
         auto name = m_current_frame->get_constant();
-        if (!m_current_frame->has_global(name)) {
-          auto err = fmt::format("Global variable {} is not defined at this point",
-                                 name->as<String>()->get_value());
-          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
-          continue;
-        }
+//        if (!m_current_frame->has_global(name)) {
+//          auto err = fmt::format("Global variable {} is not defined at this point",
+//                                 name->as<String>()->get_value());
+//          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
+//          continue;
+//        }
         push(m_current_frame->get_global(name));
 
         break;
@@ -132,11 +162,11 @@ void Vm::exec() {
 
       case Opcode::LOAD_FAST: {
         auto name = m_current_frame->get_constant();
-        if (!m_current_frame->has_local(name)) {
-          auto err = fmt::format("Local variable {} does not exist", name->as<String>()->get_value());
-          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
-          continue;
-        }
+//        if (!m_current_frame->has_local(name)) {
+//          auto err = fmt::format("Local variable {} does not exist", name->as<String>()->get_value());
+//          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
+//          continue;
+//        }
         push(m_current_frame->get_local(name));
         break;
       }
@@ -147,6 +177,7 @@ void Vm::exec() {
       case Opcode::BUILD_LIST: {
         auto size = m_current_frame->get_oprand();
         auto list = GarbageCollector::instance().make<ListObj>();
+
 
         for (int i = 0; i < size; i++) {
           list->prepend(pop());
@@ -186,6 +217,7 @@ void Vm::exec() {
       }
 
       case Opcode::JUMP_IF_FALSE: {
+        GarbageCollector::instance().stop_gc();
         auto position = m_current_frame->get_oprand();
         auto cond = pop();
 
@@ -201,6 +233,7 @@ void Vm::exec() {
         if (!res.value()->as<Bool>()->get_value()) {
           m_current_frame->jump_absolute(position);
         }
+        GarbageCollector::instance().resume_gc();
         break;
       }
 
@@ -211,6 +244,8 @@ void Vm::exec() {
       }
 
       case Opcode::OR: {
+        GarbageCollector::instance().stop_gc();
+
         auto right = pop();
         auto left = pop();
 
@@ -220,6 +255,7 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to convert {} to bool", left->str()),
                         res.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
@@ -228,10 +264,12 @@ void Vm::exec() {
         } else {
           push(right);
         }
+        GarbageCollector::instance().resume_gc();
         break;
       }
 
       case Opcode::AND: {
+        GarbageCollector::instance().stop_gc();
         auto right = pop();
         auto left = pop();
 
@@ -242,6 +280,7 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to convert {} to bool", left->str()),
                         l_bool.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
@@ -249,6 +288,7 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to convert {} to bool", right->str()),
                         r_bool.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
@@ -260,10 +300,12 @@ void Vm::exec() {
         } else {
           push(l ? right : left);
         }
+        GarbageCollector::instance().resume_gc();
         break;
       }
 
       case Opcode::ITER: {
+        GarbageCollector::instance().stop_gc();
         auto expr = pop();
         auto iter = expr->$iter(expr);
 
@@ -271,10 +313,12 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to iterate over {}", expr->str()),
                         iter.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
         push(iter.value());
+        GarbageCollector::instance().resume_gc();
         break;
       }
 
@@ -294,6 +338,7 @@ void Vm::exec() {
       }
 
       case Opcode::ITER_END: {
+        GarbageCollector::instance().stop_gc();
         auto next = peek()->$has_next();
         auto jump_pos = m_current_frame->get_oprand();
 
@@ -301,6 +346,7 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to get next item from {}", peek()->str()),
                         next.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
@@ -310,19 +356,46 @@ void Vm::exec() {
           runtime_error(fmt::format("unable to convert {} to bool", next.value()->str()),
                         jump_condition.error(),
                         m_current_frame->get_span());
+          GarbageCollector::instance().resume_gc();
           continue;
         }
 
         if (!jump_condition.value()->as<Bool>()->get_value()) {
           m_current_frame->jump_absolute(jump_pos);
         }
+        GarbageCollector::instance().resume_gc();
         break;
 
       }
 
-    }
-  }
+      case Opcode::CALL: {
+        auto arg_count = m_current_frame->get_oprand();
+        std::vector<GcPtr<Object>> args;
 
+        for (int i = 0; i < arg_count; i++) {
+          args.insert(args.begin(), pop());
+        }
+
+        auto func = pop();
+
+        if (func->is<NativeFunction>()) {
+          auto f = func->as<NativeFunction>();
+          auto result = f->get_fn()(args);
+
+          if (result.has_value()) {
+            push(result.value());
+            continue;
+          }
+          runtime_error(result.error().message, result.error().error, m_current_frame->get_span());
+        } else if (func->is<Function>()) {
+          auto f = func->as<Function>();
+          call_function(f, args);
+          break;
+        }
+      }
+    }
+
+  }
 }
 
 void Vm::mark() {

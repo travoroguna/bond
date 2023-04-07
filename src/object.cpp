@@ -4,40 +4,27 @@
 
 namespace bond {
 OBJ_RESULT Number::$add(const GcPtr<Object> &other) {
-  auto res = const_cast<GcPtr<Object> &>(other)
-      .use_if<Number, GcPtr<Number>>([&](Number &other_number) {
-        return GarbageCollector::instance().make<Number>(m_value + other_number.get_value());
-      });
-
-  if (res.has_value()) {
-    return res.value();
+  if (!other->is<Number>()) {
+    return std::unexpected(RuntimeError::TypeError);
   }
 
-  return std::unexpected(RuntimeError::TypeError);
+  return GarbageCollector::instance().make<Number>(m_value + other->as<Number>()->get_value());
 }
 
 OBJ_RESULT Number::$sub(const GcPtr<Object> &other) {
-  auto res = const_cast<GcPtr<Object> &>(other)
-      .use_if<Number, GcPtr<Number>>([&](Number &other_number) {
-        return GarbageCollector::instance().make<Number>(m_value - other_number.get_value());
-      });
-
-  if (res.has_value()) {
-    return res.value();
+  if (!other->is<Number>()) {
+    return std::unexpected(RuntimeError::TypeError);
   }
-  return std::unexpected(RuntimeError::TypeError);
+
+  return GarbageCollector::instance().make<Number>(m_value - other->as<Number>()->get_value());
 }
 
 OBJ_RESULT Number::$mul(const GcPtr<Object> &other) {
-  auto res = const_cast<GcPtr<Object> &>(other)
-      .use_if<Number, GcPtr<Number>>([&](Number &other_number) {
-        return GarbageCollector::instance().make<Number>(m_value * other_number.get_value());
-      });
-
-  if (res.has_value()) {
-    return res.value();
+  if (!other->is<Number>()) {
+    return std::unexpected(RuntimeError::TypeError);
   }
-  return std::unexpected(RuntimeError::TypeError);
+
+  return GarbageCollector::instance().make<Number>(m_value * other->as<Number>()->get_value());
 }
 
 OBJ_RESULT Number::$div(const GcPtr<Object> &other) {
@@ -211,7 +198,6 @@ std::optional<GcPtr<Object>> Map::get(const GcPtr<Object> &key) {
 
 GcPtr<Object> Map::get_unchecked(const GcPtr<Object> &key) {
   return m_internal_map[key];
-
 }
 
 void Map::mark() {

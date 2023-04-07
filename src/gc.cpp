@@ -11,8 +11,8 @@ GarbageCollector &GarbageCollector::instance() {
 GarbageCollector::GarbageCollector() = default;
 
 void GarbageCollector::collect() {
-    for (auto root : m_roots) {
-        root->mark();
+    for (auto &root : m_roots) {
+      root->mark();
     }
 
     for (auto &obj : m_objects) {
@@ -37,8 +37,8 @@ void GarbageCollector::collect() {
 void GarbageCollector::collect_if_needed() {
     if (!m_collect) return;
     if (m_objects.size() < m_alloc_limit) return;
-    collect();
-    m_alloc_limit += m_objects.size()*2;
+  collect();
+  m_alloc_limit += m_objects.size() * 3;
 
 #ifdef DEBUG
     fmt::print("[GC] allocated {}, alloc limit {}, immortal {}\n", m_objects.size(), m_alloc_limit, m_immortal.size());

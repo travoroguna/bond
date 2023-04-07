@@ -15,7 +15,7 @@ std::unordered_map<std::string, TokenType> keywords = {
     {"else", TokenType::ELSE},
     {"false", TokenType::FALSE},
     {"for", TokenType::FOR},
-    {"fun", TokenType::FUN},
+    {"fn", TokenType::FUN},
     {"if", TokenType::IF},
     {"nil", TokenType::NIL},
     {"or", TokenType::OR},

@@ -19,6 +19,7 @@ class CodeGenerator : public NodeVisitor {
 public:
   CodeGenerator(Context *ctx, Scopes *scopes);
   GcPtr<Code> generate_code(const std::vector<std::shared_ptr<Node>> &nodes);
+  GcPtr<Code> generate_code(const std::shared_ptr<Node> &node);
   void visit_bin_op(BinaryOp *expr) override;
   void visit_unary(Unary *expr) override;
   void visit_true_lit(TrueLiteral *expr) override;
@@ -39,12 +40,18 @@ public:
   void visit_while(While *stmnt) override;
   void visit_call(Call *expr) override;
   void visit_for(For *stmnt) override;
+  void visit_func_def(FuncDef *stmnt) override;
+  void visit_return(Return *stmnt) override;
+  void visit_closure_def(ClosureDef *stmnt) override;
+
+  bool m_in_function = false;
+  bool m_in_closure = false;
 
  private:
   GcPtr<Code> m_code;
-  bool m_in_function = false;
   Context *m_ctx;
   Scopes *m_scopes;
+  void finish_generation();
 };
 
 } // bond

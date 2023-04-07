@@ -72,6 +72,7 @@ class Map : public Object {
   void mark() override;
 
   void unmark() override;
+  static const char *type_name() { return "map"; }
 
  private:
   std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe>
@@ -106,6 +107,7 @@ class ListObj : public Object {
   void unmark() override;
 
   std::string str() override;
+  static const char *type_name() { return "list"; }
 
  private:
   std::vector<GcPtr<Object>> m_internal_list;
@@ -159,6 +161,7 @@ class Code : public Object {
   SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
 
   std::string dissasemble();
+  static const char *type_name() { return "code"; }
 
   // TODO: implement equal and hash correctly
   bool equal(const GcPtr<Object> &other) override { return false; }
@@ -216,6 +219,7 @@ class Number : public Object {
   bool equal(const GcPtr<Object> &other) override;
 
   size_t hash() override;
+  static const char *type_name() { return "number"; }
 
  private:
   float m_value{0};
@@ -238,6 +242,7 @@ class String : public Object {
   std::string str() override;
 
   size_t hash() override;
+  static const char *type_name() { return "string"; }
 
   bool equal(const GcPtr<Object> &other) override;
 
@@ -262,6 +267,7 @@ class Bool : public Object {
   size_t hash() override;
 
   OBJ_RESULT $_bool() override;
+  static const char *type_name() { return "bool"; }
 
  private:
   bool m_value;
@@ -280,29 +286,59 @@ class Nil : public Object {
   bool equal(const GcPtr<Object> &other) override;
 
   OBJ_RESULT $_bool() override;
+  static const char *type_name() { return "nil"; }
 
   size_t hash() override;
 };
 
-class Function : public Object {
+struct FunctionError {
+  std::string message;
+  RuntimeError error;
+
+  FunctionError(std::string message, RuntimeError error)
+      : message(std::move(message)), error(error) {}
+};
+
+using NativeErrorOr = std::expected<GcPtr<Object>, FunctionError>;
+using NativeFunctionPtr = std::function<NativeErrorOr(const std::vector<GcPtr<Object>> &args)>;
+
+class NativeFunction : public Object {
  public:
-  Function() = default;
+  explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
+  explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)}, m_name(std::move(name)) {}
 
-  Function(GcPtr<Code> code, std::vector<std::string> params,
-           std::vector<std::string> free_vars)
-      : m_code{std::move(code)}, m_params{std::move(params)},
-        m_free_vars{std::move(free_vars)} {}
-
-  [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
-
-  [[nodiscard]] std::vector<std::string> get_params() const { return m_params; }
-
-  [[nodiscard]] std::vector<std::string> get_free_vars() const {
-    return m_free_vars;
-  }
+  [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
 
   std::string str() override {
-    return fmt::format("<function at {}>", (void *) this);
+    return fmt::format("<native function at {}>", (void *) this);
+  }
+
+  [[nodiscard]] std::string get_name() const { return m_name; }
+
+  bool equal(const GcPtr<Object> &other) override {
+    return this == other.get();
+  }
+
+  size_t hash() override { return 0; }
+
+  static const char *type_name() { return "native_function"; }
+
+ private:
+  NativeFunctionPtr m_fn;
+  std::string m_name = "native_function";
+};
+
+class Function : public Object {
+ public:
+  Function(GcPtr<Code> code, std::vector<std::pair<std::string, SharedSpan>> params, std::string name)
+      : m_code{std::move(code)}, m_params{std::move(params)}, m_name(std::move(name)) {}
+
+  [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
+  [[nodiscard]] std::vector<std::pair<std::string, SharedSpan>> get_params() const { return m_params; }
+  [[nodiscard]] std::string get_name() const { return m_name; }
+
+  std::string str() override {
+    return fmt::format("<function {} at {}>", m_name, (void *) this);
   }
 
   bool equal(const GcPtr<Object> &other) override {
@@ -315,10 +351,12 @@ class Function : public Object {
     return GarbageCollector::instance().make_immortal<Bool>(true);
   }
 
+  static const char *type_name() { return "function"; }
+
  private:
   GcPtr<Code> m_code;
-  std::vector<std::string> m_params;
-  std::vector<std::string> m_free_vars;
+  std::string m_name;
+  std::vector<std::pair<std::string, SharedSpan>> m_params;
 };
 
 class ListIterator : public Object {
@@ -332,6 +370,8 @@ class ListIterator : public Object {
   bool equal(const GcPtr<Object> &other) override { return false; }
   size_t hash() override { return 0; }
 
+  static const char *type_name() { return "list_iterator"; }
+
   void mark() override {
     m_marked = true;
     m_list->mark();
@@ -344,6 +384,32 @@ class ListIterator : public Object {
  private:
   GcPtr<Object> m_list;
   size_t m_index = 0;
+};
+
+class Closure : public Object {
+ public:
+  explicit Closure(GcPtr<Function> function)
+      : m_function{std::move(function)} {}
+
+  [[nodiscard]] GcPtr<Function> get_function() const { return m_function; }
+
+  std::string str() override {
+    return fmt::format("<closure {} at {}>", m_function->get_name(), (void *) this);
+  }
+
+  bool equal(const GcPtr<Object> &other) override {
+    return this == other.get();
+  }
+
+  size_t hash() override { return 0; }
+
+  OBJ_RESULT $_bool() override {
+    return GarbageCollector::instance().make_immortal<Bool>(true);
+  }
+
+  static const char *type_name() { return "closure"; }
+ private:
+  GcPtr<Function> m_function;
 };
 
 }; // namespace bond

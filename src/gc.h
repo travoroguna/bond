@@ -26,26 +26,36 @@ template<typename T, typename = std::enable_if_t<std::is_base_of_v<Object, T>>>
 class GcPtr {
 public:
   GcPtr() = default;
-  explicit GcPtr(T *GcPtr) : m_ptr(GcPtr) {}
+  GcPtr(T *GcPtr) : m_ptr(GcPtr) {}
   GcPtr(const GcPtr &other) : m_ptr(other.m_ptr) {}
   GcPtr(GcPtr &&other) noexcept: m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
   ~GcPtr() { m_ptr = nullptr; }
   GcPtr &operator=(const GcPtr &other) {
-      m_ptr = other.m_ptr;
-      return *this;
+    m_ptr = other.m_ptr;
+    return *this;
   }
 
-  GcPtr &operator=(GcPtr &&other) {
-      m_ptr = other.m_ptr;
-      other.m_ptr = nullptr;
-      return *this;
+  GcPtr &operator=(const GcPtr *other) {
+    m_ptr = other->m_ptr;
+    return *this;
+  }
+
+  GcPtr &operator=(T *other) {
+    m_ptr = other;
+    return *this;
+  }
+
+  GcPtr &operator=(GcPtr &&other) noexcept {
+    m_ptr = other.m_ptr;
+    other.m_ptr = nullptr;
+    return *this;
   }
 
   T *operator->() const { return m_ptr; }
   T &operator*() const { return *m_ptr; }
   T *get() const { return m_ptr; }
   void set(T *ptr) { m_ptr = ptr; }
-  explicit operator bool() const { return m_ptr!=nullptr; }
+  explicit operator bool() const { return m_ptr != nullptr; }
 
   void mark() {
       if (m_ptr)
@@ -78,15 +88,33 @@ public:
 
   template<typename K, typename R>
   std::optional<R> use_if(std::function<R(K &)> const &func) {
-      if (instanceof<K>(m_ptr))
-          return func(*dynamic_cast<K *>(m_ptr));
+    if (instanceof<K>(m_ptr))
+      return func(*dynamic_cast<K *>(m_ptr));
 
-      return std::nullopt;
+    return std::nullopt;
   }
 
-private:
+ private:
   T *m_ptr = nullptr;
 };
+
+template<typename T>
+struct GcPtrTraits {
+  using element_type = typename T::element_type;
+};
+
+template<typename T>
+struct GcPtrTraits<T *> {
+  using element_type = T;
+};
+
+template<typename T>
+struct GcPtrTraits<GcPtr<T>> {
+  using element_type = T;
+};
+
+template<typename T>
+using GcPtrElement = typename GcPtrTraits<T>::element_type *;
 
 enum class RuntimeError {
   TypeError,
@@ -96,6 +124,7 @@ enum class RuntimeError {
   ExpectedNumberIndex,
   ExpectedWholeNumberIndex,
   IndexOutOfBounds,
+  InvalidArgument,
 };
 
 #define UNIMPLEMENTED return std::unexpected(RuntimeError::Unimplemented)
@@ -153,12 +182,14 @@ public:
 
   virtual std::string str();
 
+  static const char *type_name() { return "Object"; }
+
   virtual bool equal(const GcPtr<Object> &other) = 0;
   virtual size_t hash() = 0;
 
   struct HashMe {
     size_t operator()(const GcPtr<Object> &other) const {
-        return other->hash();
+      return other->hash();
     }
   };
 
@@ -225,7 +256,7 @@ private:
   std::vector<GcPtr<Object>> m_objects;
   std::vector<GcPtr<Object>> m_immortal;
   std::vector<Root *> m_roots;
-  size_t m_alloc_limit = 100;
+  size_t m_alloc_limit = 200;
   void collect_if_needed();
   bool m_collect = true;
 };

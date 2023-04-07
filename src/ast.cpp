@@ -203,7 +203,42 @@ For::For(const SharedSpan &span, const std::string &name, const SharedNode &expr
   m_expr = expr;
   m_statement = statement;
 }
+
 void For::accept(NodeVisitor *visitor) {
   visitor->visit_for(this);
 }
+
+FuncDef::FuncDef(const SharedSpan &span,
+                 const std::string &name,
+                 const std::vector<std::pair<std::string, SharedSpan>> &params,
+                 const SharedNode &body) {
+  m_span = span;
+  m_name = name;
+  m_params = params;
+  m_body = body;
+}
+
+void FuncDef::accept(NodeVisitor *visitor) {
+  visitor->visit_func_def(this);
+}
+
+Return::Return(const SharedSpan &span, const SharedNode &expr) {
+  m_span = span;
+  m_expr = expr;
+}
+
+void Return::accept(NodeVisitor *visitor) {
+  visitor->visit_return(this);
+}
+
+ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def) {
+  m_span = span;
+  m_name = name;
+  m_func_def = func_def;
+}
+
+void ClosureDef::accept(NodeVisitor *visitor) {
+  visitor->visit_closure_def(this);
+}
+
 };

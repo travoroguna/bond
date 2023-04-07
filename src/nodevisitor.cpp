@@ -2,5 +2,5 @@
 
 
 namespace bond{
-    NodeVisitor::NodeVisitor() {};
+    NodeVisitor::NodeVisitor() = default;
 }

@@ -97,6 +97,14 @@ std::string Code::dissasemble() {
 
 #undef SIMPLE_INSTRUCTION
 #undef CONSTANT_INSTRUCTION
+
+  for (auto &constant : m_constants) {
+    if (!constant->is<Function>()) continue;
+    auto func = constant->as<Function>();
+    ss << fmt::format("\ndisassembly of function {}\n", func->get_name());
+    ss << func->get_code()->dissasemble();
+  }
+
   return ss.str();
 }
 
@@ -120,6 +128,18 @@ std::expected<GcPtr<Object>, RuntimeError> Code::$_bool() {
   return GarbageCollector::instance().make_immortal<Bool>(true);
 }
 
+void CodeGenerator::finish_generation() {
+  if (m_code->get_opcodes().empty()) {
+    m_code->add_code(Opcode::PUSH_NIL, std::make_shared<Span>(0, 0, 0, 0));
+    m_code->add_code(Opcode::RETURN, std::make_shared<Span>(0, 0, 0, 0));
+  } else {
+    if (static_cast<Opcode>(m_code->get_opcodes().back()) != Opcode::RETURN) {
+      m_code->add_code(Opcode::PUSH_NIL, m_code->last_span());
+      m_code->add_code(Opcode::RETURN, m_code->last_span());
+    }
+  }
+}
+
 GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes) {
   m_code = GarbageCollector::instance().make_immortal<Code>();
 
@@ -127,13 +147,7 @@ GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>
     node->accept(this);
   }
 
-  if (m_code->get_opcodes().empty()) {
-    //FIXME: this will cause a crash when an error occurs
-    //       in an empty block
-    m_code->add_code(Opcode::RETURN, nullptr);
-  } else {
-    m_code->add_code(Opcode::RETURN, m_code->last_span());
-  }
+  finish_generation();
   return m_code;
 }
 
@@ -223,6 +237,7 @@ void CodeGenerator::visit_identifier(Identifier *expr) {
       m_code->add_code(Opcode::LOAD_GLOBAL, idx, expr->get_span());
       return;
     }
+
     m_code->add_code(Opcode::LOAD_FAST, idx, expr->get_span());
     return;
   }
@@ -346,6 +361,58 @@ void CodeGenerator::visit_for(For *stmnt) {
   m_code->add_code(Opcode::POP_TOP, stmnt->get_span());
   m_scopes->end_scope();
 
+}
+void CodeGenerator::visit_func_def(FuncDef *stmnt) {
+  m_in_function = true;
+
+  auto var = m_scopes->get(stmnt->get_name());
+
+  auto generator = CodeGenerator(m_ctx, m_scopes);
+  generator.m_in_function = true;
+
+  m_scopes->new_scope();
+  for (auto &[name, span] : stmnt->get_params()) {
+    m_scopes->declare(name, span, true, false);
+  }
+
+  auto code = generator.generate_code(stmnt->get_body());
+  generator.m_in_function = false;
+
+  m_scopes->end_scope();
+  auto idx = m_code->add_constant<Function>(code, stmnt->get_params(), stmnt->get_name());
+  auto name = m_code->add_constant<String>(stmnt->get_name());
+
+  m_code->add_code(Opcode::LOAD_CONST, idx, stmnt->get_span());
+
+  if (var.has_value()) {
+    m_code->add_code(Opcode::STORE_GLOBAL, name, stmnt->get_span());
+    return;
+  }
+  m_code->add_code(Opcode::STORE_FAST, name, stmnt->get_span());
+
+  m_in_function = false;
+}
+
+GcPtr<Code> CodeGenerator::generate_code(const std::shared_ptr<Node> &node) {
+  node->accept(this);
+  finish_generation();
+  return m_code;
+}
+
+void CodeGenerator::visit_return(Return *stmnt) {
+  if (stmnt->get_expr().get() == nullptr) {
+    m_code->add_code(Opcode::PUSH_NIL, stmnt->get_span());
+  } else {
+    stmnt->get_expr()->accept(this);
+  }
+
+  m_code->add_code(Opcode::RETURN, stmnt->get_span());
+}
+void CodeGenerator::visit_closure_def(ClosureDef *stmnt) {
+  bool prev = m_in_closure;
+  m_in_closure = true;
+
+  m_in_closure = prev;
 }
 
 } // bond
