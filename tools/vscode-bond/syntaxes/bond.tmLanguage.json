@@ -1,0 +1,147 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "bond",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#statements"
+    },
+    {
+      "include": "#callables"
+    },
+    {
+      "include": "#ident"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#digits"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.bond",
+          "match": "\\b(if|else|while|for|return|and|or|in)\\b"
+        },
+        {
+          "name": "constant.language.null.bond",
+          "match": "\\b(nil)\\b"
+        },
+        {
+          "name": "constant.language.boolean.bond",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "support.function.builtin.bond",
+          "match": "\\b(print)\\b"
+        },
+        {
+          "name": "variable.language.this.bond",
+          "match": "\\b(this)\\b"
+        },
+        {
+          "name": "variable.language.super.bond",
+          "match": "\\b(super)\\b"
+        }
+      ]
+    },
+    "statements": {
+      "patterns": [
+        {
+          "match": "\\b(var)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "storage.type.bond"
+            },
+            "2": {
+              "name": "support.variable.bond"
+            }
+          }
+        },
+        {
+          "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(([A-Za-z0-9,\\s]*)\\)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.bond"
+            },
+            "2": {
+              "name": "entity.name.function.bond"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b",
+                  "name": "variable.parameter.bond"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s*(<)\\s*([A-Za-z_][A-Za-z0-9_]*))?\\b",
+          "captures": {
+            "1": {
+              "name": "storage.type.class.bond"
+            },
+            "2": {
+              "name": "entity.name.type.class.bond"
+            },
+            "3": {
+              "name": "storage.modifier.bond"
+            },
+            "4": {
+              "name": "entity.name.type.class.bond"
+            }
+          }
+        }
+      ]
+    },
+    "callables": {
+      "patterns": [
+        {
+          "match": "([A-Za-z_][A-Za-z0-9_]*)\\(",
+          "name": "support.function.bond"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.bond",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": []
+    },
+    "digits": {
+      "patterns": [
+        {
+          "name": "constant.numeric.bond",
+          "match": "\\b[0-9]+(?:.[0-9]+)?\\b"
+        }
+      ]
+    },
+    "ident": {
+      "patterns": [
+        {
+          "name": "variable.other.readwrite.bond",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.bond",
+          "match": "\\/\\/.*"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.bond"
+}

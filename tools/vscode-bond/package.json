@@ -1,0 +1,53 @@
+{
+  "name": "bond",
+  "displayName": "vscode-bond",
+  "description": "vscode bond support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.77.0"
+  },
+  "main": "extension.js",
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "bond",
+        "aliases": [
+          "bond",
+          "bond"
+        ],
+        "extensions": [
+          ".bd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bond",
+        "scopeName": "source.bond",
+        "path": "./syntaxes/bond.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "bond",
+      "properties": {
+        "bond.bondExecutablePath": {
+          "type": "string",
+          "default": "bond",
+          "description": "Path to the bond executable."
+        },
+        "bond.failFast": {
+          "type": "boolean",
+          "default": false,
+          "description": "prevent server from being restarted"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  }
+}
