@@ -3,288 +3,406 @@
 //
 
 #pragma once
+
 #include "lexer.h"
 #include "nodevisitor.h"
 #include <optional>
 
 namespace bond {
-enum class NodeType {
-  Node, BinOp, Unary, FalseLit, TrueLit, NilLit, NumLit, StringLit
-};
+    enum class NodeType {
+        Node, BinOp, Unary, FalseLit, TrueLit, NilLit, NumLit, StringLit
+    };
 
-class Node {
- public:
-  Node() = default;
-  std::shared_ptr<Span> get_span() { return m_span; }
-  NodeType get_type() { return m_type; }
-  virtual void accept(NodeVisitor *visitor) = 0;
+    class Node {
+    public:
+        Node() = default;
 
- protected:
-  std::shared_ptr<Span> m_span;
-  NodeType m_type{NodeType::Node};
-};
+        std::shared_ptr<Span> get_span() { return m_span; }
 
-using SharedNode = std::shared_ptr<Node>;
-using SharedSpan = std::shared_ptr<Span>;
+        NodeType get_type() { return m_type; }
 
-class BinaryOp : public Node {
- public:
-  BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_left() { return m_left; }
-  SharedNode get_right() { return m_right; }
-  Token get_op() { return m_op; }
- private:
-  SharedNode m_left;
-  SharedNode m_right;
-  Token m_op;
-};
+        virtual void accept(NodeVisitor *visitor) = 0;
 
-class Unary : public Node {
- public:
-  Unary(const SharedSpan &span, Token op, const SharedNode &expr);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
-  Token get_op() { return m_op; }
+    protected:
+        std::shared_ptr<Span> m_span;
+        NodeType m_type{NodeType::Node};
+    };
 
- private:
-  Token m_op;
-  SharedNode m_expr;
-};
+    using SharedNode = std::shared_ptr<Node>;
+    using SharedSpan = std::shared_ptr<Span>;
 
-class FalseLiteral : public Node {
- public:
-  explicit FalseLiteral(const SharedSpan &span);
-  void accept(NodeVisitor *visitor) override;
+    class BinaryOp : public Node {
+    public:
+        BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right);
 
-};
+        void accept(NodeVisitor *visitor) override;
 
-class TrueLiteral : public Node {
- public:
-  explicit TrueLiteral(const SharedSpan &span);
-  void accept(NodeVisitor *visitor) override;
+        SharedNode get_left() { return m_left; }
 
-};
+        SharedNode get_right() { return m_right; }
 
-class NilLiteral : public Node {
- public:
-  explicit NilLiteral(const SharedSpan &span);
-  void accept(NodeVisitor *visitor) override;
+        Token get_op() { return m_op; }
 
-};
+    private:
+        SharedNode m_left;
+        SharedNode m_right;
+        Token m_op;
+    };
 
-class NumberLiteral : public Node {
- public:
-  NumberLiteral(const SharedSpan &span, const std::string &lexeme);
-  void accept(NodeVisitor *visitor) override;
-  float get_value() { return m_value; }
+    class Unary : public Node {
+    public:
+        Unary(const SharedSpan &span, Token op, const SharedNode &expr);
 
- private:
-  float m_value;
-};
+        void accept(NodeVisitor *visitor) override;
 
-class StringLiteral : public Node {
- public:
-  StringLiteral(const SharedSpan &span, const std::string &lexeme);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_value() { return m_value; }
+        SharedNode get_expr() { return m_expr; }
 
- private:
-  std::string m_value;
-};
+        Token get_op() { return m_op; }
 
-class Identifier : public Node {
- public:
-  Identifier(const SharedSpan &span, const std::string &name);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_name() { return m_name; }
+    private:
+        Token m_op;
+        SharedNode m_expr;
+    };
 
- private:
-  std::string m_name;
+    class FalseLiteral : public Node {
+    public:
+        explicit FalseLiteral(const SharedSpan &span);
 
-};
+        void accept(NodeVisitor *visitor) override;
 
-class NewVar : public Node {
- public:
-  NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_name() { return m_name; }
-  SharedNode get_expr() { return m_expr; }
+    };
 
- private:
-  std::string m_name;
-  SharedNode m_expr;
+    class TrueLiteral : public Node {
+    public:
+        explicit TrueLiteral(const SharedSpan &span);
 
-};
+        void accept(NodeVisitor *visitor) override;
 
-class Print : public Node {
- public:
-  Print(const SharedSpan &span, const SharedNode &expr);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
+    };
 
- private:
-  SharedNode m_expr;
-};
+    class NilLiteral : public Node {
+    public:
+        explicit NilLiteral(const SharedSpan &span);
 
-class ExprStmnt : public Node {
- public:
-  ExprStmnt(const SharedSpan &span, const SharedNode &expr);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
+        void accept(NodeVisitor *visitor) override;
 
- private:
-  SharedNode m_expr;
+    };
 
-};
+    class NumberLiteral : public Node {
+    public:
+        NumberLiteral(const SharedSpan &span, const std::string &lexeme);
 
-class Assign : public Node {
- public:
-  Assign(const SharedSpan &span, const std::string &name, const SharedNode &node);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_name() { return m_name; }
-  SharedNode get_expr() { return m_node; }
+        void accept(NodeVisitor *visitor) override;
 
- private:
-  std::string m_name;
-  SharedNode m_node;
+        float get_value() { return m_value; }
 
-};
+    private:
+        float m_value;
+    };
 
-class Block : public Node {
- public:
-  Block(const SharedSpan &span, const std::vector<SharedNode> &nodes);
-  void accept(NodeVisitor *visitor) override;
-  std::vector<SharedNode> get_nodes() { return m_nodes; }
+    class StringLiteral : public Node {
+    public:
+        StringLiteral(const SharedSpan &span, const std::string &lexeme);
 
- private:
-  std::vector<SharedNode> m_nodes;
-};
+        void accept(NodeVisitor *visitor) override;
 
-class List : public Node {
- public:
-  List(const SharedSpan &span, const std::vector<SharedNode> &nodes);
-  void accept(NodeVisitor *visitor) override;
-  std::vector<SharedNode> get_nodes() { return m_nodes; }
+        std::string get_value() { return m_value; }
 
- private:
-  std::vector<SharedNode> m_nodes;
-};
+    private:
+        std::string m_value;
+    };
 
-class GetItem : public Node {
- public:
-  GetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
-  SharedNode get_index() { return m_index; }
+    class Identifier : public Node {
+    public:
+        Identifier(const SharedSpan &span, const std::string &name);
 
- private:
-  SharedNode m_expr;
-  SharedNode m_index;
-};
+        void accept(NodeVisitor *visitor) override;
 
-class SetItem : public Node {
- public:
-  SetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index, const SharedNode &value);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
-  SharedNode get_index() { return m_index; }
-  SharedNode get_value() { return m_value; }
+        std::string get_name() { return m_name; }
 
- private:
-  SharedNode m_expr;
-  SharedNode m_index;
-  SharedNode m_value;
-};
+    private:
+        std::string m_name;
 
-class If : public Node {
- public:
-  If(const SharedSpan &span, const SharedNode &condition, const SharedNode &then, std::optional<SharedNode> else_node);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_condition() { return m_condition; }
-  SharedNode get_then() { return m_then; }
-  std::optional<SharedNode> get_else() { return m_else; }
- private:
-  SharedNode m_condition;
-  SharedNode m_then;
-  std::optional<SharedNode> m_else;
-};
+    };
 
-class While : public Node {
- public:
-  While(const SharedSpan &span, const SharedNode &condition, const SharedNode &statement);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_condition() { return m_condition; }
-  SharedNode get_statement() { return m_statement; }
+    class NewVar : public Node {
+    public:
+        NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr);
 
- private:
-  SharedNode m_condition;
-  SharedNode m_statement;
-};
+        void accept(NodeVisitor *visitor) override;
 
-class Call : public Node {
- public:
-  Call(const SharedSpan &span, const SharedNode &expr, const std::vector<SharedNode> &args);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
-  std::vector<SharedNode> get_args() { return m_args; }
+        std::string get_name() { return m_name; }
 
- private:
-  SharedNode m_expr;
-  std::vector<SharedNode> m_args;
-};
+        SharedNode get_expr() { return m_expr; }
 
-class For : public Node {
- public:
-  For(const SharedSpan &span, const std::string &name, const SharedNode &expr, const SharedNode &statement);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_name() { return m_name; }
-  SharedNode get_expr() { return m_expr; }
-  SharedNode get_statement() { return m_statement; }
+    private:
+        std::string m_name;
+        SharedNode m_expr;
 
- private:
-  std::string m_name;
-  SharedNode m_expr;
-  SharedNode m_statement;
-};
+    };
 
-class FuncDef : public Node {
- public:
-  FuncDef(const SharedSpan &span,
-          const std::string &name,
-          const std::vector<std::pair<std::string, SharedSpan>> &params,
-          const SharedNode &body);
-  void accept(NodeVisitor *visitor) override;
-  std::string get_name() { return m_name; }
-  std::vector<std::pair<std::string, SharedSpan>> get_params() { return m_params; }
-  SharedNode get_body() { return m_body; }
- private:
-  std::string m_name;
-  std::vector<std::pair<std::string, SharedSpan>> m_params;
-  SharedNode m_body;
-};
+    class Print : public Node {
+    public:
+        Print(const SharedSpan &span, const SharedNode &expr);
 
-class Return : public Node {
- public:
-  Return(const SharedSpan &span, const SharedNode &expr);
-  void accept(NodeVisitor *visitor) override;
-  SharedNode get_expr() { return m_expr; }
+        void accept(NodeVisitor *visitor) override;
 
- private:
-  SharedNode m_expr;
-};
+        SharedNode get_expr() { return m_expr; }
 
-class ClosureDef : public Node {
- public:
-  ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def);
-  void accept(NodeVisitor *visitor) override;
+    private:
+        SharedNode m_expr;
+    };
 
-  std::string get_name() { return m_name; }
-  std::shared_ptr<FuncDef> get_func_def() { return m_func_def; }
+    class ExprStmnt : public Node {
+    public:
+        ExprStmnt(const SharedSpan &span, const SharedNode &expr);
 
- private:
-  std::string m_name;
-  std::shared_ptr<FuncDef> m_func_def;
-};
+        void accept(NodeVisitor *visitor) override;
 
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
+
+    };
+
+    class Assign : public Node {
+    public:
+        Assign(const SharedSpan &span, const std::string &name, const SharedNode &node);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        SharedNode get_expr() { return m_node; }
+
+    private:
+        std::string m_name;
+        SharedNode m_node;
+
+    };
+
+    class Block : public Node {
+    public:
+        Block(const SharedSpan &span, const std::vector<SharedNode> &nodes);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::vector<SharedNode> get_nodes() { return m_nodes; }
+
+    private:
+        std::vector<SharedNode> m_nodes;
+    };
+
+    class List : public Node {
+    public:
+        List(const SharedSpan &span, const std::vector<SharedNode> &nodes);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::vector<SharedNode> get_nodes() { return m_nodes; }
+
+    private:
+        std::vector<SharedNode> m_nodes;
+    };
+
+    class GetItem : public Node {
+    public:
+        GetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        SharedNode get_index() { return m_index; }
+
+    private:
+        SharedNode m_expr;
+        SharedNode m_index;
+    };
+
+    class SetItem : public Node {
+    public:
+        SetItem(const SharedSpan &span, const SharedNode &expr, const SharedNode &index, const SharedNode &value);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        SharedNode get_index() { return m_index; }
+
+        SharedNode get_value() { return m_value; }
+
+    private:
+        SharedNode m_expr;
+        SharedNode m_index;
+        SharedNode m_value;
+    };
+
+    class If : public Node {
+    public:
+        If(const SharedSpan &span, const SharedNode &condition, const SharedNode &then,
+           std::optional<SharedNode> else_node);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_condition() { return m_condition; }
+
+        SharedNode get_then() { return m_then; }
+
+        std::optional<SharedNode> get_else() { return m_else; }
+
+    private:
+        SharedNode m_condition;
+        SharedNode m_then;
+        std::optional<SharedNode> m_else;
+    };
+
+    class While : public Node {
+    public:
+        While(const SharedSpan &span, const SharedNode &condition, const SharedNode &statement);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_condition() { return m_condition; }
+
+        SharedNode get_statement() { return m_statement; }
+
+    private:
+        SharedNode m_condition;
+        SharedNode m_statement;
+    };
+
+    class Call : public Node {
+    public:
+        Call(const SharedSpan &span, const SharedNode &expr, const std::vector<SharedNode> &args);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        std::vector<SharedNode> get_args() { return m_args; }
+
+    private:
+        SharedNode m_expr;
+        std::vector<SharedNode> m_args;
+    };
+
+    class For : public Node {
+    public:
+        For(const SharedSpan &span, const std::string &name, const SharedNode &expr, const SharedNode &statement);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        SharedNode get_expr() { return m_expr; }
+
+        SharedNode get_statement() { return m_statement; }
+
+    private:
+        std::string m_name;
+        SharedNode m_expr;
+        SharedNode m_statement;
+    };
+
+    class FuncDef : public Node {
+    public:
+        FuncDef(const SharedSpan &span,
+                const std::string &name,
+                const std::vector<std::pair<std::string, SharedSpan>> &params,
+                const SharedNode &body);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        std::vector<std::pair<std::string, SharedSpan>> get_params() { return m_params; }
+
+        SharedNode get_body() { return m_body; }
+
+    private:
+        std::string m_name;
+        std::vector<std::pair<std::string, SharedSpan>> m_params;
+        SharedNode m_body;
+    };
+
+    class Return : public Node {
+    public:
+        Return(const SharedSpan &span, const SharedNode &expr);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
+    };
+
+    class ClosureDef : public Node {
+    public:
+        ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        std::shared_ptr<FuncDef> get_func_def() { return m_func_def; }
+
+    private:
+        std::string m_name;
+        std::shared_ptr<FuncDef> m_func_def;
+    };
+
+    class StructNode : public Node {
+    public:
+        StructNode(const SharedSpan &span, const std::string &name, const std::vector<std::string> &params,
+                   const std::vector<SharedNode> &methods);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        std::vector<std::string> get_params() { return m_params; }
+
+        std::vector<SharedNode> get_methods() { return m_methods; }
+
+    private:
+        std::string m_name;
+        std::vector<std::string> m_params;
+        std::vector<SharedNode> m_methods;
+    };
+
+    class GetAttribute : public Node {
+    public:
+        GetAttribute(const SharedSpan &span, const SharedNode &expr, const std::string &name);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        std::string get_name() { return m_name; }
+
+    private:
+        SharedNode m_expr;
+        std::string m_name;
+    };
+
+    class SetAttribute : public Node {
+    public:
+        SetAttribute(const SharedSpan &span, const SharedNode &expr, const std::string &name, const SharedNode &value);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+        std::string get_name() { return m_name; }
+
+        SharedNode get_value() { return m_value; }
+
+    private:
+        SharedNode m_expr;
+        std::string m_name;
+        SharedNode m_value;
+    };
 };

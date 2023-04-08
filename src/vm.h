@@ -16,104 +16,120 @@
 #include "context.h"
 #include "builtins.h"
 
+#include <cassert>
+
+
 namespace bond {
 
-class Frame {
- public:
-  Frame() = default;
-  explicit Frame(const GcPtr<Code> &code) { m_code = code; }
-  GcPtr<Object> get_constant() { return m_code->get_constant(m_code->get_code(m_ip++)); }
-  Opcode get_opcode() { return static_cast<Opcode>(m_code->get_code(m_ip++)); }
+    class Frame {
+    public:
+        Frame() = default;
 
-  uint32_t get_oprand() { return m_code->get_code(m_ip++); }
+        explicit Frame(const GcPtr<Code> &code) { m_code = code; }
 
-  SharedSpan get_span() { return m_code->get_span(m_ip); }
+        GcPtr<Object> get_constant() { return m_code->get_constant(m_code->get_code(m_ip++)); }
 
-  void set_code(const GcPtr<Code> &code) {
-    m_code = code;
-    m_ip = 0;
-  }
+        Opcode get_opcode() { return static_cast<Opcode>(m_code->get_code(m_ip++)); }
 
-  void set_function(const GcPtr<Function> &function) {
-    m_function = function;
-    set_code(function->get_code());
-  }
+        uint32_t get_oprand() { return m_code->get_code(m_ip++); }
 
-  GcPtr<Function> get_function() { return m_function; }
+        SharedSpan get_span() { return m_code->get_span(m_ip); }
 
-  void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
-  void jump_absolute(size_t ip) { m_ip = ip; }
-  void set_locals(const GcPtr<Map> &locals) { m_locals = locals; }
+        void set_code(const GcPtr<Code> &code) {
+            m_code = code;
+            m_ip = 0;
+        }
 
-  void set_global(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_globals->set(key, value); }
+        void set_function(const GcPtr<Function> &function) {
+            m_function = function;
+            set_code(function->get_code());
+        }
 
-  bool has_global(const GcPtr<Object> &key) { return m_globals->has(key); }
+        GcPtr<Function> get_function() { return m_function; }
 
-  GcPtr<Object> get_global(const GcPtr<Object> &key) { return m_globals->get_unchecked(key); }
+        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
 
-  void set_local(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_locals->set(key, value); }
+        void jump_absolute(size_t ip) { m_ip = ip; }
 
-  bool has_local(const GcPtr<Object> &key) { return m_locals->has(key); }
+        void set_locals(const GcPtr<Map> &locals) { m_locals = locals; }
 
-  GcPtr<Object> get_local(const GcPtr<Object> &key) { return m_locals->get_unchecked(key); }
+        void set_global(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_globals->set(key, value); }
 
-  void mark() {
-    m_code->mark();
-    m_globals->mark();
-    m_locals->mark();
-  }
+        bool has_global(const GcPtr<Object> &key) { return m_globals->has(key); }
 
-  void unmark() {
-    m_code->unmark();
-    m_globals->unmark();
-    m_locals->unmark();
-  }
+        GcPtr<Object> get_global(const GcPtr<Object> &key) { return m_globals->get_unchecked(key); }
 
- private:
-  GcPtr<Function> m_function;
-  GcPtr<Code> m_code;
-  size_t m_ip = 0;
-  GcPtr<Map> m_locals;
-  GcPtr<Map> m_globals;
-};
+        void set_local(const GcPtr<Object> &key, const GcPtr<Object> &value) { m_locals->set(key, value); }
+
+        bool has_local(const GcPtr<Object> &key) { return m_locals->has(key); }
+
+        GcPtr<Object> get_local(const GcPtr<Object> &key) { return m_locals->get_unchecked(key); }
+
+        void mark() {
+            m_code->mark();
+            m_globals->mark();
+            m_locals->mark();
+        }
+
+        void unmark() {
+            m_code->unmark();
+            m_globals->unmark();
+            m_locals->unmark();
+        }
+
+    private:
+        GcPtr<Function> m_function;
+        GcPtr<Code> m_code;
+        size_t m_ip = 0;
+        GcPtr<Map> m_locals;
+        GcPtr<Map> m_globals;
+    };
 
 #define FRAME_MAX 1024
 
-class Vm : public Root {
- public:
-  explicit Vm(Context *ctx) {
-    m_ctx = ctx;
-    m_True = GarbageCollector::instance().make_immortal<Bool>(true);
-    m_False = GarbageCollector::instance().make_immortal<Bool>(false);
-    m_Nil = GarbageCollector::instance().make_immortal<Nil>();
-    m_globals = GarbageCollector::instance().make_immortal<Map>();
-    add_builtins_to_globals(m_globals);
-  }
-  void run(const GcPtr<Code> &code);
+    class Vm : public Root {
+    public:
+        explicit Vm(Context *ctx) {
+            m_ctx = ctx;
+            m_True = GarbageCollector::instance().make_immortal<Bool>(true);
+            m_False = GarbageCollector::instance().make_immortal<Bool>(false);
+            m_Nil = GarbageCollector::instance().make_immortal<Nil>();
+            m_globals = GarbageCollector::instance().make_immortal<Map>();
+            assert(m_globals.get() != nullptr);
+            add_builtins_to_globals(m_globals);
+        }
 
- private:
-  GcPtr<Bool> m_True;
-  GcPtr<Bool> m_False;
-  GcPtr<Nil> m_Nil;
-  Context *m_ctx = nullptr;
-  bool m_stop = false;
+        void run(const GcPtr<Code> &code);
 
-  size_t m_frame_pointer = 0;
-  std::array<Frame, FRAME_MAX> m_frames;
-  Frame *m_current_frame = nullptr;
+    private:
+        GcPtr<Bool> m_True;
+        GcPtr<Bool> m_False;
+        GcPtr<Nil> m_Nil;
+        Context *m_ctx = nullptr;
+        bool m_stop = false;
 
-  void mark() override;
+        size_t m_frame_pointer = 0;
+        std::array<Frame, FRAME_MAX> m_frames;
+        Frame *m_current_frame = nullptr;
 
-  void unmark() override;
+        void mark() override;
 
-  void exec();
+        void unmark() override;
 
-  void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+        void exec();
 
-  GcPtr<Map> m_globals;
-  void print_stack();
-  void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
+        void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+
+        GcPtr<Map> m_globals;
+
+        void print_stack();
+
+        void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
+
+        void create_instance(const GcPtr<Struct> &_struct, const std::vector<GcPtr<Object>> &args);
+
+        void call_bound_method(const GcPtr<BoundMethod> &bound_method, std::vector<GcPtr<Object>> &args);
+
+    };
+
 };
-
-} // bond
-

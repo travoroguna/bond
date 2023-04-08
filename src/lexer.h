@@ -19,20 +19,20 @@ enum class TokenType : int {
   COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
   LEFT_SQ, RIGHT_SQ, IN,
 
-  // One or two character tokens.
-  BANG, BANG_EQUAL,
-  EQUAL, EQUAL_EQUAL,
-  GREATER, GREATER_EQUAL,
-  LESS, LESS_EQUAL,
+    // One or two character tokens.
+    BANG, BANG_EQUAL,
+    EQUAL, EQUAL_EQUAL,
+    GREATER, GREATER_EQUAL,
+    LESS, LESS_EQUAL,
 
-  // Literals.
-  IDENTIFIER, STRING, NUMBER,
+    // Literals.
+    IDENTIFIER, STRING, NUMBER,
 
-  // Keywords.
-  AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-  PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+    // Keywords.
+    AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
+    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
 
-  EndOfFile
+    EndOfFile
 };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {
