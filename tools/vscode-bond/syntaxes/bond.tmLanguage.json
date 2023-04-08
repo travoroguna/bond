@@ -44,12 +44,8 @@
           "match": "\\b(print)\\b"
         },
         {
-          "name": "variable.language.this.bond",
-          "match": "\\b(this)\\b"
-        },
-        {
-          "name": "variable.language.super.bond",
-          "match": "\\b(super)\\b"
+          "name": "variable.parameter.function.language.special.self.bond",
+          "match": "\\b(self)\\b"
         }
       ]
     },
@@ -86,7 +82,7 @@
           }
         },
         {
-          "match": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s*(<)\\s*([A-Za-z_][A-Za-z0-9_]*))?\\b",
+          "match": "\\b(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s*(<)\\s*([A-Za-z_][A-Za-z0-9_]*))?\\b",
           "captures": {
             "1": {
               "name": "storage.type.class.bond"
