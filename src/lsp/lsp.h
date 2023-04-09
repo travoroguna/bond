@@ -3,25 +3,54 @@
 //
 
 #pragma once
+
 #include "../bond.h"
+#include "rpc.h"
 #include "nlohmann/json.hpp"
 
 namespace bond {
 
-class LspClient {
- public:
-  LspClient() = default;
-  void start();
+    class InitializeParams : public Jsonify {
+    public:
+        InitializeParams(int32_t id) { m_id = id; }
 
- private:
-  bool stop = false;
-  void read_message();
+        json to_json() override {
+            json response;
 
-  std::string m_root_path;
-  std::string m_root_uri;
-  std::string m_client_name;
+            response["jsonrpc"] = "2.0";
+            response["id"] = m_id;
+            response["result"]["capabilities"]["textDocumentSync"]["openClose"] = true;
+            response["result"]["capabilities"]["textDocumentSync"]["change"] = 1;
+            response["result"]["capabilities"]["definitionProvider"] = true;
+            response["result"]["capabilities"]["referencesProvider"] = true;
+            response["result"]["capabilities"]["publishDiagnostics"]["relatedInformation"] = true;
 
-  void initialize(nlohmann::json_abi_v3_11_2::basic_json<> &init_string);
-};
+
+            return response;
+        }
+
+    private:
+        int32_t m_id;
+    };
+
+    class LspClient {
+    public:
+        LspClient() = default;
+
+        void start() {
+            bond::Rpc::log_message("LSP...\n");
+            m_rpc.register_method("initialize",
+                                  [this](auto &&PH1) { return initialize(std::forward<decltype(PH1)>(PH1)); });
+            m_rpc.start();
+        }
+
+        Response<Jsonify *> initialize(Request &request) {
+            return {request.get_id(), new InitializeParams(request.get_id())};
+        }
+
+    private:
+        Rpc m_rpc;
+
+    };
 
 };

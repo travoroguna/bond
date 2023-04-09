@@ -82,7 +82,12 @@ int main(int32_t argc, char **argv) {
         fmt::print("bond 0.0.0 \n");
         run_repl();
     } else {
+        std::ofstream file(R"(D:\dev\cpp\bond\examples\testing2)");
+        file << "";
+        file.close();
+
         if (std::string(argv[1]) == "--rpc") {
+            bond::Rpc::log_message("Starting RPC server...\n");
             auto client = bond::LspClient();
             client.start();
             return 0;
@@ -92,9 +97,7 @@ int main(int32_t argc, char **argv) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;
         }
-
         auto path = std::filesystem::path(argv[1]);
-
         std::filesystem::current_path(path.parent_path());
 
         run_file(argv[1]);

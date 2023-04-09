@@ -1,6 +1,6 @@
 {
   "name": "bond",
-  "displayName": "vscode-bond",
+  "displayName": "bond",
   "description": "vscode bond support",
   "version": "0.0.1",
   "engines": {
