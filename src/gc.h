@@ -295,6 +295,8 @@ namespace bond {
 
         void resume_gc() { m_collect = true; }
 
+        void pop_root() { m_roots.pop_back(); }
+
     private:
         GarbageCollector();
 

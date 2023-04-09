@@ -75,6 +75,8 @@ namespace bond {
 
         void visit_set_attribute(SetAttribute *expr) override;
 
+        void visit_import(ImportDef *stmnt) override;
+
 
         bool m_in_function = false;
         bool m_in_closure = false;
@@ -85,8 +87,6 @@ namespace bond {
         Scopes *m_scopes;
 
         void finish_generation();
-
-        GcPtr<Code> method_def(FuncDef *stmnt);
 
         GcPtr<Function> create_function(FuncDef *stmnt);
     };

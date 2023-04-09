@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include "lsp/lsp.h"
 
 #include "lexer.h"
@@ -86,6 +87,16 @@ int main(int32_t argc, char **argv) {
             client.start();
             return 0;
         }
+
+        if (!std::filesystem::exists(argv[1])) {
+            fmt::print("File not found: {}\n", argv[1]);
+            return 1;
+        }
+
+        auto path = std::filesystem::path(argv[1]);
+
+        std::filesystem::current_path(path.parent_path());
+
         run_file(argv[1]);
     }
 }

@@ -276,4 +276,14 @@ namespace bond {
     void SetAttribute::accept(NodeVisitor *visitor) {
         visitor->visit_set_attribute(this);
     }
+
+    ImportDef::ImportDef(const SharedSpan &span, const std::string &name, const std::string &alias) {
+        m_span = span;
+        m_name = name;
+        m_alias = alias;
+    }
+
+    void ImportDef::accept(NodeVisitor *visitor) {
+        visitor->visit_import(this);
+    }
 };

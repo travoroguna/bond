@@ -3,6 +3,12 @@
 //
 
 #include "vm.h"
+#include "lexer.h"
+#include "parser.h"
+#include "code.h"
+
+#include <filesystem>
+
 
 namespace bond {
 #define CALL_USER_IMPLEMENTATION(OBJ, ROUTER, NAME, ...) \
@@ -75,6 +81,46 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         call_function(method, args);
     }
 
+    std::expected<GcPtr<Module>, std::string> Vm::create_module(const std::string &path, std::string &alias) {
+        if (m_ctx->has_module(path)) {
+            return m_ctx->get_module(path)->as<Module>();
+        }
+
+        if (!std::filesystem::exists(path)) {
+            return std::unexpected(fmt::format("module {} does not exist", path));
+        }
+
+        auto id = m_ctx->new_module(path);
+        auto source = bond::Context::read_file(path);
+
+        auto lexer = Lexer(source, m_ctx, id);
+        auto parser = Parser(lexer.tokenize(), m_ctx);
+
+        auto nodes = parser.parse();
+        auto code_gen = CodeGenerator(m_ctx, parser.get_scopes());
+
+        auto code = code_gen.generate_code(nodes);
+
+        auto vm = Vm(m_ctx);
+        vm.run(code);
+
+        GarbageCollector::instance().add_root(&vm);
+
+        if (vm.had_error()) {
+            return std::unexpected(fmt::format("unable to import module {}", path));
+        }
+
+        GarbageCollector::instance().pop_root();
+
+        GarbageCollector::instance().stop_gc();
+        auto mod = GarbageCollector::instance().make<Module>(path, vm.get_globals());
+        GarbageCollector::instance().resume_gc();
+
+        m_ctx->add_module(path, mod);
+
+        return mod;
+    }
+
     void Vm::create_instance(const GcPtr<Struct> &_struct, const std::vector<GcPtr<Object>> &args) {
         auto variables = _struct->get_instance_variables();
         if (variables.size() != args.size()) {
@@ -112,6 +158,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         }
 
         m_stop = true;
+        m_has_error = true;
         m_ctx->error(span, err);
     }
 
@@ -153,6 +200,20 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
 
+                case Opcode::IMPORT: {
+                    auto path = pop()->as<String>()->get_value();
+                    auto constant = m_current_frame->get_constant();
+                    auto alias = constant->as<String>()->get_value();
+
+                    auto module = create_module(path, alias);
+                    if (!module.has_value()) {
+                        runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
+                        continue;
+                    }
+
+                    m_current_frame->set_global(constant, module.value());
+                    break;
+                }
                 case Opcode::BIN_ADD: BINARY_OP(add)
                 case Opcode::BIN_SUB: BINARY_OP(sub)
                 case Opcode::BIN_MUL: BINARY_OP(mul)
@@ -526,6 +587,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             m_frames[i].mark();
         }
         Root::mark();
+        m_ctx->mark();
     }
 
     void Vm::unmark() {
@@ -533,6 +595,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             m_frames[i].unmark();
         }
         Root::unmark();
+        m_ctx->unmark();
     }
 
 }; // bond

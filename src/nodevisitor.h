@@ -56,6 +56,8 @@ namespace bond {
 
     class SetAttribute;
 
+    class ImportDef;
+
     class NodeVisitor {
     public:
         NodeVisitor();
@@ -111,6 +113,8 @@ namespace bond {
         virtual void visit_get_attribute(GetAttribute *expr) = 0;
 
         virtual void visit_set_attribute(SetAttribute *expr) = 0;
+
+        virtual void visit_import(ImportDef *stmnt) = 0;
 
     };
 }

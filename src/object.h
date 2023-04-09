@@ -53,6 +53,7 @@ namespace bond {
         ITER_END,
         GET_ATTRIBUTE,
         SET_ATTRIBUTE,
+        IMPORT,
     };
 
     class Map : public Object {

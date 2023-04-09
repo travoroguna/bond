@@ -33,7 +33,7 @@ namespace bond {
 
         uint32_t get_oprand() { return m_code->get_code(m_ip++); }
 
-        SharedSpan get_span() { return m_code->get_span(m_ip); }
+        SharedSpan get_span() { return m_code->get_span(m_ip - 1); }
 
         void set_code(const GcPtr<Code> &code) {
             m_code = code;
@@ -85,6 +85,50 @@ namespace bond {
         GcPtr<Map> m_globals;
     };
 
+
+    class Module : public Object {
+    public:
+        explicit Module(const std::string &path, const GcPtr<Map> &globals) : m_globals(globals), m_path(path) {}
+
+        void mark() override {
+            Object::mark();
+            m_globals->mark();
+        }
+
+        void unmark() override {
+            Object::mark();
+            m_globals->unmark();
+        }
+
+        OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override {
+            if (m_globals->has(index)) {
+                return m_globals->get_unchecked(index);
+            }
+            return std::unexpected(RuntimeError::AttributeNotFound);
+        }
+
+        OBJ_RESULT $set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) override {
+            if (!m_globals->has(index)) {
+                return std::unexpected(RuntimeError::AttributeNotFound);
+            }
+
+            m_globals->set(index, value);
+            return value;
+        }
+
+
+        bool equal(const GcPtr<Object> &other) override { return this == other.get(); };
+
+        size_t hash() override { return reinterpret_cast<size_t>(this); }
+
+        GcPtr<Map> get_globals() { return m_globals; }
+
+    private:
+        GcPtr<Map> m_globals;
+        std::string m_path;
+    };
+
+
 #define FRAME_MAX 1024
 
     class Vm : public Root {
@@ -101,12 +145,17 @@ namespace bond {
 
         void run(const GcPtr<Code> &code);
 
+        bool had_error() { return m_has_error; }
+
+        GcPtr<Map> get_globals() { return m_globals; }
+
     private:
         GcPtr<Bool> m_True;
         GcPtr<Bool> m_False;
         GcPtr<Nil> m_Nil;
         Context *m_ctx = nullptr;
         bool m_stop = false;
+        bool m_has_error = false;
 
         size_t m_frame_pointer = 0;
         std::array<Frame, FRAME_MAX> m_frames;
@@ -127,6 +176,8 @@ namespace bond {
         void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
 
         void create_instance(const GcPtr<Struct> &_struct, const std::vector<GcPtr<Object>> &args);
+
+        std::expected<GcPtr<Module>, std::string> create_module(const std::string &path, std::string &alias);
 
         void call_bound_method(const GcPtr<BoundMethod> &bound_method, std::vector<GcPtr<Object>> &args);
 

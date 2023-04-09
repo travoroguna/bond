@@ -405,4 +405,19 @@ namespace bond {
         std::string m_name;
         SharedNode m_value;
     };
+
+    class ImportDef : public Node {
+    public:
+        ImportDef(const SharedSpan &span, const std::string &name, const std::string &alias);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::string get_name() { return m_name; }
+
+        std::string get_alias() { return m_alias; }
+
+    private:
+        std::string m_name;
+        std::string m_alias;
+    };
 };

@@ -32,7 +32,7 @@ enum class TokenType : int {
     AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
     PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
 
-    EndOfFile
+    EndOfFile, IMPORT, AS
 };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {

@@ -65,6 +65,7 @@ namespace bond {
                 CONSTANT_INSTRUCTION(ITER_NEXT);
                 CONSTANT_INSTRUCTION(GET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(SET_ATTRIBUTE);
+                CONSTANT_INSTRUCTION(IMPORT);
 
                 OPRAND_INSTRUCTION(BUILD_LIST);
                 OPRAND_INSTRUCTION(JUMP_IF_FALSE);
@@ -513,6 +514,14 @@ namespace bond {
         expr->get_value()->accept(this);
         m_code->add_code(Opcode::SET_ATTRIBUTE, name, expr->get_span());
 
+    }
+
+    void CodeGenerator::visit_import(ImportDef *stmnt) {
+        auto name = m_code->add_constant<String>(stmnt->get_name());
+        auto alias = m_code->add_constant<String>(stmnt->get_alias());
+
+        m_code->add_code(Opcode::LOAD_CONST, name, stmnt->get_span());
+        m_code->add_code(Opcode::IMPORT, alias, stmnt->get_span());
     }
 
 } // bond

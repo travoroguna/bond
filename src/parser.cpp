@@ -68,6 +68,7 @@ namespace bond {
             if (match({TokenType::VAR})) return variable_declaration();
             else if (match({TokenType::STRUCT})) return struct_declaration();
             else if (match({TokenType::FUN})) return function_declaration(false);
+            else if (match({TokenType::IMPORT})) return import_declaration();
             auto st = statement();
 //            m_scopes.end_scope();
             return st;
@@ -82,6 +83,18 @@ namespace bond {
     std::shared_ptr<Span>
     Parser::span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end) {
         return std::make_shared<Span>(start->module_id, start->start, end->end, end->line);
+    }
+
+    std::shared_ptr<Node> Parser::import_declaration() {
+        auto path = consume(TokenType::STRING, peek().get_span(), "Expected string after import keyword");
+        consume(TokenType::AS, peek().get_span(), "Expected 'as' after import path");
+        auto alias = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected identifier after 'as' keyword");
+        consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after import statement");
+
+        m_scopes.declare(alias.get_lexeme(), alias.get_span(), false);
+
+        return std::make_shared<ImportDef>(span_from_spans(path.get_span(), alias.get_span()), path.get_lexeme(),
+                                           alias.get_lexeme());
     }
 
     std::shared_ptr<Node> Parser::struct_declaration() {
@@ -119,8 +132,6 @@ namespace bond {
             }
             consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variables");
         }
-
-
 
         //capture methods
 
@@ -527,7 +538,6 @@ namespace bond {
         }
 
         auto paren = consume(TokenType::RIGHT_PAREN, callee->get_span(), "Expected ')' after arguments.");
-        fmt::print("arguments: {}\n", arguments.size());
         return std::make_shared<Call>(span_from_spans(callee->get_span(), paren.get_span()), callee, arguments);
     }
 
