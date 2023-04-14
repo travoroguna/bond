@@ -13,79 +13,86 @@
 
 namespace bond {
 
-enum class TokenType : int {
-  // Single-character tokens.
-  LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-  COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
-  LEFT_SQ, RIGHT_SQ, IN,
+    enum class TokenType : int {
+        // Single-character tokens.
+        LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+        COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+        LEFT_SQ, RIGHT_SQ, IN,
 
-    // One or two character tokens.
-    BANG, BANG_EQUAL,
-    EQUAL, EQUAL_EQUAL,
-    GREATER, GREATER_EQUAL,
-    LESS, LESS_EQUAL,
+        // One or two character tokens.
+        BANG, BANG_EQUAL,
+        EQUAL, EQUAL_EQUAL,
+        GREATER, GREATER_EQUAL,
+        LESS, LESS_EQUAL,
 
-    // Literals.
-    IDENTIFIER, STRING, NUMBER,
+        // Literals.
+        IDENTIFIER, STRING, NUMBER,
 
-    // Keywords.
-    AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+        // Keywords.
+        AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
+        PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
 
-    EndOfFile, IMPORT, AS
-};
+        EndOfFile, IMPORT, AS, TRY
+    };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {
 //        return os << static_cast<int>(t);
 //    }
 
-class Token {
-public:
-  Token(std::shared_ptr<Span> span, TokenType type, std::string lexeme);
-  std::string as_string();
-  TokenType get_type() { return m_type; }
-  std::shared_ptr<Span> get_span() { return m_span; }
-  std::string get_lexeme() { return m_lexeme; };
+    class Token {
+    public:
+        Token(std::shared_ptr<Span> span, TokenType type, std::string lexeme);
 
-private:
-  std::shared_ptr<Span> m_span;
-  TokenType m_type;
-  std::string m_lexeme;
+        std::string as_string();
 
-};
+        TokenType get_type() { return m_type; }
 
-class Lexer {
-private:
-  std::shared_ptr<Span> make_span();
-  bool is_at_end();
-  void make_token();
+        std::shared_ptr<Span> get_span() { return m_span; }
 
-  std::string m_source;
-  std::vector<Token> m_tokens = {};
-  uint32_t m_start, m_current, m_module, m_line;
-  Context *m_context;
+        std::string get_lexeme() { return m_lexeme; };
 
-public:
-  Lexer(std::string source, Context *context, uint32_t module_id);
-  std::vector<Token> &tokenize();
+    private:
+        std::shared_ptr<Span> m_span;
+        TokenType m_type;
+        std::string m_lexeme;
 
-  char advance();
+    };
 
-  void new_token(TokenType type);
+    class Lexer {
+    private:
+        std::shared_ptr<Span> make_span();
 
-  bool match(char c);
+        bool is_at_end();
 
-  char peek();
+        void make_token();
 
-  void make_string();
+        std::string m_source;
+        std::vector<Token> m_tokens = {};
+        uint32_t m_start, m_current, m_module, m_line;
+        Context *m_context;
 
-  void new_token(TokenType type, std::string &lexeme);
+    public:
+        Lexer(std::string source, Context *context, uint32_t module_id);
 
-  void make_number();
+        std::vector<Token> &tokenize();
 
-  char peek_next();
+        char advance();
 
-  void make_identifier();
-};
+        void new_token(TokenType type);
+
+        bool match(char c);
+
+        char peek();
+
+        void make_string();
+
+        void new_token(TokenType type, std::string &lexeme);
+
+        void make_number();
+
+        char peek_next();
+
+        void make_identifier();
+    };
 
 } // bond

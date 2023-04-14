@@ -60,7 +60,8 @@ void Context::error(const std::shared_ptr<Span> &span, const std::basic_string<c
         fmt::print("^");
     }
 
-    fmt::print("\n  {}\n\n", err);
+    if (err.length() > 0)
+        fmt::print("\n  {}\n\n", err);
 
 }
 

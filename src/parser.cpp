@@ -31,6 +31,10 @@ namespace bond {
         m_scopes.new_scope();
 
         m_scopes.declare("println", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("range", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("str", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("Ok", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("Err", std::make_shared<Span>(0, 0, 0, 1), false);
 
         while (!is_at_end()) {
             auto res = declaration();
@@ -193,6 +197,11 @@ namespace bond {
         }
         consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after parameters");
 
+        bool can_error = false;
+        if (match({TokenType::BANG})) {
+            can_error = true;
+        }
+
         consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' before function body");
 
         m_scopes.new_scope();
@@ -206,7 +215,7 @@ namespace bond {
         return std::make_shared<FuncDef>(span_from_spans(id.get_span(), previous().get_span()),
                                          id.get_lexeme(),
                                          params,
-                                         body);
+                                         body, can_error);
     }
 
     std::shared_ptr<Node> Parser::variable_declaration() {
@@ -252,6 +261,15 @@ namespace bond {
         return expr_stmnt();
     }
 
+    std::shared_ptr<Node> Parser::try_statement() {
+        if (match({TokenType::TRY})) {
+            auto try_expr = try_statement();
+            return std::make_shared<Try>(span_from_spans(try_expr->get_span(), previous().get_span()), try_expr);
+
+        }
+        return _or();
+    }
+
     std::shared_ptr<Node> Parser::closure_declaration() {
         auto function = dynamic_cast<FuncDef *>(function_declaration(false).get());
         return std::make_shared<ClosureDef>(function->get_span(), function->get_name(),
@@ -274,9 +292,8 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::for_statement() {
-
 //  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
-        consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
+//        consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
 
         consume(TokenType::IN, peek().get_span(), "Expected 'in' after variable name");
@@ -350,12 +367,13 @@ namespace bond {
         return std::make_shared<ExprStmnt>(expr->get_span(), expr);
     }
 
+
     std::shared_ptr<Node> Parser::expression() {
         return assignment();
     }
 
     std::shared_ptr<Node> Parser::assignment() {
-        auto expr = _or();
+        auto expr = try_statement();
 
         if (match({TokenType::EQUAL})) {
             auto pre = previous();

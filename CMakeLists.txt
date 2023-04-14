@@ -4,7 +4,7 @@ project(bond)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+include(CPack)
 add_subdirectory(src)
 
 
@@ -21,6 +21,11 @@ endif ()
 target_link_libraries(bond bondlib)
 
 install(TARGETS bond DESTINATION bin)
+
+set(CPACK_PACKAGE_NAME "bond")
+set(CPACK_PACKAGE_VERSION_MAJOR 0)
+set(CPACK_PACKAGE_VERSION_MINOR 0)
+set(CPACK_PACKAGE_VERSION_PATCH 0)
 
 enable_testing()
 add_subdirectory(tests)

@@ -77,6 +77,8 @@ namespace bond {
 
         void visit_import(ImportDef *stmnt) override;
 
+        void visit_try(Try *stmnt) override;
+
 
         bool m_in_function = false;
         bool m_in_closure = false;

@@ -29,6 +29,8 @@ namespace bond {
             {"var",    TokenType::VAR},
             {"while",  TokenType::WHILE},
             {"in",     TokenType::IN},
+            {"try",    TokenType::TRY}
+
     };
 
     Span::Span(uint32_t module_id, uint32_t start, uint32_t end, uint32_t line) {

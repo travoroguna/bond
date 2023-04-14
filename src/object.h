@@ -54,6 +54,7 @@ namespace bond {
         GET_ATTRIBUTE,
         SET_ATTRIBUTE,
         IMPORT,
+        TRY,
     };
 
     class Map : public Object {
@@ -109,6 +110,8 @@ namespace bond {
 
         OBJ_RESULT $iter(const GcPtr<Object> &self) override;
 
+        OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override;
+
         size_t hash() override { return 0; }
 
         void mark() override;
@@ -118,6 +121,8 @@ namespace bond {
         std::string str() override;
 
         static const char *type_name() { return "list"; }
+
+        std::vector<GcPtr<Object>> get_list() { return m_internal_list; }
 
     private:
         std::vector<GcPtr<Object>> m_internal_list;
@@ -352,6 +357,7 @@ namespace bond {
         NativeFunctionPtr m_fn;
         std::string m_name = "native_function";
     };
+
 
     class Function : public Object {
     public:

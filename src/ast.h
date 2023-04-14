@@ -311,7 +311,7 @@ namespace bond {
         FuncDef(const SharedSpan &span,
                 const std::string &name,
                 const std::vector<std::pair<std::string, SharedSpan>> &params,
-                const SharedNode &body);
+                const SharedNode &body, bool can_error);
 
         void accept(NodeVisitor *visitor) override;
 
@@ -325,6 +325,7 @@ namespace bond {
         std::string m_name;
         std::vector<std::pair<std::string, SharedSpan>> m_params;
         SharedNode m_body;
+        bool m_can_error;
     };
 
     class Return : public Node {
@@ -419,5 +420,17 @@ namespace bond {
     private:
         std::string m_name;
         std::string m_alias;
+    };
+
+    class Try : public Node {
+    public:
+        Try(const SharedSpan &span, const SharedNode &expr);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
     };
 };

@@ -48,7 +48,7 @@ namespace bond {
     }
 
     std::string Number::str() {
-        return std::to_string(m_value);
+        return fmt::format("{:.30g}", m_value);
     }
 
     bool Number::equal(const GcPtr<Object> &other) {
@@ -60,41 +60,58 @@ namespace bond {
         return std::hash<float>{}(m_value);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$eq(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$eq(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(this->equal(other));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$ne(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$ne(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$lt(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$lt(const GcPtr<Object> &other) {
         if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
         return GarbageCollector::instance().make<Bool>(m_value < as<Number>(other)->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$le(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$le(const GcPtr<Object> &other) {
         if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
         return GarbageCollector::instance().make<Bool>(m_value <= as<Number>(other)->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$gt(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$gt(const GcPtr<Object> &other) {
         if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
         return GarbageCollector::instance().make<Bool>(m_value > as<Number>(other)->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$ge(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$ge(const GcPtr<Object> &other) {
         if (!is<Number>(other)) return std::unexpected(RuntimeError::TypeError);
         return GarbageCollector::instance().make<Bool>(m_value >= as<Number>(other)->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Number::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Number::$_bool() {
         return GarbageCollector::instance().make<Bool>(m_value != 0);
     }
 
-    OBJ_RESULT String::$add(const GcPtr<Object> &other) {
-        auto res = const_cast<GcPtr<Object> &>(other)
-                .use_if<String, GcPtr<String>>([&](String &other_string) {
+    OBJ_RESULT
+
+    String::$add(const GcPtr<Object> &other) {
+        auto
+                res = const_cast<GcPtr<Object> &>(other)
+                .use_if<String, GcPtr<String >>([&](String &other_string) {
                     return GarbageCollector::instance().make<String>(m_value + other_string.get_value());
                 });
 
@@ -109,11 +126,15 @@ namespace bond {
         return m_value == as<String>(other)->get_value();
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> String::$eq(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    String::$eq(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(this->equal(other));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> String::$ne(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    String::$ne(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
@@ -125,7 +146,9 @@ namespace bond {
         return fmt::format("\"{}\"", m_value);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> String::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    String::$_bool() {
         return GarbageCollector::instance().make<Bool>(!m_value.empty());
     }
 
@@ -138,11 +161,15 @@ namespace bond {
         return m_value == as<Bool>(other)->get_value();
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Bool::$eq(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Bool::$eq(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(this->equal(other));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Bool::$ne(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Bool::$ne(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
@@ -150,7 +177,9 @@ namespace bond {
         return std::hash<bool>{}(m_value);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Bool::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Bool::$_bool() {
         return GarbageCollector::instance().make<Bool>(m_value);
     }
 
@@ -162,11 +191,15 @@ namespace bond {
         return is<Nil>(other);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Nil::$eq(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Nil::$eq(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(this->equal(other));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Nil::$ne(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Nil::$ne(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(!this->equal(other));
     }
 
@@ -176,7 +209,9 @@ namespace bond {
         return 7654345678900987654;
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Nil::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Nil::$_bool() {
         return GarbageCollector::instance().make<Bool>(false);
     }
 
@@ -188,7 +223,9 @@ namespace bond {
         return m_internal_map.contains(key);
     }
 
-    std::optional<GcPtr<Object>> Map::get(const GcPtr<Object> &key) {
+    std::optional<GcPtr<Object>>
+
+    Map::get(const GcPtr<Object> &key) {
 //        for (auto &[n, method] : m_internal_map){
 //            fmt::print("({} == {}) -> {}, is_same: {}\n", n->str(), key->str(), method->str(), n == key);
 //        }
@@ -222,11 +259,14 @@ namespace bond {
         }
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Map::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    Map::$_bool() {
         return GarbageCollector::instance().make<Bool>(!m_internal_map.empty());
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
+
     ListObj::$set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) {
         if (!is<Number>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
         auto index_value = as<Number>(index)->get_value();
@@ -246,6 +286,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
+
     ListObj::$get_item(const GcPtr<Object> &index) {
         if (!is<Number>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
         auto index_value = as<Number>(index)->get_value();
@@ -300,22 +341,87 @@ namespace bond {
         return result;
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> ListObj::$_bool() {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    ListObj::$_bool() {
         return GarbageCollector::instance().make<Bool>(!m_internal_list.empty());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> ListObj::$iter(const GcPtr<Object> &self) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    ListObj::$iter(const GcPtr<Object> &self) {
         return GarbageCollector::instance().make<ListIterator>(self);
     }
 
-    Struct::Struct(const GcPtr<String> &name, const std::vector<GcPtr<String>> &instance_variables) {
+    std::expected<GcPtr<Object>, RuntimeError> ListObj::$get_attribute(const GcPtr<Object> &index) {
+        if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
+
+        auto attr = as<String>(index)->get_value();
+        using arg_t = std::vector<GcPtr<Object>>;
+
+        if (attr == "append") {
+            return GarbageCollector::instance().make<NativeFunction>(
+                    [this](const arg_t &args) -> NativeErrorOr {
+                        if (args.size() != 1)
+                            return std::unexpected(
+                                    FunctionError("append takes 1 argument", RuntimeError::InvalidArgument));
+
+                        this->m_internal_list.push_back(args[0]);
+                        return GarbageCollector::instance().make<Nil>();
+                    }, "append");
+        } else if (attr == "prepend") {
+            return GarbageCollector::instance().make<NativeFunction>(
+                    [this](const arg_t &args) -> NativeErrorOr {
+                        if (args.size() != 1)
+                            return std::unexpected(
+                                    FunctionError("prepend takes 1 argument", RuntimeError::InvalidArgument));
+
+                        this->prepend(args[0]);
+                        return GarbageCollector::instance().make<Nil>();
+                    }, "prepend");
+        } else if (attr == "pop") {
+            return GarbageCollector::instance().make<NativeFunction>(
+                    [this](const arg_t &args) -> NativeErrorOr {
+                        if (!args.empty())
+                            return std::unexpected(
+                                    FunctionError("pop takes 0 arguments", RuntimeError::InvalidArgument));
+
+                        auto result = m_internal_list.back();
+                        m_internal_list.pop_back();
+                        return result;
+                    }, "pop");
+        } else if (attr == "remove") {
+            return GarbageCollector::instance().make<NativeFunction>(
+                    [this](const arg_t &args) -> NativeErrorOr {
+                        if (args.size() != 1)
+                            return std::unexpected(
+                                    FunctionError("remove takes 1 argument", RuntimeError::InvalidArgument));
+
+                        auto it = std::find(m_internal_list.begin(), m_internal_list.end(), args[0]);
+                        if (it == m_internal_list.end())
+                            return std::unexpected(
+                                    FunctionError(fmt::format("unable to remove element"), RuntimeError::GenericError));
+                        m_internal_list.erase(it);
+                        return GarbageCollector::instance().make<Nil>();
+                    }, "remove");
+        }
+
+
+        return std::unexpected(RuntimeError::AttributeNotFound);
+    }
+
+    Struct::Struct(const GcPtr<String> &name, const std::vector<GcPtr<String>>
+
+    &instance_variables) {
         m_name = name;
         m_instance_variables = instance_variables;
         m_methods = GarbageCollector::instance().make_immortal<Map>();
     }
 
 
-    OBJ_RESULT Struct::$get_attribute(const GcPtr<Object> &index) {
+    OBJ_RESULT
+
+    Struct::$get_attribute(const GcPtr<Object> &index) {
         auto attr = get_method(index);
         if (attr.has_value()) return attr.value();
         return std::unexpected(RuntimeError::AttributeNotFound);
@@ -363,6 +469,7 @@ namespace bond {
 
 
     std::expected<GcPtr<Object>, RuntimeError>
+
     StructInstance::$set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) {
         if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
         auto name = as<String>(index)->get_value();
@@ -375,7 +482,9 @@ namespace bond {
         return std::unexpected(RuntimeError::AttributeNotFound);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> StructInstance::$get_attribute(const GcPtr<Object> &index) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    StructInstance::$get_attribute(const GcPtr<Object> &index) {
         if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
         auto name = as<String>(index)->get_value();
 
@@ -391,6 +500,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
+
     StructInstance::$set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) {
         auto name = String("__set_item__");
         GcPtr<String> name_ptr = &name;
@@ -403,6 +513,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
+
     StructInstance::$get_item(const GcPtr<Object> &index) {
         auto name = String("__get_item__");
         GcPtr<String> name_ptr = &name;
@@ -417,7 +528,9 @@ namespace bond {
         return std::unexpected(RuntimeError::AttributeNotFound);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> StructInstance::$eq(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    StructInstance::$eq(const GcPtr<Object> &other) {
         if (!other->is<StructInstance>()) return GarbageCollector::instance().make<Bool>(false);
 
         auto other_instance = other->as<StructInstance>();
@@ -434,7 +547,9 @@ namespace bond {
         return GarbageCollector::instance().make<Bool>(true);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> StructInstance::$ne(const GcPtr<Object> &other) {
+    std::expected<GcPtr<Object>, RuntimeError>
+
+    StructInstance::$ne(const GcPtr<Object> &other) {
         return GarbageCollector::instance().make<Bool>(!$eq(other).value()->as<Bool>()->get_value());
     }
 

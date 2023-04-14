@@ -211,11 +211,12 @@ namespace bond {
     FuncDef::FuncDef(const SharedSpan &span,
                      const std::string &name,
                      const std::vector<std::pair<std::string, SharedSpan>> &params,
-                     const SharedNode &body) {
+                     const SharedNode &body, bool can_error) {
         m_span = span;
         m_name = name;
         m_params = params;
         m_body = body;
+        m_can_error = can_error;
     }
 
     void FuncDef::accept(NodeVisitor *visitor) {
@@ -286,4 +287,15 @@ namespace bond {
     void ImportDef::accept(NodeVisitor *visitor) {
         visitor->visit_import(this);
     }
+
+    Try::Try(const SharedSpan &span, const SharedNode &expr) {
+        m_span = span;
+        m_expr = expr;
+    }
+
+    void Try::accept(NodeVisitor *visitor) {
+        visitor->visit_try(this);
+    }
+
+
 };

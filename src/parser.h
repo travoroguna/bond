@@ -139,6 +139,8 @@ struct Variable {
         std::shared_ptr<Node> function_declaration(bool is_method);
 
         std::shared_ptr<Node> import_declaration();
+
+        std::shared_ptr<Node> try_statement();
     };
 
 } // bond

@@ -21,7 +21,8 @@
 
 namespace bond {
 
-    class Frame {
+    class
+    Frame {
     public:
         Frame() = default;
 
@@ -88,7 +89,25 @@ namespace bond {
 
     class Module : public Object {
     public:
-        explicit Module(const std::string &path, const GcPtr<Map> &globals) : m_globals(globals), m_path(path) {}
+        explicit Module(std::string path, const GcPtr<Map> &globals) : m_globals(globals), m_path(std::move(path)) {}
+
+        Module(std::string path, const std::unordered_map<std::string, NativeFunctionPtr> &functions) : m_path(
+                std::move(path)) {
+            m_globals = GarbageCollector::instance().make<Map>();
+            for (auto const &[name, function]: functions) {
+                m_globals->set(GarbageCollector::instance().make<String>(name),
+                               GarbageCollector::instance().make<NativeFunction>(function));
+            }
+        }
+
+        Module(std::string path, const std::unordered_map<std::string, GcPtr<Object>> &objects) {
+            m_path = std::move(path);
+
+            m_globals = GarbageCollector::instance().make<Map>();
+            for (auto const &[name, object]: objects) {
+                m_globals->set(GarbageCollector::instance().make<String>(name), object);
+            }
+        }
 
         void mark() override {
             Object::mark();
@@ -116,6 +135,7 @@ namespace bond {
             return value;
         }
 
+        std::string str() override { return fmt::format("<module '{}' at {}>", m_path, (void *) this); }
 
         bool equal(const GcPtr<Object> &other) override { return this == other.get(); };
 
@@ -149,6 +169,11 @@ namespace bond {
 
         GcPtr<Map> get_globals() { return m_globals; }
 
+        void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
+
+        void exec();
+
+
     private:
         GcPtr<Bool> m_True;
         GcPtr<Bool> m_False;
@@ -165,15 +190,14 @@ namespace bond {
 
         void unmark() override;
 
-        void exec();
 
         void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+
+        std::expected<GcPtr<Module>, std::string> load_dynamic_lib(const std::string &path, std::string &alias);
 
         GcPtr<Map> m_globals;
 
         void print_stack();
-
-        void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
 
         void create_instance(const GcPtr<Struct> &_struct, const std::vector<GcPtr<Object>> &args);
 
@@ -181,6 +205,7 @@ namespace bond {
 
         void call_bound_method(const GcPtr<BoundMethod> &bound_method, std::vector<GcPtr<Object>> &args);
 
+        std::expected<std::string, std::string> path_resolver(const std::string &path);
     };
 
 };

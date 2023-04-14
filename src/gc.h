@@ -9,8 +9,10 @@
 #include <functional>
 #include <expected>
 #include <optional>
+#include <mutex>
 
 #define DEBUG
+
 
 namespace bond {
     class GarbageCollector;
@@ -63,6 +65,11 @@ namespace bond {
         T *get() const { return m_ptr; }
 
         void set(T *ptr) { m_ptr = ptr; }
+
+        [[nodiscard]] const char *type_name() const {
+#define TYPE_NAME(X) #X
+            return TYPE_NAME(T);
+        }
 
         explicit operator bool() const { return m_ptr != nullptr; }
 
@@ -138,6 +145,7 @@ namespace bond {
         InvalidArgument,
         AttributeNotFound,
         ExpectedStringIndex,
+        FileNotFound,
     };
 
 #define UNIMPLEMENTED return std::unexpected(RuntimeError::Unimplemented)
@@ -195,7 +203,7 @@ namespace bond {
 
         virtual OBJ_RESULT $ge(const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $call(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $call(const std::vector<GcPtr<Object>> &arguments) { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $_bool() { UNIMPLEMENTED; }
 
@@ -217,8 +225,6 @@ namespace bond {
 
         virtual std::string str();
 
-        static const char *type_name() { return "Object"; }
-
         virtual bool equal(const GcPtr<Object> &other) = 0;
 
         virtual size_t hash() = 0;
@@ -228,6 +234,7 @@ namespace bond {
                 return other->hash();
             }
         };
+
 
     protected:
         bool m_marked = false;
@@ -262,43 +269,78 @@ namespace bond {
 
     };
 
+
     class GarbageCollector {
     public:
         static GarbageCollector &instance();
+
+        void set_gc(GarbageCollector *_gc) { m_gc = _gc; }
 
         void collect();
 
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
+            m_gc->m_mutex.lock();
             auto t = GcPtr<T>(new T(std::forward<Args>(args)...));
-            m_immortal.emplace_back(t);
+            m_gc->m_immortal.emplace_back(t);
+            m_gc->m_mutex.unlock();
             return t;
         }
 
         template<typename T, typename... Args>
         GcPtr<T> make(Args &&...args) {
-            return GcPtr<T>(new(instance()) T(std::forward<Args>(args)...));
+            m_gc->m_mutex.lock();
+            auto t = GcPtr<T>(new(*this) T(std::forward<Args>(args)...));
+            m_gc->m_mutex.unlock();
+
+            return t;
         }
+
 
         void *allocate(size_t size) {
             collect_if_needed();
             auto ptr = (Object *) std::malloc(size);
-            m_objects.emplace_back(ptr);
+            m_gc->m_objects.emplace_back(ptr);
             return ptr;
         }
 
         ~GarbageCollector();
 
-        void add_root(Root *root) { m_roots.push_back(root); }
+        void add_root(Root *root) { m_gc->m_roots.push_back(root); }
 
-        void stop_gc() { m_collect = false; }
+        void stop_gc() {
+            m_gc->m_collect = false;
+        }
 
-        void resume_gc() { m_collect = true; }
+        void resume_gc() {
+            m_gc->m_collect = true;
+        }
 
-        void pop_root() { m_roots.pop_back(); }
+        void pop_root() {
+            m_gc->m_roots.pop_back();
+        }
+
+        void set_alloc_limit(size_t limit) { m_gc->m_alloc_limit = limit; }
+
+        size_t get_alloc_limit() { return m_gc->m_alloc_limit; }
+
+        size_t get_alloc_count() { return m_gc->m_objects.size(); }
+
+        size_t get_immortal_count() { return m_gc->m_immortal.size(); }
+
+        void remove_root(Root *root) {
+
+            auto it = std::find(m_gc->m_roots.begin(), m_gc->m_roots.end(), root);
+            if (it != m_gc->m_roots.end()) {
+                m_gc->m_roots.erase(it);
+            }
+
+        }
 
     private:
         GarbageCollector();
+
+        GarbageCollector *m_gc = this;
 
         std::vector<GcPtr<Object>> m_objects;
         std::vector<GcPtr<Object>> m_immortal;
@@ -308,6 +350,7 @@ namespace bond {
         void collect_if_needed();
 
         bool m_collect = true;
+        std::recursive_mutex m_mutex;
     };
 
 }; // namespace bond

@@ -74,6 +74,7 @@ namespace bond {
                 OPRAND_INSTRUCTION(ITER_END);
                 OPRAND_INSTRUCTION(CREATE_FUNCTION);
                 OPRAND_INSTRUCTION(CREATE_STRUCT);
+                OPRAND_INSTRUCTION(TRY);
 
                 SIMPLE_INSTRUCTION(ITER);
                 SIMPLE_INSTRUCTION(BIN_ADD);
@@ -522,6 +523,14 @@ namespace bond {
 
         m_code->add_code(Opcode::LOAD_CONST, name, stmnt->get_span());
         m_code->add_code(Opcode::IMPORT, alias, stmnt->get_span());
+    }
+
+    void CodeGenerator::visit_try(Try *stmnt) {
+        stmnt->get_expr()->accept(this);
+        auto next = m_code->current_index() + 3;
+        m_code->add_code(Opcode::TRY, next, stmnt->get_span());
+        m_code->add_code(Opcode::RETURN, stmnt->get_span());
+
     }
 
 } // bond

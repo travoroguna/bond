@@ -1,0 +1,4 @@
+fn println(*args) { ... }
+fn print(*args) { ... }
+fn read() { ... }
+fn open(path, mode) { ... }

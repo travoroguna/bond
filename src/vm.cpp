@@ -6,11 +6,21 @@
 #include "lexer.h"
 #include "parser.h"
 #include "code.h"
+#include "result.h"
 
 #include <filesystem>
+#include <array>
 
+#ifdef _WIN32
+
+#include <Windows.h>
+
+#else
+#include <dlfcn.h>
+#endif
 
 namespace bond {
+
 #define CALL_USER_IMPLEMENTATION(OBJ, ROUTER, NAME, ...) \
     auto result = (OBJ)->as<StructInstance>()->$##ROUTER(__VA_ARGS__);\
     if (!result.has_value()) {\
@@ -36,6 +46,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
     void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
         GarbageCollector::instance().stop_gc();
+
         auto frame = &m_frames[m_frame_pointer++];
 
         if (m_frame_pointer >= FRAME_MAX) {
@@ -81,17 +92,92 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         call_function(method, args);
     }
 
+
+    std::expected<std::string, std::string> Vm::path_resolver(const std::string &path) {
+#ifdef _WIN32
+        auto test_compiled_native = m_ctx->get_lib_path() + path + ".dll";
+        auto test_compiled_c_path = path + ".dll";
+#else
+        auto test_compiled_native = m_ctx->get_lib_path() + path + ".so";
+        auto test_compiled_c_path = path + ".so";
+#endif
+
+        auto test_native = m_ctx->get_lib_path() + path + ".bd";
+        auto test_user = path + ".bd";
+
+
+        std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
+
+        for (auto &p: paths) {
+            if (std::filesystem::exists(p)) {
+                return p;
+            }
+        }
+//
+        return std::unexpected(fmt::format("failed to resolve path {}", path));
+    }
+
+    std::expected<GcPtr<Module>, std::string> Vm::load_dynamic_lib(const std::string &path, std::string &alias) {
+#ifdef _WIN32
+        auto handle = LoadLibrary(path.c_str());
+        if (!handle) {
+            return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, GetLastError()));
+        }
+
+        // void bond_module_init(bond::Context *ctx, const char *path)
+        auto init = (void (*)(bond::Context *, const std::string &)) GetProcAddress(handle, "bond_module_init");
+
+        if (!init) {
+            return std::unexpected(
+                    fmt::format("failed to load dynamic library {}: {}, missing init function 'bond_module_init'", path,
+                                GetLastError()));
+        }
+
+
+#else
+        auto handle = dlopen(path.c_str(), RTLD_LAZY);
+        if (!handle) {
+            return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, dlerror()));
+        }
+
+
+        auto init = (void (*)(bond::Context *, const std::string &))  dlsym(handle, "bond_module_init");
+        if (!init) {
+            return std::unexpected(fmt::format("failed to load dynamic library {}: {}, missing init function 'bond_module_init'", path, dlerror()));
+        }
+
+#endif
+        init(m_ctx, path);
+
+        auto mod = m_ctx->get_module(path);
+
+        fmt::print("gc addr: {}\n", (void *) &GarbageCollector::instance());
+
+        for (auto &[k, v]: mod->as<Module>()->get_globals()->get_map()) {
+            fmt::print("{}: {}\n", k->str(), v->str());
+        }
+        return mod->as<Module>();
+    }
+
     std::expected<GcPtr<Module>, std::string> Vm::create_module(const std::string &path, std::string &alias) {
-        if (m_ctx->has_module(path)) {
-            return m_ctx->get_module(path)->as<Module>();
+        auto res = path_resolver(path);
+
+        if (!res) {
+            return std::unexpected(res.error());
         }
 
-        if (!std::filesystem::exists(path)) {
-            return std::unexpected(fmt::format("module {} does not exist", path));
+        auto resolved_path = res.value();
+
+        if (m_ctx->has_module(resolved_path)) {
+            return m_ctx->get_module(resolved_path)->as<Module>();
         }
 
-        auto id = m_ctx->new_module(path);
-        auto source = bond::Context::read_file(path);
+        if (resolved_path.ends_with(".dll") || resolved_path.ends_with(".so")) {
+            return load_dynamic_lib(resolved_path, alias);
+        }
+
+        auto id = m_ctx->new_module(resolved_path);
+        auto source = bond::Context::read_file(resolved_path);
 
         auto lexer = Lexer(source, m_ctx, id);
         auto parser = Parser(lexer.tokenize(), m_ctx);
@@ -107,16 +193,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         GarbageCollector::instance().add_root(&vm);
 
         if (vm.had_error()) {
-            return std::unexpected(fmt::format("unable to import module {}", path));
+            return std::unexpected(fmt::format("unable to import module {}", resolved_path));
         }
 
         GarbageCollector::instance().pop_root();
 
         GarbageCollector::instance().stop_gc();
-        auto mod = GarbageCollector::instance().make<Module>(path, vm.get_globals());
+        auto mod = GarbageCollector::instance().make<Module>(resolved_path, vm.get_globals());
         GarbageCollector::instance().resume_gc();
 
-        m_ctx->add_module(path, mod);
+        m_ctx->add_module(resolved_path, mod);
 
         return mod;
     }
@@ -159,6 +245,14 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
         m_stop = true;
         m_has_error = true;
+
+
+        push(GarbageCollector::instance().make<String>(err));
+
+        for (size_t i = m_frame_pointer - 1; i > 0; i--) {
+            m_ctx->error(m_frames[i].get_span(), "");
+        }
+
         m_ctx->error(span, err);
     }
 
@@ -168,7 +262,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     auto left = pop();  \
     auto result = left->$##X(right); \
     if (!result.has_value()) { \
-        runtime_error(fmt::format("unable to " #X " {} and {}", left->str(), right->str()), result.error(), m_current_frame->get_span());\
+        runtime_error(fmt::format("unable to " #X "values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
         continue;\
     }\
     push(result.value());                                    \
@@ -205,18 +299,35 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     auto constant = m_current_frame->get_constant();
                     auto alias = constant->as<String>()->get_value();
 
+                    GarbageCollector::instance().stop_gc();
                     auto module = create_module(path, alias);
                     if (!module.has_value()) {
                         runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
+                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
-
+                    GarbageCollector::instance().resume_gc();
                     m_current_frame->set_global(constant, module.value());
                     break;
                 }
                 case Opcode::BIN_ADD: BINARY_OP(add)
                 case Opcode::BIN_SUB: BINARY_OP(sub)
-                case Opcode::BIN_MUL: BINARY_OP(mul)
+                case Opcode::BIN_MUL: {
+                    GarbageCollector::instance().stop_gc();
+                    auto right = pop();
+                    auto left = pop();
+                    auto result = left->$mul(right);
+                    if (!result.has_value()) {
+                        runtime_error(
+                                fmt::format("unable to " "mul" "values of type {} and {}", left.type_name(),
+                                            right.type_name()),
+                                result.error(), m_current_frame->get_span());
+                        continue;
+                    }
+                    push(result.value());
+                    GarbageCollector::instance().resume_gc();
+                    break;
+                }
                 case Opcode::BIN_DIV: BINARY_OP(div)
                 case Opcode::NE: BINARY_OP(ne)
                 case Opcode::EQ: BINARY_OP(eq)
@@ -224,6 +335,27 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::LE: BINARY_OP(le)
                 case Opcode::GT: BINARY_OP(gt)
                 case Opcode::GE: BINARY_OP(ge)
+                case Opcode::TRY: {
+                    if (peek()->is<BondResult>()) {
+                        auto result = pop()->as<BondResult>();
+                        auto jmp = m_current_frame->get_oprand();
+                        if (result->is_error()) {
+                            if (m_frame_pointer == 1) {
+                                runtime_error(result->str(), RuntimeError::GenericError, m_current_frame->get_span());
+                                break;
+                            }
+                            push(result);
+                            break;
+                        } else {
+                            push(result->get());
+                            m_current_frame->jump_absolute(jmp);
+                            break;
+                        }
+                    }
+                    runtime_error("try statement expects a BondResult", RuntimeError::GenericError,
+                                  m_current_frame->get_span());
+                    break;
+                }
                 case Opcode::RETURN:
                     if (m_frame_pointer == 1) {
                         m_stop = true;
@@ -298,6 +430,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::POP_TOP:
+                    if (peek()->is<BondResult>()) {
+                        runtime_error(fmt::format("result must be handled: {}", pop()->str()),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                        continue;
+                    }
                     pop();
                     break;
 
@@ -523,6 +661,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                             continue;
                         }
                         runtime_error(result.error().message, result.error().error, m_current_frame->get_span());
+                        continue;
+
                     } else if (func->is<Function>()) {
                         auto f = func->as<Function>();
                         call_function(f, args);
@@ -536,6 +676,13 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         call_bound_method(bm, args);
                         break;
                     }
+
+                    auto result = func->$call(args);
+                    if (result.has_value()) {
+                        push(result.value());
+                        continue;
+                    }
+
                     runtime_error(fmt::format("{} is not callable", func->str()), RuntimeError::GenericError,
                                   m_current_frame->get_span());
                     continue;
@@ -549,6 +696,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::GET_ATTRIBUTE: {
                     auto attr = m_current_frame->get_constant();
                     auto obj = pop();
+
                     auto result = obj->$get_attribute(attr);
 
                     if (!result.has_value()) {
@@ -591,7 +739,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     }
 
     void Vm::unmark() {
-        for (size_t i = 0; i < m_frame_pointer; i++) {
+        for (size_t i = 0; i < m_frame_pointer; i++) { ;
             m_frames[i].unmark();
         }
         Root::unmark();
