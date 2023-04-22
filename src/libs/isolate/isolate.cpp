@@ -2,11 +2,12 @@
 // Created by Travor Oguna Oneya on 12/04/2023.
 //
 
-#include <thread>
-#include <mutex>
 #include <utility>
-#include "../bond.h"
+#include "../../bond.h"
+
 #include <chrono>
+
+#include <plibsys.h>
 
 
 using namespace bond;
@@ -15,21 +16,32 @@ Context *m_ctx;
 
 class Future : public Object {
 public:
-    Future() = default;
+    Future() : m_mutex(p_mutex_new()) {}
+
+    ~Future() override {
+        if (m_thread != nullptr) {
+//            p_uthread_unref(m_thread);
+        }
+//        p_mutex_free(m_mutex);
+    }
+
 
     bool has_result() {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_result.get() != nullptr;
+        p_mutex_lock(m_mutex);
+        auto res = m_result.get() != nullptr;
+        p_mutex_unlock(m_mutex);
+
+        return res;
     }
 
     GcPtr<Object> get_result() {
-        std::lock_guard<std::mutex> lock(m_mutex);
         return m_result;
     }
 
     void set_result(GcPtr<Object> result) {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        p_mutex_lock(m_mutex);
         m_result = std::move(result);
+        p_mutex_unlock(m_mutex);
     }
 
     void mark() override {
@@ -54,9 +66,14 @@ public:
         return m_attributes[name];
     }
 
+    void set_ptr(PUThread *thread) {
+        m_thread = thread;
+        p_uthread_ref(m_thread);
+    }
 
 private:
-    std::mutex m_mutex;
+    PMutex *m_mutex;
+    PUThread *m_thread = nullptr;
     GcPtr<Object> m_result = nullptr;
 
     std::unordered_map<std::string, GcPtr<Object>> m_attributes = {
@@ -79,34 +96,63 @@ private:
     };
 };
 
+struct ThreadData {
+    Context *ctx;
+    GcPtr<Function> function;
+    GcPtr<ListObj> args;
+    GcPtr<Future> future;
+
+    ThreadData(Context *ctx, const GcPtr<Function> &function, const GcPtr<ListObj> &args, const GcPtr<Future> &future)
+            : ctx(ctx), function(function), args(args), future(future) {}
+};
+
+
+ppointer isolate_thread(ppointer arg) {
+    auto data = (ThreadData *) arg;
+    auto ctx = Context(m_ctx->get_lib_path());
+
+    auto vm = Vm(&ctx);
+    GarbageCollector::instance().add_root(&vm);
+    GarbageCollector::instance().stop_gc();
+
+    auto function = data->function;
+    auto args = data->args->get_list();
+    auto future = data->future;
+
+    vm.push(future);
+    vm.call_function(function, args);
+    vm.exec();
+
+    GarbageCollector::instance().resume_gc();
+    if (!vm.had_error()) {
+        auto result = vm.pop();
+        future->set_result(GarbageCollector::instance().make<BondResult>(false, result));
+    } else {
+        auto error = vm.pop();
+        future->set_result(GarbageCollector::instance().make<BondResult>(true, error));
+    }
+
+    GarbageCollector::instance().remove_root(&vm);
+    delete data;
+    return nullptr;
+}
+
 NativeErrorOr start_isolate(const std::vector<GcPtr<Object>> &arguments) {
     ASSERT_ARG_COUNT(2, arguments);
 
     DEFINE(function, Function, 0, arguments);
     DEFINE(args, ListObj, 1, arguments);
 
-    auto ctx = Context(m_ctx->get_lib_path());
-    auto vm = Vm(&ctx);
-    GarbageCollector::instance().add_root(&vm);
-    auto future = GarbageCollector::instance().make<Future>();
-
     GarbageCollector::instance().stop_gc();
-    std::thread t([&vm, &function, &args, &future]() {
-        vm.push(future);
-        vm.call_function(function, args->get_list());
-        vm.exec();
 
-        GarbageCollector::instance().stop_gc();
-        if (!vm.had_error()) {
-            auto result = vm.pop();
-            future->set_result(GarbageCollector::instance().make<BondResult>(false, result));
-        } else {
-            auto error = vm.pop();
-            future->set_result(GarbageCollector::instance().make<BondResult>(true, error));
-        }
-    });
+    auto future = m_ctx->gc()->make<Future>();
+    auto t = new ThreadData(m_ctx, function, args, future);
+    auto thread = p_uthread_create(isolate_thread, t, true);
+    future->set_ptr(thread);
 
-    t.join();
+//    p_uthread_join(thread);
+    fmt::print("Starting isolate, {}, {}\n", function->str(), args->str());
+
     return future;
 }
 
@@ -114,16 +160,17 @@ NativeErrorOr start_isolate(const std::vector<GcPtr<Object>> &arguments) {
 NativeErrorOr sleep(const std::vector<GcPtr<Object>> &arguments) {
     ASSERT_ARG_COUNT(1, arguments);
 
-    DEFINE(duration, Number, 0, arguments);
+    DEFINE(duration, Integer, 0, arguments);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds((int) duration->get_value()));
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration->get_value()));
+
     return GarbageCollector::instance().make<Nil>();
 }
 
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     m_ctx = ctx;
-//    GarbageCollector::instance().set_gc(ctx->gc());
+    GarbageCollector::instance().set_gc(m_ctx->gc());
 
     std::unordered_map<std::string, NativeFunctionPtr> io_module = {
             {"start_isolate", start_isolate},

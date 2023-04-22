@@ -14,9 +14,15 @@ namespace bond {
 
     NativeErrorOr str(const std::vector<GcPtr<Object>> &arguments);
 
+    NativeErrorOr int_(const std::vector<GcPtr<Object>> &arguments);
+
+    NativeErrorOr float_(const std::vector<GcPtr<Object>> &arguments);
+
     NativeErrorOr Ok_(const std::vector<GcPtr<Object>> &arguments);
 
     NativeErrorOr Err_(const std::vector<GcPtr<Object>> &arguments);
 
     void add_builtins_to_globals(GcPtr<Map> &globals);
+
+    NativeErrorOr is_instance(const std::vector<GcPtr<Object>> &arguments);
 }

@@ -67,8 +67,7 @@ namespace bond {
         void set(T *ptr) { m_ptr = ptr; }
 
         [[nodiscard]] const char *type_name() const {
-#define TYPE_NAME(X) #X
-            return TYPE_NAME(T);
+            return typeid(*m_ptr).name();
         }
 
         explicit operator bool() const { return m_ptr != nullptr; }
@@ -159,10 +158,6 @@ namespace bond {
 
         [[nodiscard]] bool is_marked() const { return m_marked; }
 
-        virtual void mark() { m_marked = true; }
-
-        virtual void unmark() { m_marked = false; }
-
         template<typename T>
         static bool is(GcPtr<Object> const &obj) {
             return instanceof<T>(obj.get());
@@ -183,43 +178,59 @@ namespace bond {
 
         bool operator==(Object const &other) const { return this == &other; }
 
-        virtual OBJ_RESULT $add(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual void mark() { m_marked = true; }
 
-        virtual OBJ_RESULT $sub(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual void unmark() { m_marked = false; }
 
-        virtual OBJ_RESULT $mul(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $add([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $div(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $sub([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $eq(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $mul([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $ne(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $div([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $lt(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $eq([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $le(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $ne([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $gt(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $mod([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $ge(const GcPtr<Object> &other) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $lt([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $call(const std::vector<GcPtr<Object>> &arguments) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $le([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $gt([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $ge([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
+
+        virtual OBJ_RESULT $call([[maybe_unused]] const std::vector<GcPtr<Object>> &arguments) { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $_bool() { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $set_item([[maybe_unused]] const GcPtr<Object> &index,
+                                     [[maybe_unused]] const GcPtr<Object> &value) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $get_item(const GcPtr<Object> &index) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $get_item([[maybe_unused]] const GcPtr<Object> &index) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $set_attribute([[maybe_unused]] const GcPtr<Object> &index,
+                                          [[maybe_unused]] const GcPtr<Object> &value) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $get_attribute(const GcPtr<Object> &index) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $get_attribute(const GcPtr<Object> &index) {
+            UNIMPLEMENTED;
+        }
 
-        virtual OBJ_RESULT $iter(const GcPtr<Object> &self) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $iter([[maybe_unused]] const GcPtr<Object> &self) { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $next() { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $has_next() { UNIMPLEMENTED; }
+
+        virtual std::expected<GcPtr<Object>, std::string>
+        call__([[maybe_unused]] std::vector<GcPtr<Object>> &arguments) { return std::unexpected(""); }
+
+        virtual std::expected<bool, std::string>
+        is_instance([[maybe_unused]] GcPtr<Object> const &other) { return std::unexpected("value is not a type"); }
 
         bool operator==(const GcPtr<Object> &other) { return equal(other); }
 
@@ -234,7 +245,6 @@ namespace bond {
                 return other->hash();
             }
         };
-
 
     protected:
         bool m_marked = false;
@@ -278,6 +288,8 @@ namespace bond {
 
         void collect();
 
+        void set_main_thread_id(std::thread::id id) { m_main_thread_id = id; }
+
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
             m_gc->m_mutex.lock();
@@ -292,7 +304,6 @@ namespace bond {
             m_gc->m_mutex.lock();
             auto t = GcPtr<T>(new(*this) T(std::forward<Args>(args)...));
             m_gc->m_mutex.unlock();
-
             return t;
         }
 
@@ -329,12 +340,10 @@ namespace bond {
         size_t get_immortal_count() { return m_gc->m_immortal.size(); }
 
         void remove_root(Root *root) {
-
             auto it = std::find(m_gc->m_roots.begin(), m_gc->m_roots.end(), root);
             if (it != m_gc->m_roots.end()) {
                 m_gc->m_roots.erase(it);
             }
-
         }
 
     private:
@@ -343,14 +352,22 @@ namespace bond {
         GarbageCollector *m_gc = this;
 
         std::vector<GcPtr<Object>> m_objects;
-        std::vector<GcPtr<Object>> m_immortal;
+        std::vector<GcPtr<Object>> m_old_objects;
         std::vector<Root *> m_roots;
         size_t m_alloc_limit = 200;
+        size_t m_old_alloc_limit = 300;
 
         void collect_if_needed();
 
+        std::thread::id m_main_thread_id;
         bool m_collect = true;
         std::recursive_mutex m_mutex;
+
+        void collect_old_objects();
+
+        int gc_cycles = 0;
+        std::vector<GcPtr<Object>> m_immortal;
+
     };
 
 }; // namespace bond

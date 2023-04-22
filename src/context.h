@@ -17,9 +17,15 @@
 namespace bond {
     class Context {
     public:
-        Context(std::string lib_path) : m_gc(&GarbageCollector::instance()) { m_lib_path = std::move(lib_path); }
+        explicit Context(std::string lib_path) : m_gc(&GarbageCollector::instance()) {
+            m_lib_path = std::move(lib_path);
+        }
 
-        std::string get_lib_path() const { return m_lib_path; }
+        void set_args(const std::vector<std::string> &args) { m_args = args; }
+
+        [[nodiscard]] std::vector<std::string> get_args() const { return m_args; }
+
+        [[nodiscard]] std::string get_lib_path() const { return m_lib_path; }
 
         [[nodiscard]] uint32_t new_module(std::string const &path);
 
@@ -65,5 +71,6 @@ namespace bond {
         bool m_has_error = false;
         GarbageCollector *m_gc;
         std::string m_lib_path;
+        std::vector<std::string> m_args;
     };
 }

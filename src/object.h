@@ -55,6 +55,15 @@ namespace bond {
         SET_ATTRIBUTE,
         IMPORT,
         TRY,
+        BREAK,
+        CONTINUE,
+        BIN_MOD,
+        NOT,
+        UNARY_SUB,
+
+        BIT_OR,
+        BIT_AND,
+        BIT_XOR,
     };
 
     class Map : public Object {
@@ -62,7 +71,7 @@ namespace bond {
         Map() = default;
 
         // TODO: implement equal and hash correctly
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 
@@ -93,6 +102,8 @@ namespace bond {
     public:
         ListObj() = default;
 
+        explicit ListObj(std::vector<GcPtr<Object>> list) : m_internal_list(std::move(list)) {}
+
         OBJ_RESULT $set_item(const GcPtr<Object> &index,
                              const GcPtr<Object> &value) override;
 
@@ -106,7 +117,7 @@ namespace bond {
 
         void prepend(const GcPtr<Object> &value);
 
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         OBJ_RESULT $iter(const GcPtr<Object> &self) override;
 
@@ -188,7 +199,7 @@ namespace bond {
         static const char *type_name() { return "code"; }
 
         // TODO: implement equal and hash correctly
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 
@@ -210,11 +221,11 @@ namespace bond {
                                   size_t offset);
     };
 
-    class Number : public Object {
+    class Integer : public Object {
     public:
-        explicit Number(float value) { m_value = value; }
+        explicit Integer(intmax_t value) { m_value = value; }
 
-        [[nodiscard]] float get_value() const { return m_value; }
+        [[nodiscard]] intmax_t get_value() const { return m_value; }
 
         OBJ_RESULT $add(const GcPtr<Object> &other) override;
 
@@ -236,6 +247,8 @@ namespace bond {
 
         OBJ_RESULT $ge(const GcPtr<Object> &other) override;
 
+        OBJ_RESULT $mod(const GcPtr<Object> &other) override;
+
         OBJ_RESULT $_bool() override;
 
         std::string str() override;
@@ -244,7 +257,50 @@ namespace bond {
 
         size_t hash() override;
 
-        static const char *type_name() { return "number"; }
+        static const char *type_name() { return "integer"; }
+
+    private:
+        intmax_t m_value{0};
+    };
+
+
+    class Float : public Object {
+    public:
+        explicit Float(float value) { m_value = value; }
+
+        [[nodiscard]] float get_value() const { return m_value; }
+
+        OBJ_RESULT $add(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $sub(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $mul(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $div(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $mod(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $le(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $_bool() override;
+
+        std::string str() override;
+
+        bool equal(const GcPtr<Object> &other) override;
+
+        size_t hash() override;
+
+        static const char *type_name() { return "float"; }
 
     private:
         float m_value{0};
@@ -358,6 +414,52 @@ namespace bond {
         std::string m_name = "native_function";
     };
 
+    template<typename T>
+    class NativeStruct : public Object {
+    public:
+        explicit NativeStruct(std::string name, const NativeFunctionPtr &constructor) {
+            m_name = std::move(name);
+            m_constructor = constructor;
+        }
+
+        [[nodiscard]] NativeFunctionPtr get_constructor() const { return m_constructor; }
+
+        bool equal(const GcPtr<Object> &other) override {
+            return this == other.get();
+        }
+
+        size_t hash() override { return 0; }
+
+        std::string str() override {
+            return fmt::format("<native struct {} at {}>", m_name, (void *) this);
+        }
+
+        static const char *type_name() { return "native_struct"; }
+
+        std::string get_name() const { return m_name; }
+
+        NativeErrorOr call(const std::vector<GcPtr<Object>> &args) {
+            return m_constructor(args);
+        }
+
+        std::expected<bool, std::string> is_instance(const GcPtr<Object> &obj) override {
+            return instanceof<T>(obj.get());
+        }
+
+        std::expected<GcPtr<Object>, std::string> call__(std::vector<GcPtr<Object>> &arguments) override {
+            auto result = m_constructor(arguments);
+
+            if (result.has_value()) {
+                return result.value();
+            } else {
+                return std::unexpected(result.error().message);
+            }
+        }
+
+    private:
+        std::string m_name;
+        NativeFunctionPtr m_constructor;
+    };
 
     class Function : public Object {
     public:
@@ -403,11 +505,9 @@ namespace bond {
 
         OBJ_RESULT $next() override { return m_list->as<ListObj>()->get_unchecked(m_index++); }
 
-        OBJ_RESULT $has_next() override {
-            return GarbageCollector::instance().make<Bool>(m_index < m_list->as<ListObj>()->length());
-        }
+        OBJ_RESULT $has_next() override;
 
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 
@@ -460,8 +560,8 @@ namespace bond {
     public:
         Struct(const GcPtr<String> &name, const std::vector<GcPtr<String>> &instance_variables);
 
-        // TODO: implement equal and hash correctly
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        // TODO: implement hash correctly
+        bool equal(const GcPtr<Object> &other) override { return this == other.get(); }
 
         size_t hash() override { return 0; }
 
@@ -486,6 +586,8 @@ namespace bond {
         static const char *type_name() { return "struct"; }
 
         std::vector<GcPtr<String>> get_instance_variables() { return m_instance_variables; }
+
+        virtual std::expected<bool, std::string> is_instance(GcPtr<Object> const &other);
 
         GcPtr<Map> get_globals() { return m_globals; }
 
@@ -518,7 +620,7 @@ namespace bond {
 
         std::optional<GcPtr<Object>> get_attr(const GcPtr<Object> &index) { return m_attributes->get(index); }
 
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 
@@ -539,8 +641,29 @@ namespace bond {
 
         OBJ_RESULT $get_item(const GcPtr<Object> &index) override;
 
+        OBJ_RESULT user_method(const std::string &name);
+
+        OBJ_RESULT $add(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $sub(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $mul(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $div(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $le(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
+
+        std::string format_args();
+
         std::string str() override {
-            return fmt::format("<instance {} at {}>", m_struct_type->get_name(), (void *) this);
+//            return fmt::format("<instance {} at {}>", m_struct_type->get_name(), (void *) this);
+            return fmt::format("{}({})", m_struct_type->get_name(), format_args());
         }
 
         GcPtr<Struct> get_struct_type() { return m_struct_type; }
@@ -556,7 +679,7 @@ namespace bond {
         BoundMethod(const GcPtr<Object> &receiver, const GcPtr<Object> &method)
                 : m_receiver{receiver}, m_method{method} {}
 
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 
@@ -580,4 +703,10 @@ namespace bond {
         GcPtr<Object> m_receiver;
         GcPtr<Object> m_method;
     };
+
+    static auto BondTrue = GarbageCollector::instance().make_immortal<Bool>(true);
+    static auto BondFalse = GarbageCollector::instance().make_immortal<Bool>(false);
+    static auto BondNil = GarbageCollector::instance().make_immortal<Nil>();
+
+#define BOOL_(x) (x) ? bond::BondTrue : bond::BondFalse
 }; // namespace bond

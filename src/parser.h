@@ -12,19 +12,35 @@
 
 namespace bond {
 
-struct Variable {
-    Variable(const std::string &name, const std::shared_ptr<Span> &span, bool is_global, bool is_mut) {
-        this->name = name;
-        this->span = span;
-        this->is_global = is_global;
-        this->is_mut = is_mut;
-    }
+    struct ParserError : public std::exception {
+        ParserError(const std::string &error, const SharedSpan &span) {
+            this->span = span;
+            this->error = error;
+        }
 
-    std::string name;
-    std::shared_ptr<Span> span;
-    bool is_mut = true;
-    bool is_global = false;
-};
+        [[nodiscard]] const char *what() const noexcept override {
+            return error.c_str();
+        }
+
+        std::string error;
+        SharedSpan span;
+
+    };
+
+
+    struct Variable {
+        Variable(const std::string &name, const std::shared_ptr<Span> &span, bool is_global, bool is_mut) {
+            this->name = name;
+            this->span = span;
+            this->is_global = is_global;
+            this->is_mut = is_mut;
+        }
+
+        std::string name;
+        std::shared_ptr<Span> span;
+        bool is_mut = true;
+        bool is_global = false;
+    };
 
     class Scopes {
     public:
@@ -141,6 +157,18 @@ struct Variable {
         std::shared_ptr<Node> import_declaration();
 
         std::shared_ptr<Node> try_statement();
+
+        std::shared_ptr<Node> break_statement();
+
+        std::shared_ptr<Node> continue_statement();
+
+        bool m_in_loop = false;
+
+        std::shared_ptr<Node> bit_or();
+
+        std::shared_ptr<Node> bit_xor();
+
+        std::shared_ptr<Node> bit_and();
     };
 
 } // bond

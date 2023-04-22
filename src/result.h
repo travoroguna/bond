@@ -35,7 +35,7 @@ namespace bond {
             return fmt::format("Ok({})", m_obj->str());
         }
 
-        bool equal(const GcPtr<Object> &other) override { return false; }
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
         size_t hash() override { return 0; }
 

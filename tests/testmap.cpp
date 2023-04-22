@@ -12,7 +12,7 @@ void test_create(){
 void test_insert(){
     auto map = bond::GarbageCollector::instance().make_immortal<bond::Map>();
     auto string = bond::GarbageCollector::instance().make_immortal<bond::String>("bond test");
-    auto number = bond::GarbageCollector::instance().make_immortal<bond::Number>(1999);
+    auto number = bond::GarbageCollector::instance().make_immortal<bond::Integer>(1999);
 
     map->set(string, number);
 
@@ -23,7 +23,7 @@ void test_insert(){
 void test_key_not_found(){
     auto map = bond::GarbageCollector::instance().make_immortal<bond::Map>();
     auto string = bond::GarbageCollector::instance().make_immortal<bond::String>("bond test");
-    auto number = bond::GarbageCollector::instance().make_immortal<bond::Number>(1999);
+    auto number = bond::GarbageCollector::instance().make_immortal<bond::Integer>(1999);
 
     map->set(string, number);
 
@@ -34,8 +34,8 @@ void test_key_not_found(){
 void test_clobber() {
     auto map = bond::GarbageCollector::instance().make_immortal<bond::Map>();
     auto string = bond::GarbageCollector::instance().make_immortal<bond::String>("bond test");
-    auto number = bond::GarbageCollector::instance().make_immortal<bond::Number>(1999);
-    auto number2 = bond::GarbageCollector::instance().make_immortal<bond::Number>(2000);
+    auto number = bond::GarbageCollector::instance().make_immortal<bond::Integer>(1999);
+    auto number2 = bond::GarbageCollector::instance().make_immortal<bond::Integer>(2000);
 
 
     map->set(string, number);

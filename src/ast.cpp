@@ -57,10 +57,11 @@ namespace bond {
         visitor->visit_nil_lit(this);
     }
 
-    NumberLiteral::NumberLiteral(const SharedSpan &span, const std::string &lexeme) {
+    NumberLiteral::NumberLiteral(const SharedSpan &span, const std::string &lexeme, bool is_int) {
         m_span = span;
-        m_value = std::stof(lexeme);
+        m_value = lexeme;
         m_type = NodeType::NumLit;
+        m_is_int = is_int;
     }
 
     void NumberLiteral::accept(NodeVisitor *visitor) {
@@ -298,4 +299,19 @@ namespace bond {
     }
 
 
+    Break::Break(const SharedSpan &span) {
+        m_span = span;
+    }
+
+    void Break::accept(NodeVisitor *visitor) {
+        visitor->visit_break(this);
+    }
+
+    Continue::Continue(const SharedSpan &span) {
+        m_span = span;
+    }
+
+    void Continue::accept(NodeVisitor *visitor) {
+        visitor->visit_continue(this);
+    }
 };

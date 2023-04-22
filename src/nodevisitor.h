@@ -60,6 +60,10 @@ namespace bond {
 
     class Try;
 
+    class Break;
+
+    class Continue;
+
     class NodeVisitor {
     public:
         NodeVisitor();
@@ -119,6 +123,10 @@ namespace bond {
         virtual void visit_import(ImportDef *stmnt) = 0;
 
         virtual void visit_try(Try *stmnt) = 0;
+
+        virtual void visit_break(Break *stmnt) = 0;
+
+        virtual void visit_continue(Continue *stmnt) = 0;
 
     };
 }

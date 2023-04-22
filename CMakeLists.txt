@@ -4,7 +4,13 @@ project(bond)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(CPack)
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+        NAME plibsys
+        GITHUB_REPOSITORY saprykin/plibsys
+        GIT_TAG 0.0.4
+)
 add_subdirectory(src)
 
 
@@ -12,15 +18,19 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     enable_language("RC")
     set(WIN32_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/bond.rc)
     add_executable(bond src/main.cpp ${WIN32_RESOURCES})
+    set(CMAKE_CXX_FLAGS "/Wall /W4 /cgthreads8  /EHsc")
     message("Windows")
 else ()
     add_executable(bond src/main.cpp)
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fexceptions")
     message("Linux")
 endif ()
 
-target_link_libraries(bond bondlib)
+target_link_libraries(bond bondlib plibsys)
 
-install(TARGETS bond DESTINATION bin)
+install(TARGETS bond DESTINATION .)
+INSTALL(TARGETS plibsys RUNTIME DESTINATION .)
+
 
 set(CPACK_PACKAGE_NAME "bond")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)

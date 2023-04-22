@@ -10,26 +10,28 @@
 namespace bond {
 
     std::unordered_map<std::string, TokenType> keywords = {
-            {"and",    TokenType::AND},
-            {"struct", TokenType::STRUCT},
-            {"else",   TokenType::ELSE},
-            {"false",  TokenType::FALSE},
-            {"for",    TokenType::FOR},
-            {"fn",     TokenType::FUN},
-            {"if",     TokenType::IF},
-            {"nil",    TokenType::NIL},
-            {"or",     TokenType::OR},
-            {"print",  TokenType::PRINT},
-            {"return", TokenType::RETURN},
-            {"super",  TokenType::SUPER},
-            {"import", TokenType::IMPORT},
-            {"as",     TokenType::AS},
-            {"this",   TokenType::THIS},
-            {"true",   TokenType::TRUE},
-            {"var",    TokenType::VAR},
-            {"while",  TokenType::WHILE},
-            {"in",     TokenType::IN},
-            {"try",    TokenType::TRY}
+            {"and",      TokenType::AND},
+            {"struct",   TokenType::STRUCT},
+            {"else",     TokenType::ELSE},
+            {"false",    TokenType::FALSE},
+            {"for",      TokenType::FOR},
+            {"fn",       TokenType::FUN},
+            {"if",       TokenType::IF},
+            {"nil",      TokenType::NIL},
+            {"or",       TokenType::OR},
+            {"print",    TokenType::PRINT},
+            {"return",   TokenType::RETURN},
+            {"super",    TokenType::SUPER},
+            {"import",   TokenType::IMPORT},
+            {"as",       TokenType::AS},
+            {"this",     TokenType::THIS},
+            {"true",     TokenType::TRUE},
+            {"var",      TokenType::VAR},
+            {"while",    TokenType::WHILE},
+            {"in",       TokenType::IN},
+            {"try",      TokenType::TRY},
+            {"break",    TokenType::BREAK},
+            {"continue", TokenType::CONTINUE}
 
     };
 
@@ -106,7 +108,7 @@ namespace bond {
     }
 
     void Lexer::new_token(TokenType type, std::string &lexeme) {
-        m_tokens.emplace_back(Token(make_span(), type, lexeme));
+        m_tokens.emplace_back(make_span(), type, lexeme);
     }
 
     bool is_digit(char c) {
@@ -157,7 +159,10 @@ namespace bond {
         }
 
         auto l = m_source.substr(m_start, m_current - m_start);
-        new_token(TokenType::NUMBER, l);
+
+        if (l.find('.') != std::string::npos) return new_token(TokenType::FLOAT, l);
+
+        new_token(TokenType::INTEGER, l);
     }
 
     void Lexer::make_identifier() {
@@ -185,10 +190,14 @@ namespace bond {
             ADD_TOKEN('.', TokenType::DOT);
             ADD_TOKEN('-', TokenType::MINUS);
             ADD_TOKEN('+', TokenType::PLUS);
+            ADD_TOKEN('%', TokenType::MOD);
             ADD_TOKEN(';', TokenType::SEMICOLON);
             ADD_TOKEN('*', TokenType::STAR);
             ADD_TOKEN('[', TokenType::LEFT_SQ);
             ADD_TOKEN(']', TokenType::RIGHT_SQ);
+            ADD_TOKEN('|', TokenType::BITWISE_OR);
+            ADD_TOKEN('&', TokenType::BITWISE_AND);
+            ADD_TOKEN('^', TokenType::BITWISE_XOR);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);

@@ -49,16 +49,27 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
         auto frame = &m_frames[m_frame_pointer++];
 
+
         if (m_frame_pointer >= FRAME_MAX) {
-            runtime_error("stack overflow", RuntimeError::GenericError, m_current_frame->get_span());
+            if (m_current_frame != nullptr) {
+                runtime_error("stack overflow", RuntimeError::GenericError, m_current_frame->get_span());
+            } else {
+                runtime_error("stack overflow", RuntimeError::GenericError);
+            }
             return;
         }
         auto params = function->get_params();
 
         if (args.size() != params.size()) {
-            runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
-                          RuntimeError::GenericError,
-                          m_current_frame->get_span());
+            if (m_current_frame != nullptr) {
+                runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
+                              RuntimeError::GenericError,
+                              m_current_frame->get_span());
+            } else {
+                runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
+                              RuntimeError::GenericError);
+            }
+
             return;
         }
 
@@ -69,9 +80,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         }
 
         frame->set_function(function);
-
         frame->set_globals(function->get_globals());
         frame->set_locals(local_args);
+
         m_current_frame = frame;
         GarbageCollector::instance().resume_gc();
     }
@@ -109,6 +120,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
 
         for (auto &p: paths) {
+            fmt::print("testing path: {}\n", p);
             if (std::filesystem::exists(p)) {
                 return p;
             }
@@ -196,7 +208,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             return std::unexpected(fmt::format("unable to import module {}", resolved_path));
         }
 
-        GarbageCollector::instance().pop_root();
+        GarbageCollector::instance().remove_root(&vm);
 
         GarbageCollector::instance().stop_gc();
         auto mod = GarbageCollector::instance().make<Module>(resolved_path, vm.get_globals());
@@ -227,6 +239,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     }
 
     void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
+
         std::string err;
         switch (e) {
             case RuntimeError::TypeError:
@@ -256,13 +269,25 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         m_ctx->error(span, err);
     }
 
+    void Vm::runtime_error(const std::string &error, RuntimeError e) {
+        m_stop = true;
+        m_has_error = true;
+
+        push(GarbageCollector::instance().make<String>(error));
+    }
+
+
 #define BINARY_OP(X) { \
     GarbageCollector::instance().stop_gc();                   \
     auto right = pop(); \
-    auto left = pop();  \
+    auto left = pop(); \
+    if (left->is<StructInstance>()) { \
+        CALL_USER_IMPLEMENTATION(left, X, __##X##__, right);\
+        break; \
+    }                   \
     auto result = left->$##X(right); \
     if (!result.has_value()) { \
-        runtime_error(fmt::format("unable to " #X "values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
+        runtime_error(fmt::format("unable to " #X " values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
         continue;\
     }\
     push(result.value());                                    \
@@ -312,23 +337,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
                 case Opcode::BIN_ADD: BINARY_OP(add)
                 case Opcode::BIN_SUB: BINARY_OP(sub)
-                case Opcode::BIN_MUL: {
-                    GarbageCollector::instance().stop_gc();
-                    auto right = pop();
-                    auto left = pop();
-                    auto result = left->$mul(right);
-                    if (!result.has_value()) {
-                        runtime_error(
-                                fmt::format("unable to " "mul" "values of type {} and {}", left.type_name(),
-                                            right.type_name()),
-                                result.error(), m_current_frame->get_span());
-                        continue;
-                    }
-                    push(result.value());
-                    GarbageCollector::instance().resume_gc();
-                    break;
-                }
+                case Opcode::BIN_MUL: BINARY_OP(mul)
                 case Opcode::BIN_DIV: BINARY_OP(div)
+                case Opcode::BIN_MOD: BINARY_OP(mod)
                 case Opcode::NE: BINARY_OP(ne)
                 case Opcode::EQ: BINARY_OP(eq)
                 case Opcode::LT: BINARY_OP(lt)
@@ -654,7 +665,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
                     if (func->is<NativeFunction>()) {
                         auto f = func->as<NativeFunction>();
+
+                        GarbageCollector::instance().stop_gc();
                         auto result = f->get_fn()(args);
+                        GarbageCollector::instance().resume_gc();
 
                         if (result.has_value()) {
                             push(result.value());
@@ -676,6 +690,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         call_bound_method(bm, args);
                         break;
                     }
+
+                    auto res = func->call__(args);
+                    if (res.has_value()) {
+                        push(res.value());
+                        continue;
+                    }
+
+                    runtime_error(fmt::format("{}", res.error()), RuntimeError::GenericError,
+                                  m_current_frame->get_span());
+                    continue;
 
                     auto result = func->$call(args);
                     if (result.has_value()) {
@@ -725,24 +749,109 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     push(result.value());
                     break;
                 }
-            }
 
+                case Opcode::BREAK:
+                case Opcode::CONTINUE:
+                    m_current_frame->jump_absolute(m_current_frame->get_oprand());
+                    break;
+                case Opcode::UNARY_SUB: {
+                    auto obj = pop();
+                    if (obj->is<Integer>()) {
+                        push(GarbageCollector::instance().make<Integer>(-obj->as<Integer>()->get_value()));
+                        break;
+                    } else if (obj->is<Float>()) {
+                        push(GarbageCollector::instance().make<Float>(-obj->as<Float>()->get_value()));
+                        break;
+                    }
+
+                    runtime_error(fmt::format("unable to apply unary - to {}", obj->str()),
+                                  RuntimeError::GenericError,
+                                  m_current_frame->get_span());
+                    continue;
+                }
+                case Opcode::NOT: {
+                    auto obj = pop();
+                    auto res = obj->$_bool();
+
+                    if (!res.has_value()) {
+                        runtime_error(fmt::format("unable to convert {} to bool", obj->str()),
+                                      res.error(),
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+                    push(GarbageCollector::instance().make<Bool>(!res.value()->as<Bool>()->get_value()));
+                    break;
+                }
+
+                case Opcode::BIT_OR: {
+                    auto right = pop();
+                    auto left = pop();
+
+                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                        runtime_error(fmt::format("unable to apply | to {} and {}", left->str(), right->str()),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+
+                    auto res = left->as<Integer>()->get_value() | right->as<Integer>()->get_value();
+                    push(GarbageCollector::instance().make<Integer>(res));
+                    break;
+                }
+
+                case Opcode::BIT_AND: {
+                    auto right = pop();
+                    auto left = pop();
+
+                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                        runtime_error(fmt::format("unable to apply & to {} and {}", left->str(), right->str()),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+
+                    auto res = left->as<Integer>()->get_value() & right->as<Integer>()->get_value();
+                    push(GarbageCollector::instance().make<Integer>(res));
+                    break;
+                }
+
+                case Opcode::BIT_XOR: {
+                    auto right = pop();
+                    auto left = pop();
+
+                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                        runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(), right->str()),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+
+                    auto res = left->as<Integer>()->get_value() ^ right->as<Integer>()->get_value();
+                    push(GarbageCollector::instance().make<Integer>(res));
+                    break;
+                }
+
+            }
         }
     }
 
     void Vm::mark() {
+        Root::mark();
+
         for (size_t i = 0; i < m_frame_pointer; i++) {
             m_frames[i].mark();
         }
-        Root::mark();
+        m_current_frame->mark();
         m_ctx->mark();
     }
 
     void Vm::unmark() {
+        Root::unmark();
         for (size_t i = 0; i < m_frame_pointer; i++) { ;
             m_frames[i].unmark();
         }
-        Root::unmark();
+
+        m_current_frame->unmark();
         m_ctx->unmark();
     }
 

@@ -11,20 +11,6 @@
 #include "gc.h"
 
 namespace bond {
-    struct ParserError : public std::exception {
-        ParserError(const std::string &error, const SharedSpan &span) {
-            this->span = span;
-            this->error = error;
-        }
-
-        [[nodiscard]] const char *what() const noexcept override {
-            return error.c_str();
-        }
-
-        std::string error;
-        SharedSpan span;
-
-    };
 
     std::vector<std::shared_ptr<Node>> Parser::parse() {
         std::vector<std::shared_ptr<Node>> nodes;
@@ -33,8 +19,11 @@ namespace bond {
         m_scopes.declare("println", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("range", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("str", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("int", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("float", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("Ok", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("Err", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("is_instance", std::make_shared<Span>(0, 0, 0, 1), false);
 
         while (!is_at_end()) {
             auto res = declaration();
@@ -119,22 +108,35 @@ namespace bond {
 
         m_scopes.new_scope();
 
-        if (check(TokenType::VAR)) {
+//        if (check(TokenType::VAR)) {
+//            consume(TokenType::VAR, peek().get_span(), "");
+//
+//            if (!check(TokenType::SEMICOLON)) {
+//                do {
+//
+//                } while (match({TokenType::SEMICOLON}));
+//            }
+//            consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variables");
+//        }
+
+        // match example
+        // var a;
+        // var b;
+        // var c;
+
+        while (check(TokenType::VAR)) {
             consume(TokenType::VAR, peek().get_span(), "");
 
-            if (!check(TokenType::SEMICOLON)) {
-                do {
-                    auto var = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name");
-                    auto exists = std::find(instance_variables.begin(), instance_variables.end(), var.get_lexeme());
+            auto var = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected instance variable name");
+            auto exists = std::find(instance_variables.begin(), instance_variables.end(), var.get_lexeme());
 
-                    if (exists != instance_variables.end()) {
-                        ctx->error(var.get_span(),
-                                   fmt::format("Instance Variable {} is already declared", var.get_lexeme()));
-                    }
-                    instance_variables.push_back(var.get_lexeme());
-                } while (match({TokenType::COMMA}));
+            if (exists != instance_variables.end()) {
+                ctx->error(var.get_span(),
+                           fmt::format("Instance Variable {} is already declared", var.get_lexeme()));
             }
-            consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variables");
+            instance_variables.push_back(var.get_lexeme());
+
+            consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variable declaration");
         }
 
         //capture methods
@@ -258,7 +260,28 @@ namespace bond {
         else if (match({TokenType::VAR})) return variable_declaration();
         else if (match({TokenType::FUN})) return closure_declaration();
         else if (match({TokenType::RETURN})) return return_statement();
+        else if (match({TokenType::BREAK})) return break_statement();
+        else if (match({TokenType::CONTINUE})) return continue_statement();
+
         return expr_stmnt();
+    }
+
+    std::shared_ptr<Node> Parser::break_statement() {
+        auto keyword = previous();
+        if (!m_in_loop) {
+            ctx->error(keyword.get_span(), "Cannot break outside of a loop");
+        }
+        consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after break statement");
+        return std::make_shared<Break>(keyword.get_span());
+    }
+
+    std::shared_ptr<Node> Parser::continue_statement() {
+        auto keyword = previous();
+        if (!m_in_loop) {
+            ctx->error(keyword.get_span(), "Cannot continue outside of a loop");
+        }
+        consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after continue statement");
+        return std::make_shared<Continue>(keyword.get_span());
     }
 
     std::shared_ptr<Node> Parser::try_statement() {
@@ -294,6 +317,7 @@ namespace bond {
     std::shared_ptr<Node> Parser::for_statement() {
 //  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
 //        consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
+        m_in_loop = true;
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
 
         consume(TokenType::IN, peek().get_span(), "Expected 'in' after variable name");
@@ -305,7 +329,7 @@ namespace bond {
         m_scopes.end_scope();
 
         auto body = statement();
-
+        m_in_loop = false;
         return std::make_shared<For>(span_from_spans(id.get_span(), previous().get_span()), id.get_lexeme(), iterable,
                                      body);
     }
@@ -330,6 +354,7 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::block(bool create_scope = true) {
+
         if (create_scope) m_scopes.new_scope();
         std::vector<std::shared_ptr<Node>> statements;
 
@@ -347,12 +372,15 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::while_statement() {
 //  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after while keyword");
+        m_in_loop = true;
         auto condition = expression();
 //  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after while condition");
 
-        return std::make_shared<While>(span_from_spans(condition->get_span(), previous().get_span()),
-                                       condition,
-                                       statement());
+        auto res = std::make_shared<While>(span_from_spans(condition->get_span(), previous().get_span()),
+                                           condition,
+                                           statement());
+        m_in_loop = false;
+        return res;
     }
 
     std::shared_ptr<Node> Parser::print_stmnt() {
@@ -417,9 +445,60 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::_and() {
-        auto expr = equality();
+        auto expr = bit_or();
 
         while (match({TokenType::AND})) {
+            auto op = previous();
+            auto right = equality();
+
+            auto expr_span = expr->get_span();
+            auto new_span =
+                    std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end,
+                                           expr_span->line);
+            expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
+        }
+
+        return expr;
+    }
+
+    std::shared_ptr<Node> Parser::bit_or() {
+        auto expr = bit_xor();
+
+        while (match({TokenType::BITWISE_OR})) {
+            auto op = previous();
+            auto right = bit_xor();
+
+            auto expr_span = expr->get_span();
+            auto new_span =
+                    std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end,
+                                           expr_span->line);
+            expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
+        }
+
+        return expr;
+    }
+
+    std::shared_ptr<Node> Parser::bit_xor() {
+        auto expr = bit_and();
+
+        while (match({TokenType::BITWISE_XOR})) {
+            auto op = previous();
+            auto right = bit_and();
+
+            auto expr_span = expr->get_span();
+            auto new_span =
+                    std::make_shared<Span>(expr_span->module_id, expr_span->start, right->get_span()->end,
+                                           expr_span->line);
+            expr = std::make_shared<BinaryOp>(new_span, expr, op, right);
+        }
+
+        return expr;
+    }
+
+    std::shared_ptr<Node> Parser::bit_and() {
+        auto expr = equality();
+
+        while (match({TokenType::BITWISE_AND})) {
             auto op = previous();
             auto right = equality();
 
@@ -487,7 +566,7 @@ namespace bond {
     std::shared_ptr<Node> Parser::factor() {
         auto expr = unary();
 
-        while (match({TokenType::SLASH, TokenType::STAR})) {
+        while (match({TokenType::SLASH, TokenType::STAR, TokenType::MOD})) {
             auto op = previous();
             auto right = unary();
 
@@ -564,8 +643,10 @@ namespace bond {
         if (match({TokenType::TRUE})) return std::make_shared<TrueLiteral>(previous().get_span());
         if (match({TokenType::NIL})) return std::make_shared<NilLiteral>(previous().get_span());
 
-        if (match({TokenType::NUMBER}))
-            return std::make_shared<NumberLiteral>(previous().get_span(), previous().get_lexeme());
+        if (match({TokenType::INTEGER}))
+            return std::make_shared<NumberLiteral>(previous().get_span(), previous().get_lexeme(), true);
+        if (match({TokenType::FLOAT}))
+            return std::make_shared<NumberLiteral>(previous().get_span(), previous().get_lexeme(), false);
         if (match({TokenType::STRING}))
             return std::make_shared<StringLiteral>(previous().get_span(), previous().get_lexeme());
 
@@ -666,7 +747,9 @@ namespace bond {
 
         for (auto &scope: std::ranges::reverse_view(m_scopes)) {
             if (scope.find(name) != scope.end()) {
-                throw ParserError("Variable with this name already declared in this scope.", span);
+                auto sp = scope[name]->span;
+                m_ctx->error(span, "Variable with this name already declared in this scope.");
+                throw ParserError("Note, Variable is declared here", sp);
             }
         }
 

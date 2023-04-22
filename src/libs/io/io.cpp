@@ -2,7 +2,7 @@
 // Created by Travor Oguna Oneya on 09/04/2023.
 //
 
-#include "../bond.h"
+#include "../../bond.h"
 
 #include <iostream>
 #include <fstream>
@@ -14,7 +14,7 @@ GarbageCollector *m_gc;
 
 NativeErrorOr print_ln(const std::vector<GcPtr<Object>> &arguments) {
     for (auto const &arg: arguments) {
-        fmt::print("{}", arg->str());
+        fmt::print("{} ", arg->str());
     }
     fmt::print("\n");
     return m_gc->make<Nil>();
@@ -113,7 +113,7 @@ private:
             {"file_size", m_gc->make<NativeFunction>(
                     [this](const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
                         ASSERT_ARG_COUNT(0, arguments);
-                        return m_gc->make<Number>(std::filesystem::file_size(m_path));
+                        return m_gc->make<Integer>(std::filesystem::file_size(m_path));
                     })},
     };
 

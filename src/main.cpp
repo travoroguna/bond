@@ -9,6 +9,10 @@
 #include "code.h"
 #include "vm.h"
 #include "gc.h"
+#include "object.h"
+
+#include <plibsys.h>
+
 
 void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::Context &ctx) {
     auto id = ctx.new_module(std::string(path));
@@ -35,8 +39,9 @@ void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::C
     fmt::print("[VM] end\n");
 }
 
-void run_repl(const std::string &lib_path) {
+void run_repl(const std::string &lib_path, const std::vector<std::string> &args) {
     bond::Context ctx(lib_path);
+    ctx.set_args(args);
 
     auto vm = bond::Vm(&ctx);
     bond::GarbageCollector::instance().add_root(&vm);
@@ -59,9 +64,10 @@ void run_repl(const std::string &lib_path) {
     }
 }
 
-void run_file(const std::string &path, const std::string &lib_path) {
+void run_file(const std::string &path, const std::string &lib_path, const std::vector<std::string> &args) {
     auto src = bond::Context::read_file(std::string(path));
     bond::Context ctx(lib_path);
+    ctx.set_args(args);
 
     auto vm = bond::Vm(&ctx);
     bond::GarbageCollector::instance().add_root(&vm);
@@ -69,49 +75,42 @@ void run_file(const std::string &path, const std::string &lib_path) {
     execute_source(src, path.c_str(), vm, ctx);
 }
 
-#ifdef _WIN32
 
 int main(int32_t argc, char **argv) {
-#else
-    int main(int argc, const char *argv[]) {
-#endif
-    auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
+    auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/libraries/";
     fmt::print("lib path: {} [{}]\n", lib_path, std::filesystem::exists(lib_path));
+    p_libsys_init();
 
-    if (argc > 200) {
-        std::cout << "Usage: bond <script path>\n";
-        return 1;
-    } else if (argc == 1) {
+    bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
+
+    auto args = std::vector<std::string>(argv, argv + argc);
+
+    if (argc == 1) {
         fmt::print("bond 0.0.0 \n");
-        run_repl(lib_path);
+        run_repl(lib_path, args);
     } else {
-        if (std::string(argv[1]) == "--rpc") {
-            bond::Rpc::log_message("Starting RPC server...\n");
-            auto client = bond::LspClient();
-            client.start();
-            return 0;
-        }
-
         if (!std::filesystem::exists(argv[1])) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;
         }
+
         auto full_path = std::filesystem::absolute(argv[1]);
         auto path = std::filesystem::path(argv[1]);
         std::filesystem::current_path(path.parent_path());
 
-        run_file(full_path.string(), lib_path);
+        run_file(full_path.string(), lib_path, args);
     }
+
+    p_libsys_shutdown();
 }
 
 #ifdef _WIN32
 
 #include <Windows.h>
 
-int APIENTRY WinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR lpCmdLine, int nCmdShow) {
-    fmt::print("bond 0.0.0 \n");
+int APIENTRY WinMain([[maybe_unused]] HINSTANCE hInstance,
+                     [[maybe_unused]] HINSTANCE hPrevInstance,
+                     [[maybe_unused]] LPSTR lpCmdLine, [[maybe_unused]] int nCmdShow) {
     return main(__argc, __argv);
 }
 

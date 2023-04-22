@@ -79,6 +79,10 @@ namespace bond {
 
         void visit_try(Try *stmnt) override;
 
+        void visit_break(Break *stmnt) override;
+
+        void visit_continue(Continue *stmnt) override;
+
 
         bool m_in_function = false;
         bool m_in_closure = false;
@@ -91,6 +95,13 @@ namespace bond {
         void finish_generation();
 
         GcPtr<Function> create_function(FuncDef *stmnt);
+
+        std::vector<std::vector<uint32_t>> m_break_stack;
+        std::vector<std::vector<uint32_t>> m_continue_stack;
+
+        void start_loop();
+
+        void finish_loop(uint32_t loop_end, uint32_t loop_start);
     };
 
 } // bond

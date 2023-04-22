@@ -90,14 +90,17 @@ namespace bond {
 
     class NumberLiteral : public Node {
     public:
-        NumberLiteral(const SharedSpan &span, const std::string &lexeme);
+        NumberLiteral(const SharedSpan &span, const std::string &lexeme, bool is_int);
 
         void accept(NodeVisitor *visitor) override;
 
-        float get_value() { return m_value; }
+        std::string get_value() { return m_value; }
+
+        bool is_int() const { return m_is_int; }
 
     private:
-        float m_value;
+        std::string m_value;
+        bool m_is_int;
     };
 
     class StringLiteral : public Node {
@@ -433,4 +436,20 @@ namespace bond {
     private:
         SharedNode m_expr;
     };
+
+    class Break : public Node {
+    public:
+        Break(const SharedSpan &span);
+
+        void accept(NodeVisitor *visitor) override;
+    };
+
+
+    class Continue : public Node {
+    public:
+        Continue(const SharedSpan &span);
+
+        void accept(NodeVisitor *visitor) override;
+    };
+
 };

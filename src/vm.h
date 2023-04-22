@@ -21,8 +21,7 @@
 
 namespace bond {
 
-    class
-    Frame {
+    class Frame {
     public:
         Frame() = default;
 
@@ -192,6 +191,9 @@ namespace bond {
 
 
         void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+
+        void runtime_error(const std::string &error, RuntimeError e);
+
 
         std::expected<GcPtr<Module>, std::string> load_dynamic_lib(const std::string &path, std::string &alias);
 

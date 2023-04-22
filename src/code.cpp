@@ -4,6 +4,7 @@
 
 #include "code.h"
 #include "object.h"
+#include "parser.h"
 
 namespace bond {
 
@@ -75,12 +76,21 @@ namespace bond {
                 OPRAND_INSTRUCTION(CREATE_FUNCTION);
                 OPRAND_INSTRUCTION(CREATE_STRUCT);
                 OPRAND_INSTRUCTION(TRY);
+                OPRAND_INSTRUCTION(BREAK);
+                OPRAND_INSTRUCTION(CONTINUE);
 
+
+                SIMPLE_INSTRUCTION(BIT_OR);
+                SIMPLE_INSTRUCTION(BIT_XOR);
+                SIMPLE_INSTRUCTION(BIT_AND);
                 SIMPLE_INSTRUCTION(ITER);
                 SIMPLE_INSTRUCTION(BIN_ADD);
                 SIMPLE_INSTRUCTION(BIN_SUB);
                 SIMPLE_INSTRUCTION(BIN_MUL);
+                SIMPLE_INSTRUCTION(NOT);
+                SIMPLE_INSTRUCTION(UNARY_SUB);
                 SIMPLE_INSTRUCTION(BIN_DIV);
+                SIMPLE_INSTRUCTION(BIN_MOD);
                 SIMPLE_INSTRUCTION(RETURN);
                 SIMPLE_INSTRUCTION(PUSH_TRUE);
                 SIMPLE_INSTRUCTION(PUSH_FALSE);
@@ -157,14 +167,20 @@ namespace bond {
     }
 
     GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes) {
-        m_code = GarbageCollector::instance().make_immortal<Code>();
+        try {
+            m_code = GarbageCollector::instance().make_immortal<Code>();
 
-        for (const auto &node: nodes) {
-            node->accept(this);
+            for (const auto &node: nodes) {
+                node->accept(this);
+            }
+
+            finish_generation();
+            return m_code;
         }
-
-        finish_generation();
-        return m_code;
+        catch (ParserError &err) {
+            m_ctx->error(err.span, err.error);
+            return m_code;
+        }
     }
 
     void CodeGenerator::visit_bin_op(BinaryOp *expr) {
@@ -207,6 +223,19 @@ namespace bond {
                 break;
             case TokenType::AND:
                 m_code->add_code(Opcode::AND, expr->get_op().get_span());
+                break;
+            case TokenType::MOD:
+                m_code->add_code(Opcode::BIN_MOD, expr->get_op().get_span());
+                break;
+            case TokenType::BITWISE_OR:
+                m_code->add_code(Opcode::BIT_OR, expr->get_op().get_span());
+                break;
+            case TokenType::BITWISE_AND:
+                m_code->add_code(Opcode::BIT_AND, expr->get_op().get_span());
+                break;
+            case TokenType::BITWISE_XOR:
+                m_code->add_code(Opcode::BIT_XOR, expr->get_op().get_span());
+                break;
             default:
                 break;
         }
@@ -216,7 +245,10 @@ namespace bond {
         expr->get_expr()->accept(this);
         switch (expr->get_op().get_type()) {
             case TokenType::MINUS:
-                m_code->add_code(Opcode::BIN_SUB, expr->get_op().get_span());
+                m_code->add_code(Opcode::UNARY_SUB, expr->get_op().get_span());
+                break;
+            case TokenType::BANG:
+                m_code->add_code(Opcode::NOT, expr->get_op().get_span());
                 break;
             default:
                 break;
@@ -232,9 +264,12 @@ namespace bond {
     }
 
     void CodeGenerator::visit_num_lit(NumberLiteral *expr) {
-        auto idx = m_code->add_constant<Number>(expr->get_value());
-        m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
+        size_t idx = 0;
 
+        if (expr->is_int()) idx = m_code->add_constant<Integer>(std::stoi(expr->get_value()));
+        else idx = m_code->add_constant<Float>(std::stof(expr->get_value()));
+
+        m_code->add_code(Opcode::LOAD_CONST, idx, expr->get_span());
     }
 
     void CodeGenerator::visit_string_lit(StringLiteral *expr) {
@@ -352,6 +387,7 @@ namespace bond {
     }
 
     void CodeGenerator::visit_while(While *stmnt) {
+        start_loop();
         auto start = m_code->current_index();
         stmnt->get_condition()->accept(this);
         auto next = m_code->current_index() + 1;
@@ -359,7 +395,10 @@ namespace bond {
 
         stmnt->get_statement()->accept(this);
         m_code->add_code(Opcode::JUMP, start, stmnt->get_span());
-        m_code->patch_code(next, m_code->current_index());
+
+        auto end = m_code->current_index();
+        m_code->patch_code(next, end);
+        finish_loop(end, start);
     }
 
     void CodeGenerator::visit_call(Call *expr) {
@@ -371,7 +410,7 @@ namespace bond {
     }
 
     void CodeGenerator::visit_for(For *stmnt) {
-
+        start_loop();
         m_scopes->new_scope();
         m_scopes->declare(stmnt->get_name(), stmnt->get_span(), true, false);
         auto local_name = m_code->add_constant<String>(stmnt->get_name());
@@ -389,7 +428,9 @@ namespace bond {
         stmnt->get_statement()->accept(this);
         m_code->add_code(Opcode::JUMP, start, stmnt->get_span());
 
-        m_code->patch_code(start + 1, m_code->current_index());
+        auto end = m_code->current_index();
+        m_code->patch_code(start + 1, end);
+        finish_loop(end, start);
         m_code->add_code(Opcode::POP_TOP, stmnt->get_span());
         m_scopes->end_scope();
 
@@ -448,10 +489,16 @@ namespace bond {
     }
 
     GcPtr<Code> CodeGenerator::generate_code(const std::shared_ptr<Node> &node) {
-        m_code = GarbageCollector::instance().make_immortal<Code>();
-        node->accept(this);
-        finish_generation();
-        return m_code;
+        try {
+            m_code = GarbageCollector::instance().make_immortal<Code>();
+            node->accept(this);
+            finish_generation();
+            return m_code;
+        }
+        catch (ParserError &err) {
+            m_ctx->error(err.span, err.error);
+            return m_code;
+        }
     }
 
     void CodeGenerator::visit_return(Return *stmnt) {
@@ -531,6 +578,40 @@ namespace bond {
         m_code->add_code(Opcode::TRY, next, stmnt->get_span());
         m_code->add_code(Opcode::RETURN, stmnt->get_span());
 
+    }
+
+    void CodeGenerator::visit_break(Break *stmnt) {
+        auto next = m_code->current_index() + 1;
+        m_code->add_code(Opcode::BREAK, next, stmnt->get_span());
+        m_break_stack.back().push_back(next);
+    }
+
+    void CodeGenerator::visit_continue(Continue *stmnt) {
+        auto next = m_code->current_index() + 1;
+        m_code->add_code(Opcode::CONTINUE, next, stmnt->get_span());
+        m_continue_stack.back().push_back(next);
+    }
+
+    void CodeGenerator::finish_loop(uint32_t loop_end, uint32_t loop_start) {
+
+        auto &breaks = m_break_stack.back();
+        auto &continues = m_continue_stack.back();
+
+        for (auto idx: breaks) {
+            m_code->patch_code(idx, loop_end);
+        }
+
+        for (auto idx: continues) {
+            m_code->patch_code(idx, loop_start);
+        }
+
+        m_break_stack.pop_back();
+        m_continue_stack.pop_back();
+    }
+
+    void CodeGenerator::start_loop() {
+        m_break_stack.emplace_back();
+        m_continue_stack.emplace_back();
     }
 
 } // bond

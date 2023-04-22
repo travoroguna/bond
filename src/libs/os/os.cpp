@@ -1,10 +1,10 @@
 #include <filesystem>
-#include "../bond.h"
+#include "../../bond.h"
 
 
 using namespace bond;
 GarbageCollector *m_gc;
-
+Context *m_ctx;
 
 auto path_exists(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(1, arguments);
@@ -97,10 +97,17 @@ private:
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     m_gc = ctx->gc();
+    m_ctx = ctx;
     GarbageCollector::instance().set_gc(ctx->gc());
+
+    std::vector<GcPtr<Object>> args;
+    for (auto &arg: ctx->get_args()) {
+        args.emplace_back(ctx->gc()->make<String>(arg));
+    }
 
     std::unordered_map<std::string, GcPtr<Object>> io_module = {
             {"Path", m_gc->make<Path>()},
+            {"args", m_gc->make<ListObj>(args)},
     };
 
     auto module = ctx->gc()->make<Module>(path, io_module);
