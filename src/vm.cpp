@@ -295,13 +295,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     break;\
     }
 
-    void Vm::print_stack() {
-        fmt::print("Stack: ");
-        for (size_t i = 0; i < m_stack_ptr; i++) {
-            fmt::print("{} ", m_stack[i]->str());
-        }
-        fmt::print("\n");
-    }
 
     void Vm::exec() {
         if (m_frame_pointer == 0) return;
@@ -592,7 +585,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::ITER: {
                     GarbageCollector::instance().stop_gc();
                     auto expr = pop();
-                    auto iter = expr->$iter(expr);
+                    auto iter = expr->$iter();
 
                     if (!iter.has_value()) {
                         runtime_error(fmt::format("unable to iterate over {}", expr->str()),
@@ -837,21 +830,23 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
     void Vm::mark() {
         Root::mark();
-
+        fmt::print("marking vm\n");
         for (size_t i = 0; i < m_frame_pointer; i++) {
             m_frames[i].mark();
         }
-        m_current_frame->mark();
+        m_globals.mark();
+        if (m_current_frame) m_current_frame->mark();
         m_ctx->mark();
     }
 
     void Vm::unmark() {
         Root::unmark();
+
         for (size_t i = 0; i < m_frame_pointer; i++) { ;
             m_frames[i].unmark();
         }
-
-        m_current_frame->unmark();
+        m_globals.unmark();
+        if (m_current_frame) m_current_frame->unmark();
         m_ctx->unmark();
     }
 

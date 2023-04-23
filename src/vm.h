@@ -66,13 +66,13 @@ namespace bond {
         GcPtr<Object> get_local(const GcPtr<Object> &key) { return m_locals->get_unchecked(key); }
 
         void mark() {
-            m_code->mark();
+            m_function->mark();
             m_globals->mark();
             m_locals->mark();
         }
 
         void unmark() {
-            m_code->unmark();
+            m_function->unmark();
             m_globals->unmark();
             m_locals->unmark();
         }
@@ -154,10 +154,10 @@ namespace bond {
     public:
         explicit Vm(Context *ctx) {
             m_ctx = ctx;
-            m_True = GarbageCollector::instance().make_immortal<Bool>(true);
-            m_False = GarbageCollector::instance().make_immortal<Bool>(false);
-            m_Nil = GarbageCollector::instance().make_immortal<Nil>();
-            m_globals = GarbageCollector::instance().make_immortal<Map>();
+            m_True = BondTrue;
+            m_False = BondFalse;
+            m_Nil = BondNil;
+            m_globals = GarbageCollector::instance().make<Map>();
             assert(m_globals.get() != nullptr);
             add_builtins_to_globals(m_globals);
         }

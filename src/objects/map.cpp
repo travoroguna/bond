@@ -23,6 +23,8 @@ namespace bond {
     }
 
     void Map::mark() {
+        if (m_marked) return;
+
         Object::mark();
 
         for (auto &pair: m_internal_map) {
@@ -32,6 +34,7 @@ namespace bond {
     }
 
     void Map::unmark() {
+        if (!m_marked) return;
         Object::unmark();
 
         for (auto &pair: m_internal_map) {

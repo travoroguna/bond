@@ -10,6 +10,7 @@
 #include <expected>
 #include <optional>
 #include <mutex>
+#include <fmt/core.h>
 
 #define DEBUG
 
@@ -38,6 +39,8 @@ namespace bond {
         ~GcPtr() { m_ptr = nullptr; }
 
         GcPtr &operator=(const GcPtr &other) {
+            if (this == &other)
+                return *this;
             m_ptr = other.m_ptr;
             return *this;
         }
@@ -62,7 +65,7 @@ namespace bond {
 
         T &operator*() const { return *m_ptr; }
 
-        T *get() const { return m_ptr; }
+        [[nodiscard]] T *get() const { return m_ptr; }
 
         void set(T *ptr) { m_ptr = ptr; }
 
@@ -84,7 +87,7 @@ namespace bond {
 
         void reset() { m_ptr = nullptr; }
 
-        bool is_marked() const { return m_ptr->is_marked(); }
+        [[nodiscard]] bool is_marked() const { return m_ptr->is_marked(); }
 
         bool operator==(GcPtr const &other) const { return m_ptr->equal(other); }
 
@@ -216,11 +219,9 @@ namespace bond {
         virtual OBJ_RESULT $set_attribute([[maybe_unused]] const GcPtr<Object> &index,
                                           [[maybe_unused]] const GcPtr<Object> &value) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $get_attribute(const GcPtr<Object> &index) {
-            UNIMPLEMENTED;
-        }
+        virtual OBJ_RESULT $get_attribute([[maybe_unused]] const GcPtr<Object> &index) { UNIMPLEMENTED; }
 
-        virtual OBJ_RESULT $iter([[maybe_unused]] const GcPtr<Object> &self) { UNIMPLEMENTED; }
+        virtual OBJ_RESULT $iter() { UNIMPLEMENTED; }
 
         virtual OBJ_RESULT $next() { UNIMPLEMENTED; }
 
@@ -267,15 +268,24 @@ namespace bond {
             push(GcPtr<Object>(obj));
         }
 
-        void push(GcPtr<Object> const &obj) { m_stack[m_stack_ptr++] = obj; }
+        void push(GcPtr<Object> const &obj) { m_stack.push_back(obj); }
 
-        GcPtr<Object> pop() { return m_stack[--m_stack_ptr]; }
+        GcPtr<Object> pop() {
+            auto res = peek();
+            m_stack.pop_back();
+            return res;
+        }
 
-        GcPtr<Object> peek() { return m_stack[m_stack_ptr - 1]; }
+        GcPtr<Object> peek() { return m_stack.back(); }
+
+        void print_stack() {
+            for (auto &o: m_stack) {
+                fmt::print("{}\n", o->str());
+            }
+        }
 
     protected:
-        size_t m_stack_ptr = 0;
-        std::array<GcPtr<Object>, STACK_MAX> m_stack;
+        std::vector<GcPtr<Object>> m_stack;
 
     };
 
@@ -293,7 +303,7 @@ namespace bond {
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
             m_gc->m_mutex.lock();
-            auto t = GcPtr<T>(new T(std::forward<Args>(args)...));
+            auto t = GcPtr<T>(::new T(std::forward<Args>(args)...));
             m_gc->m_immortal.emplace_back(t);
             m_gc->m_mutex.unlock();
             return t;
@@ -303,6 +313,7 @@ namespace bond {
         GcPtr<T> make(Args &&...args) {
             m_gc->m_mutex.lock();
             auto t = GcPtr<T>(new(*this) T(std::forward<Args>(args)...));
+            m_gc->m_objects.emplace_back(t);
             m_gc->m_mutex.unlock();
             return t;
         }
@@ -310,9 +321,7 @@ namespace bond {
 
         void *allocate(size_t size) {
             collect_if_needed();
-            auto ptr = (Object *) std::malloc(size);
-            m_gc->m_objects.emplace_back(ptr);
-            return ptr;
+            return (Object *) std::malloc(size);
         }
 
         ~GarbageCollector();
@@ -345,6 +354,12 @@ namespace bond {
                 m_gc->m_roots.erase(it);
             }
         }
+
+        std::vector<Root *> get_roots() { return m_roots; }
+
+        GcPtr<Object> TRUE;
+        GcPtr<Object> FALSE;
+        GcPtr<Object> NIL;
 
     private:
         GarbageCollector();

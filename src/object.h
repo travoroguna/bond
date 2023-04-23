@@ -5,6 +5,7 @@
 #include <optional>
 #include <utility>
 #include <cassert>
+#include "object_helpers.h"
 
 namespace bond {
 
@@ -66,6 +67,7 @@ namespace bond {
         BIT_XOR,
     };
 
+
     class Map : public Object {
     public:
         Map() = default;
@@ -98,6 +100,34 @@ namespace bond {
                 m_internal_map;
     };
 
+    class NativeFunction : public Object {
+    public:
+        explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
+
+        explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)},
+                                                                          m_name(std::move(name)) {}
+
+        [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
+
+        std::string str() override {
+            return fmt::format("<native function at {}>", (void *) this);
+        }
+
+        [[nodiscard]] std::string get_name() const { return m_name; }
+
+        bool equal(const GcPtr<Object> &other) override {
+            return this == other.get();
+        }
+
+        size_t hash() override { return 0; }
+
+        static const char *type_name() { return "native_function"; }
+
+    private:
+        NativeFunctionPtr m_fn;
+        std::string m_name = "native_function";
+    };
+
     class ListObj : public Object {
     public:
         ListObj() = default;
@@ -117,9 +147,11 @@ namespace bond {
 
         void prepend(const GcPtr<Object> &value);
 
+        void append(const GcPtr<Object> &value);
+
         bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
 
-        OBJ_RESULT $iter(const GcPtr<Object> &self) override;
+        OBJ_RESULT $iter() override;
 
         OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override;
 
@@ -316,6 +348,8 @@ namespace bond {
 
         OBJ_RESULT $eq(const GcPtr<Object> &other) override;
 
+        std::expected<GcPtr<Object>, RuntimeError> $iter() override;
+
         OBJ_RESULT $_bool() override;
 
         OBJ_RESULT $ne(const GcPtr<Object> &other) override;
@@ -328,8 +362,40 @@ namespace bond {
 
         bool equal(const GcPtr<Object> &other) override;
 
+        NativeErrorOr join(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr split(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr find(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr replace(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr starts_with(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr ends_with(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr to_upper(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr to_lower(const std::vector<GcPtr<Object>> &args);
+
+        NativeErrorOr strip(const std::vector<GcPtr<Object>> &args);
+
+
+        std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override;
+
     private:
         std::string m_value;
+        std::unordered_map<std::string, NativeFunctionPtr> m_attributes = {
+                {"join",        BIND(join)},
+                {"split",       BIND(split)},
+                {"find",        BIND(find)},
+                {"replace",     BIND(replace)},
+                {"starts_with", BIND(starts_with)},
+                {"ends_with",   BIND(ends_with)},
+                {"to_upper",    BIND(to_upper)},
+                {"to_lower",    BIND(to_lower)},
+                {"strip",       BIND(strip)},
+        };
     };
 
     class Bool : public Object {
@@ -375,44 +441,6 @@ namespace bond {
         size_t hash() override;
     };
 
-    struct FunctionError {
-        std::string message;
-        RuntimeError error;
-
-        FunctionError(std::string message, RuntimeError error)
-                : message(std::move(message)), error(error) {}
-    };
-
-    using NativeErrorOr = std::expected<GcPtr<Object>, FunctionError>;
-    using NativeFunctionPtr = std::function<NativeErrorOr(const std::vector<GcPtr<Object>> &args)>;
-
-    class NativeFunction : public Object {
-    public:
-        explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
-
-        explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)},
-                                                                          m_name(std::move(name)) {}
-
-        [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
-
-        std::string str() override {
-            return fmt::format("<native function at {}>", (void *) this);
-        }
-
-        [[nodiscard]] std::string get_name() const { return m_name; }
-
-        bool equal(const GcPtr<Object> &other) override {
-            return this == other.get();
-        }
-
-        size_t hash() override { return 0; }
-
-        static const char *type_name() { return "native_function"; }
-
-    private:
-        NativeFunctionPtr m_fn;
-        std::string m_name = "native_function";
-    };
 
     template<typename T>
     class NativeStruct : public Object {
@@ -491,6 +519,21 @@ namespace bond {
         }
 
         static const char *type_name() { return "function"; }
+
+        void mark() override {
+            if (m_marked) return;
+            m_marked = true;
+            m_code->mark();
+            m_globals->mark();
+        }
+
+        void unmark() override {
+            if (!m_marked) return;
+
+            m_marked = false;
+            m_code->unmark();
+            m_globals->unmark();
+        }
 
     private:
         GcPtr<Code> m_code;
@@ -704,9 +747,14 @@ namespace bond {
         GcPtr<Object> m_method;
     };
 
-    static auto BondTrue = GarbageCollector::instance().make_immortal<Bool>(true);
-    static auto BondFalse = GarbageCollector::instance().make_immortal<Bool>(false);
-    static auto BondNil = GarbageCollector::instance().make_immortal<Nil>();
+    static auto tr = Bool(true);
+    static auto fl = Bool(false);
+    static auto nl = Nil();
+
+
+    static auto BondFalse = GcPtr<Bool>(&fl);
+    static auto BondTrue = GcPtr<Bool>(&tr);
+    static auto BondNil = GcPtr<Nil>(&nl);
 
 #define BOOL_(x) (x) ? bond::BondTrue : bond::BondFalse
 }; // namespace bond

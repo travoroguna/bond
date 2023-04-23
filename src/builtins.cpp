@@ -111,7 +111,7 @@ namespace bond {
             return start == other_range->start && end == other_range->end;
         }
 
-        OBJ_RESULT $iter(const GcPtr<Object> &self) override { return self; }
+        OBJ_RESULT $iter() override { return this; }
 
 
         size_t hash() override {

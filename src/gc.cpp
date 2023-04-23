@@ -22,41 +22,36 @@ namespace bond {
 //            return;
 //        }
 
-        for (auto root: m_gc->m_roots) {
+        for (auto root: m_roots) {
             root->mark();
+            fmt::print("\n\n\n\n");
+            root->print_stack();
+            fmt::print("\n\n\n\n");
+
         }
 
-        for (auto &obj: m_gc->m_objects) {
+        fmt::print("gc has {} roots\n", m_roots.size());
+
+        for (auto &obj: m_objects) {
             // FIXME: when using the isolate library and sleep for more than 500 ms immortal objects somehow
             //        get collected. This is a temporary fix. Maybe I am just dumb but I don't understand how
             //        immortal objects end up in the m_objects vector. If I spend more time on this I will delete
             //        this project and rewrite it in another language, maybe Rust.
 
             if (!obj.is_marked()) {
+                fmt::print("deleting {}\n", obj->str());
                 obj.get()->~Object();
                 std::free(obj.get());
                 obj.reset();
             }
         }
 
-        m_gc->m_objects.erase(std::remove_if(m_gc->m_objects.begin(),
-                                             m_gc->m_objects.end(),
-                                             [](GcPtr<Object> &obj) { return obj.get() == nullptr; }),
-                              m_gc->m_objects.end());
+        m_objects.erase(std::remove_if(m_objects.begin(),
+                                       m_objects.end(),
+                                       [](GcPtr<Object> &obj) { return obj.get() == nullptr; }),
+                        m_objects.end());
 
-        if (m_gc->gc_cycles > 5 && m_gc->m_objects.size() > 500) {
-            collect_old_objects();
-            m_old_objects.insert(m_old_objects.end(), m_objects.begin(), m_objects.end());
-            m_objects.clear();
-            m_old_alloc_limit = m_objects.size() * 2;
-            gc_cycles = 0;
-        } else if (m_old_objects.size() > m_old_alloc_limit) {
-            collect_old_objects();
-            m_old_alloc_limit = m_objects.size() * 2;
-        }
-
-
-        for (auto root: m_gc->m_roots) {
+        for (auto root: m_roots) {
             root->unmark();
         }
         gc_cycles++;
@@ -96,18 +91,14 @@ namespace bond {
     }
 
     void Root::mark() {
-        size_t count = 0;
-
-        while (count < m_stack_ptr) {
-            m_stack[count++].mark();
+        for (auto &obj: m_stack) {
+            obj.mark();
         }
     }
 
     void Root::unmark() {
-        size_t count = 0;
-
-        while (count < m_stack_ptr) {
-            m_stack[count++].unmark();
+        for (auto &obj: m_stack) {
+            obj.unmark();
         }
     }
 

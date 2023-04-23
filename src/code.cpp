@@ -151,7 +151,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError> Code::$_bool() {
-        return GarbageCollector::instance().make<Bool>(true);
+        return BondTrue;
     }
 
     void CodeGenerator::finish_generation() {

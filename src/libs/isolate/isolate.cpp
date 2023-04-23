@@ -111,7 +111,9 @@ ppointer isolate_thread(ppointer arg) {
     auto data = (ThreadData *) arg;
     auto ctx = Context(m_ctx->get_lib_path());
 
+
     auto vm = Vm(&ctx);
+    m_ctx->gc()->add_root(&vm);
     GarbageCollector::instance().add_root(&vm);
     GarbageCollector::instance().stop_gc();
 
@@ -120,6 +122,10 @@ ppointer isolate_thread(ppointer arg) {
     auto future = data->future;
 
     vm.push(future);
+    vm.push(function);
+    for (auto &a: args) {
+        vm.push(a);
+    }
     vm.call_function(function, args);
     vm.exec();
 
@@ -133,6 +139,7 @@ ppointer isolate_thread(ppointer arg) {
     }
 
     GarbageCollector::instance().remove_root(&vm);
+    m_ctx->gc()->remove_root(&vm);
     delete data;
     return nullptr;
 }
@@ -144,6 +151,7 @@ NativeErrorOr start_isolate(const std::vector<GcPtr<Object>> &arguments) {
     DEFINE(args, ListObj, 1, arguments);
 
     GarbageCollector::instance().stop_gc();
+
 
     auto future = m_ctx->gc()->make<Future>();
     auto t = new ThreadData(m_ctx, function, args, future);
@@ -170,7 +178,13 @@ NativeErrorOr sleep(const std::vector<GcPtr<Object>> &arguments) {
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     m_ctx = ctx;
-    GarbageCollector::instance().set_gc(m_ctx->gc());
+//    GarbageCollector::instance().set_gc(m_ctx->gc());
+
+    fmt::print("ISOLATE {} ?????????????????????????\n", m_ctx->gc()->get_roots().size());
+
+    for (auto root: m_ctx->gc()->get_roots()) {
+        GarbageCollector::instance().add_root(root);
+    }
 
     std::unordered_map<std::string, NativeFunctionPtr> io_module = {
             {"start_isolate", start_isolate},

@@ -78,8 +78,8 @@ namespace bond {
         return BOOL_(!m_internal_list.empty());
     }
 
-    OBJ_RESULT ListObj::$iter(const GcPtr<Object> &self) {
-        return GarbageCollector::instance().make<ListIterator>(self);
+    OBJ_RESULT ListObj::$iter() {
+        return GarbageCollector::instance().make<ListIterator>(this);
     }
 
     OBJ_RESULT ListObj::$get_attribute(const GcPtr<Object> &index) {
@@ -156,5 +156,9 @@ namespace bond {
 
 
         return std::unexpected(RuntimeError::AttributeNotFound);
+    }
+
+    void ListObj::append(const GcPtr<Object> &value) {
+        m_internal_list.push_back(value);
     }
 };
