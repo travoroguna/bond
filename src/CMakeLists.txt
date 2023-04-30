@@ -34,7 +34,7 @@ add_library(bondlib lexer.cpp lexer.h context.cpp context.h span.h ast.cpp ast.h
         nodevisitor.h object.h object.cpp api.h api.cpp builtins.cpp bond.h lsp/lsp.cpp
         lsp/lsp.h lsp/lsp.h lsp/rpc.cpp lsp/rpc.h lsp/rpc.h result.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
-        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h)
+        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp)
 
 target_link_libraries(bondlib fmt::fmt-header-only nlohmann_json plibsys)
 

@@ -1,8 +1,5 @@
-#include <iostream>
 #include <fstream>
 #include <filesystem>
-#include "lsp/lsp.h"
-
 #include "lexer.h"
 #include "parser.h"
 #include "context.h"

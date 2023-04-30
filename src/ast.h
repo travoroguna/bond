@@ -13,9 +13,15 @@ namespace bond {
         Node, BinOp, Unary, FalseLit, TrueLit, NilLit, NumLit, StringLit
     };
 
+    class Node;
+
+    class NodeVisitor;
+
     class Node {
     public:
         Node() = default;
+
+        virtual ~Node() = default;
 
         std::shared_ptr<Span> get_span() { return m_span; }
 
@@ -96,7 +102,7 @@ namespace bond {
 
         std::string get_value() { return m_value; }
 
-        bool is_int() const { return m_is_int; }
+        [[nodiscard]] bool is_int() const { return m_is_int; }
 
     private:
         std::string m_value;
@@ -439,7 +445,7 @@ namespace bond {
 
     class Break : public Node {
     public:
-        Break(const SharedSpan &span);
+        explicit Break(const SharedSpan &span);
 
         void accept(NodeVisitor *visitor) override;
     };
@@ -447,9 +453,35 @@ namespace bond {
 
     class Continue : public Node {
     public:
-        Continue(const SharedSpan &span);
+        explicit Continue(const SharedSpan &span);
 
         void accept(NodeVisitor *visitor) override;
     };
+
+    class AsyncDef : public Node {
+    public:
+        AsyncDef(const SharedSpan &span, const SharedNode &function);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_function() { return m_function; }
+
+    private:
+        SharedNode m_function;
+    };
+
+
+    class Await : public Node {
+    public:
+        Await(const SharedSpan &span, const SharedNode &expr);
+
+        void accept(NodeVisitor *visitor) override;
+
+        SharedNode get_expr() { return m_expr; }
+
+    private:
+        SharedNode m_expr;
+    };
+
 
 };

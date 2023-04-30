@@ -31,7 +31,9 @@ namespace bond {
             {"in",       TokenType::IN},
             {"try",      TokenType::TRY},
             {"break",    TokenType::BREAK},
-            {"continue", TokenType::CONTINUE}
+            {"continue", TokenType::CONTINUE},
+            {"async",    TokenType::ASYNC},
+            {"await",    TokenType::AWAIT}
 
     };
 

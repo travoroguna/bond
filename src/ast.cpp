@@ -7,6 +7,8 @@
 #include <utility>
 
 namespace bond {
+    class NodeVisitor;
+
     BinaryOp::BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right)
             : m_op(std::move(op)) {
         m_span = span;
@@ -255,7 +257,7 @@ namespace bond {
 
     void StructNode::accept(NodeVisitor *visitor) {
         visitor->visit_struct(this);
-    };
+    }
 
     GetAttribute::GetAttribute(const SharedSpan &span, const SharedNode &expr, const std::string &name) {
         m_span = span;
@@ -314,4 +316,22 @@ namespace bond {
     void Continue::accept(NodeVisitor *visitor) {
         visitor->visit_continue(this);
     }
-};
+
+    AsyncDef::AsyncDef(const SharedSpan &span, const SharedNode &function) {
+        m_span = span;
+        m_function = function;
+    }
+
+    void AsyncDef::accept(bond::NodeVisitor *visitor) {
+        visitor->visit_async_def(this);
+    }
+
+    Await::Await(const SharedSpan &span, const SharedNode &expr) {
+        m_span = span;
+        m_expr = expr;
+    }
+
+    void Await::accept(bond::NodeVisitor *visitor) {
+        visitor->visit_await(this);
+    }
+}

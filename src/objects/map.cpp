@@ -46,4 +46,4 @@ namespace bond {
     OBJ_RESULT Map::$_bool() {
         return BOOL_(!m_internal_map.empty());
     }
-};
+}

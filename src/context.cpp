@@ -65,5 +65,4 @@ void Context::error(const std::shared_ptr<Span> &span, const std::basic_string<c
 
 }
 
-
-};
+}

@@ -34,4 +34,4 @@ namespace bond {
         return BOOL_(false);
     }
 
-};
+}

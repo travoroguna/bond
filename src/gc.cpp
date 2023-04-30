@@ -17,29 +17,12 @@ namespace bond {
     };
 
     void GarbageCollector::collect() {
-//        if (std::this_thread::get_id() != m_main_thread_id) {
-//            p_uthread_yield();
-//            return;
-//        }
-
         for (auto root: m_roots) {
             root->mark();
-            fmt::print("\n\n\n\n");
-            root->print_stack();
-            fmt::print("\n\n\n\n");
-
         }
 
-        fmt::print("gc has {} roots\n", m_roots.size());
-
         for (auto &obj: m_objects) {
-            // FIXME: when using the isolate library and sleep for more than 500 ms immortal objects somehow
-            //        get collected. This is a temporary fix. Maybe I am just dumb but I don't understand how
-            //        immortal objects end up in the m_objects vector. If I spend more time on this I will delete
-            //        this project and rewrite it in another language, maybe Rust.
-
             if (!obj.is_marked()) {
-                fmt::print("deleting {}\n", obj->str());
                 obj.get()->~Object();
                 std::free(obj.get());
                 obj.reset();
@@ -77,10 +60,9 @@ namespace bond {
     void GarbageCollector::collect_if_needed() {
         if (!m_gc->m_collect) return;
         if (m_gc->m_objects.size() < m_gc->m_alloc_limit) return;
-        auto prev = m_objects.size();
-        auto start = std::chrono::high_resolution_clock::now();
+
         m_gc->collect();
-        auto end = std::chrono::high_resolution_clock::now();
+
         m_gc->m_alloc_limit = m_gc->m_objects.size() * 2;
 
 #ifdef DEBUG

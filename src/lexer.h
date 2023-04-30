@@ -29,7 +29,9 @@ namespace bond {
         AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
         PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
 
-        EndOfFile, IMPORT, AS, TRY, INTEGER, FLOAT, BREAK, CONTINUE
+        EndOfFile, IMPORT, AS, TRY, INTEGER, FLOAT, BREAK, CONTINUE,
+
+        ASYNC, AWAIT
     };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {

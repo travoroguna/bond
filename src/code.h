@@ -83,6 +83,10 @@ namespace bond {
 
         void visit_continue(Continue *stmnt) override;
 
+        void visit_async_def(AsyncDef *stmnt) override;
+
+        void visit_await(Await *expr) override;
+
 
         bool m_in_function = false;
         bool m_in_closure = false;
@@ -102,6 +106,8 @@ namespace bond {
         void start_loop();
 
         void finish_loop(uint32_t loop_end, uint32_t loop_start);
+
+        void func_def(FuncDef *stmnt, bool is_async);
     };
 
 } // bond

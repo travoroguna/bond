@@ -5,7 +5,6 @@
 #include "parser.h"
 #include <initializer_list>
 #include <algorithm>
-#include <exception>
 #include <optional>
 #include <ranges>
 #include "gc.h"
@@ -62,9 +61,8 @@ namespace bond {
             else if (match({TokenType::STRUCT})) return struct_declaration();
             else if (match({TokenType::FUN})) return function_declaration(false);
             else if (match({TokenType::IMPORT})) return import_declaration();
-            auto st = statement();
-//            m_scopes.end_scope();
-            return st;
+            else if (match({TokenType::ASYNC})) return async_declaration();
+            else return statement();
         }
         catch (ParserError &e) {
             ctx->error(e.span, e.error);
@@ -76,6 +74,12 @@ namespace bond {
     std::shared_ptr<Span>
     Parser::span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end) {
         return std::make_shared<Span>(start->module_id, start->start, end->end, end->line);
+    }
+
+    std::shared_ptr<Node> Parser::async_declaration() {
+        consume(TokenType::FUN, peek().get_span(), "Expected function after async keyword");
+        auto function = function_declaration(false);
+        return std::make_shared<AsyncDef>(function->get_span(), function);
     }
 
     std::shared_ptr<Node> Parser::import_declaration() {
@@ -284,6 +288,17 @@ namespace bond {
         return std::make_shared<Continue>(keyword.get_span());
     }
 
+
+    std::shared_ptr<Node> Parser::await_statement() {
+        if (match({TokenType::AWAIT})) {
+            auto await_expr = await_statement();
+            auto span = span_from_spans(await_expr->get_span(), previous().get_span());
+            return std::make_shared<Await>(span, await_expr);
+        }
+
+        return try_statement();
+    }
+
     std::shared_ptr<Node> Parser::try_statement() {
         if (match({TokenType::TRY})) {
             auto try_expr = try_statement();
@@ -401,7 +416,7 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::assignment() {
-        auto expr = try_statement();
+        auto expr = await_statement();
 
         if (match({TokenType::EQUAL})) {
             auto pre = previous();
@@ -623,7 +638,7 @@ namespace bond {
         return expr;
     }
 
-    std::shared_ptr<Node> Parser::f_call(std::shared_ptr<Node> callee) {
+    std::shared_ptr<Node> Parser::f_call(const std::shared_ptr<Node> &callee) {
         std::vector<std::shared_ptr<Node>> arguments;
         if (!check(TokenType::RIGHT_PAREN)) {
             do {

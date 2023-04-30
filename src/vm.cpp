@@ -665,6 +665,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
                         if (result.has_value()) {
                             push(result.value());
+                            GarbageCollector::instance().collect_if_needed();
                             continue;
                         }
                         runtime_error(result.error().message, result.error().error, m_current_frame->get_span());
@@ -825,12 +826,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
             }
+
         }
     }
 
     void Vm::mark() {
         Root::mark();
-        fmt::print("marking vm\n");
         for (size_t i = 0; i < m_frame_pointer; i++) {
             m_frames[i].mark();
         }

@@ -17,4 +17,8 @@ namespace bond {
     std::expected<GcPtr<Object>, RuntimeError> ListIterator::$has_next() {
         return BOOL_(m_index < m_list->as<ListObj>()->length());
     }
+
+    Coroutine::Coroutine(const GcPtr<Function> &function) {
+        m_function = function;
+    }
 }

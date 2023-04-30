@@ -109,4 +109,4 @@ namespace bond {
         if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
         return GarbageCollector::instance().make<Integer>(m_value % as<Integer>(other)->get_value());
     }
-};
+}

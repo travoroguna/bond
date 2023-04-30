@@ -24,6 +24,7 @@ namespace bond {
         m_spans.push_back(span);
     }
 
+
     std::string Code::dissasemble() {
         std::stringstream ss;
         size_t count = 0;
@@ -67,6 +68,8 @@ namespace bond {
                 CONSTANT_INSTRUCTION(GET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(SET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(IMPORT);
+                CONSTANT_INSTRUCTION(MAKE_ASYNC);
+
 
                 OPRAND_INSTRUCTION(BUILD_LIST);
                 OPRAND_INSTRUCTION(JUMP_IF_FALSE);
@@ -107,6 +110,7 @@ namespace bond {
                 SIMPLE_INSTRUCTION(SET_ITEM);
                 SIMPLE_INSTRUCTION(OR);
                 SIMPLE_INSTRUCTION(AND);
+                SIMPLE_INSTRUCTION(AWAIT);
             }
 
         }
@@ -159,10 +163,8 @@ namespace bond {
             m_code->add_code(Opcode::PUSH_NIL, std::make_shared<Span>(0, 0, 0, 0));
             m_code->add_code(Opcode::RETURN, std::make_shared<Span>(0, 0, 0, 0));
         } else {
-            if (static_cast<Opcode>(m_code->get_opcodes().back()) != Opcode::RETURN) {
-                m_code->add_code(Opcode::PUSH_NIL, m_code->last_span());
-                m_code->add_code(Opcode::RETURN, m_code->last_span());
-            }
+            m_code->add_code(Opcode::PUSH_NIL, m_code->last_span());
+            m_code->add_code(Opcode::RETURN, m_code->last_span());
         }
     }
 
@@ -437,6 +439,10 @@ namespace bond {
     }
 
     void CodeGenerator::visit_func_def(FuncDef *stmnt) {
+        func_def(stmnt, false);
+    }
+
+    void CodeGenerator::func_def(FuncDef *stmnt, bool is_async) {
         m_in_function = true;
 
         auto var = m_scopes->get(stmnt->get_name());
@@ -456,7 +462,12 @@ namespace bond {
         auto idx = m_code->add_constant<Function>(code, stmnt->get_params(), stmnt->get_name());
         auto name = m_code->add_constant<String>(stmnt->get_name());
 
-        m_code->add_code(Opcode::CREATE_FUNCTION, idx, stmnt->get_span());
+        if (is_async) {
+            m_code->add_code(Opcode::MAKE_ASYNC, idx, stmnt->get_span());
+        } else {
+            m_code->add_code(Opcode::CREATE_FUNCTION, idx, stmnt->get_span());
+        }
+
         if (var.has_value()) {
             m_code->add_code(Opcode::CREATE_GLOBAL, name, stmnt->get_span());
             return;
@@ -464,6 +475,8 @@ namespace bond {
         m_code->add_code(Opcode::STORE_FAST, name, stmnt->get_span());
 
         m_in_function = false;
+
+        finish_generation();
     }
 
     GcPtr<Function> CodeGenerator::create_function(FuncDef *stmnt) {
@@ -612,6 +625,18 @@ namespace bond {
     void CodeGenerator::start_loop() {
         m_break_stack.emplace_back();
         m_continue_stack.emplace_back();
+    }
+
+    void CodeGenerator::visit_async_def(AsyncDef *stmnt) {
+        func_def(dynamic_cast<FuncDef *>(stmnt->get_function().get()), true);
+        m_ctx->error(stmnt->get_span(), "async def incomplete implementation");
+    }
+
+    void CodeGenerator::visit_await(Await *expr) {
+        expr->get_expr()->accept(this);
+        m_code->add_code(Opcode::AWAIT, expr->get_span());
+        m_ctx->error(expr->get_span(), "await incomplete implementation");
+
     }
 
 } // bond

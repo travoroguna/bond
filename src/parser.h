@@ -140,7 +140,7 @@ namespace bond {
 
         std::shared_ptr<Node> call();
 
-        std::shared_ptr<Node> f_call(std::shared_ptr<Node> callee);
+        std::shared_ptr<Node> f_call(const std::shared_ptr<Node> &callee);
 
         std::shared_ptr<Node> for_statement();
 
@@ -161,6 +161,10 @@ namespace bond {
         std::shared_ptr<Node> break_statement();
 
         std::shared_ptr<Node> continue_statement();
+
+        std::shared_ptr<Node> async_declaration();
+
+        std::shared_ptr<Node> await_statement();
 
         bool m_in_loop = false;
 

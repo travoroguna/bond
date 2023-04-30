@@ -19,9 +19,9 @@ target_link_libraries(gc bondlib)
 set_target_properties(gc PROPERTIES PUBLIC_HEADER "gc/gc.bd")
 
 
-add_library(isolate SHARED isolate/isolate.cpp)
-target_link_libraries(isolate bondlib plibsys)
-set_target_properties(isolate PROPERTIES PUBLIC_HEADER "isolate/isolate.bd")
+#add_library(isolate SHARED isolate/isolate.cpp)
+#target_link_libraries(isolate bondlib plibsys)
+#set_target_properties(isolate PROPERTIES PUBLIC_HEADER "isolate/isolate.bd")
 
 add_library(reflection SHARED reflection/reflection.cpp)
 target_link_libraries(reflection bondlib)
@@ -32,7 +32,7 @@ target_link_libraries(socket bondlib plibsys)
 set_target_properties(socket PROPERTIES PUBLIC_HEADER "socket/socket.bd")
 
 
-INSTALL(TARGETS io os gc isolate reflection socket
+INSTALL(TARGETS io os gc reflection socket
         LIBRARY DESTINATION libraries
         RUNTIME DESTINATION libraries
         PUBLIC_HEADER DESTINATION libraries)

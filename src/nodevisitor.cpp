@@ -1,6 +1,8 @@
 #include "nodevisitor.h"
 
 
-namespace bond{
+namespace bond {
     NodeVisitor::NodeVisitor() = default;
+
+    NodeVisitor::~NodeVisitor() = default;
 }

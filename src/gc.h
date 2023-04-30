@@ -251,7 +251,6 @@ namespace bond {
         bool m_marked = false;
     };
 
-#define STACK_MAX 1024
 
     class Root {
     public:
@@ -361,6 +360,8 @@ namespace bond {
         GcPtr<Object> FALSE;
         GcPtr<Object> NIL;
 
+        void collect_if_needed();
+
     private:
         GarbageCollector();
 
@@ -371,8 +372,6 @@ namespace bond {
         std::vector<Root *> m_roots;
         size_t m_alloc_limit = 200;
         size_t m_old_alloc_limit = 300;
-
-        void collect_if_needed();
 
         std::thread::id m_main_thread_id;
         bool m_collect = true;
@@ -385,7 +384,7 @@ namespace bond {
 
     };
 
-}; // namespace bond
+} // namespace bond
 
 void *operator new(size_t size, bond::GarbageCollector &gc);
 

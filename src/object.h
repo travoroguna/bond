@@ -6,6 +6,8 @@
 #include <utility>
 #include <cassert>
 #include "object_helpers.h"
+#include <thread>
+#include <mutex>
 
 namespace bond {
 
@@ -65,6 +67,8 @@ namespace bond {
         BIT_OR,
         BIT_AND,
         BIT_XOR,
+        MAKE_ASYNC,
+        AWAIT,
     };
 
 
@@ -221,6 +225,8 @@ namespace bond {
         GcPtr<Object> get_constant(size_t index) { return m_constants[index]; }
 
         uint32_t get_code(size_t index) { return m_code[index]; }
+
+        uint32_t get_code_size() { return m_code.size(); }
 
         SharedSpan get_span(size_t index) { return m_spans[index]; }
 
@@ -464,7 +470,7 @@ namespace bond {
 
         static const char *type_name() { return "native_struct"; }
 
-        std::string get_name() const { return m_name; }
+        [[nodiscard]] std::string get_name() const { return m_name; }
 
         NativeErrorOr call(const std::vector<GcPtr<Object>> &args) {
             return m_constructor(args);
@@ -616,9 +622,6 @@ namespace bond {
         void add_method(const GcPtr<Object> &name, const GcPtr<Object> &function) { m_methods->set(name, function); }
 
         std::optional<GcPtr<Object>> get_method(const GcPtr<Object> &name) {
-//            for (auto &[n, method] : m_methods->get_map()){
-//                fmt::print("{} -> {}\n", n->str(), method->str());
-//            }
             return m_methods->get(name);
         }
 
@@ -630,7 +633,7 @@ namespace bond {
 
         std::vector<GcPtr<String>> get_instance_variables() { return m_instance_variables; }
 
-        virtual std::expected<bool, std::string> is_instance(GcPtr<Object> const &other);
+        std::expected<bool, std::string> is_instance(GcPtr<Object> const &other) override;
 
         GcPtr<Map> get_globals() { return m_globals; }
 
@@ -653,7 +656,7 @@ namespace bond {
 
     class StructInstance : public Object {
     public:
-        StructInstance(const GcPtr<Struct> &struct_type);
+        explicit StructInstance(const GcPtr<Struct> &struct_type);
 
         OBJ_RESULT $set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) override;
 
@@ -747,6 +750,7 @@ namespace bond {
         GcPtr<Object> m_method;
     };
 
+
     static auto tr = Bool(true);
     static auto fl = Bool(false);
     static auto nl = Nil();
@@ -756,5 +760,72 @@ namespace bond {
     static auto BondTrue = GcPtr<Bool>(&tr);
     static auto BondNil = GcPtr<Nil>(&nl);
 
+
 #define BOOL_(x) (x) ? bond::BondTrue : bond::BondFalse
-}; // namespace bond
+
+
+    class Future : public Object {
+    public:
+        Future() = default;
+
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
+
+        size_t hash() override { return 0; }
+
+        OBJ_RESULT $_bool() override { return GarbageCollector::instance().make<Bool>(true); }
+
+        void mark() override;
+
+        void unmark() override;
+
+        static const char *type_name() { return "future"; }
+
+        std::string str() override {
+            return fmt::format("<future {} at {}>", m_value->str(), (void *) this);
+        }
+
+        NativeErrorOr get_value(const std::vector<GcPtr<Object>> &args) {
+            ASSERT_ARG_COUNT(0, args);
+
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_value == nullptr) return Err("Future not resolved");
+            return m_value;
+        }
+
+        NativeErrorOr has_result(const std::vector<GcPtr<Object>> &args) {
+            ASSERT_ARG_COUNT(0, args);
+
+            std::lock_guard<std::mutex> lock(m_mutex);
+            return BOOL_(m_value != nullptr);
+        }
+
+        GcPtr<Object> get_value() {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            return m_value;
+        }
+
+        void set_value(const GcPtr<Object> &value) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_value = value;
+        }
+
+    private:
+        GcPtr<Object> m_value = nullptr;
+        std::mutex m_mutex;
+    };
+
+    class Coroutine : public Object {
+    public:
+        explicit Coroutine(const GcPtr<Function> &function);
+
+        GcPtr<Function> get_function() { return m_function; }
+
+        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
+
+        size_t hash() override { return 0; }
+
+    private:
+        GcPtr<Function> m_function;
+    };
+
+} // namespace bond
