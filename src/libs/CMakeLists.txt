@@ -4,7 +4,6 @@ project(libs)
 set(CMAKE_CXX_STANDARD 23)
 
 add_subdirectory(gl)
-add_subdirectory(sqlite)
 add_subdirectory(fmt)
 
 
@@ -36,7 +35,7 @@ target_link_libraries(socket bondlib plibsys)
 set_target_properties(socket PROPERTIES PUBLIC_HEADER "socket/socket.bd")
 
 
-INSTALL(TARGETS io os gc reflection socket sqlite isolate
+INSTALL(TARGETS io os gc reflection socket isolate
         LIBRARY DESTINATION libraries
         RUNTIME DESTINATION libraries
         PUBLIC_HEADER DESTINATION libraries)
