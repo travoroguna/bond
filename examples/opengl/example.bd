@@ -1,0 +1,96 @@
+import "gl/gl" as gl;
+import "gl/imgui" as imgui;
+import "io" as io;
+
+
+fn read_file(path) ! {
+    var file = try io.open(path, "r");
+    return Ok(file.read_all());
+}
+
+var count = 0;
+
+fn read_shaders(vert_path, frag_path) ! {
+    var vertex_source = try read_file(vert_path);
+    var fragment_source = try read_file(frag_path);
+
+    var vertex_shader = gl.create_shader(gl.GL.VERTEX_SHADER);
+    gl.shader_source(vertex_shader, vertex_source);
+    try gl.compile_shader(vertex_shader);
+
+    var fragment_shader = gl.create_shader(gl.GL.FRAGMENT_SHADER);
+    gl.shader_source(fragment_shader, fragment_source);
+    try gl.compile_shader(fragment_shader);
+
+    var shader_program = gl.create_program();
+    gl.attach_shader(shader_program, vertex_shader);
+    gl.attach_shader(shader_program, fragment_shader);
+
+    try gl.link_program(shader_program);
+
+    gl.delete_shader(vertex_shader);
+    gl.delete_shader(fragment_shader);
+
+    return Ok(shader_program);
+}
+
+
+var window = try gl.init_gl("Hello World", 800, 600);
+imgui.init(window);
+
+var shader_program = try read_shaders("tri.vert", "tri.frag");
+
+var vertices = [
+    -0.5, -0.5, 0.0,
+    0.5, -0.5, 0.0,
+    0.0, 0.5, 0.0
+];
+
+// buffers
+var vbo = gl.gen_buffers(1);
+var vao = gl.gen_vertex_arrays(1);
+
+gl.bind_vertex_array(vao);
+
+gl.bind_buffer(gl.GL.ARRAY_BUFFER, vbo);
+try gl.buffer_data(gl.GL.ARRAY_BUFFER, vertices, gl.GL.STATIC_DRAW);
+
+
+gl.vertex_attrib_pointer(0, 3, gl.GL.FLOAT, gl.GL.FALSE, 3, 0);
+gl.enable_vertex_attrib_array(0);
+
+
+
+while !window.should_close() {
+
+    imgui.new_frame();
+
+    imgui.begin("Hello World");
+    imgui.text("Hello World!");
+
+    if imgui.button("Close") {
+        break;
+    }
+
+    if imgui.button("Count") {
+        count = count + 1;
+    }
+
+    for i in range(0, count) {
+        imgui.text("Hello World! " + str(i));
+    }
+
+    imgui.end();
+
+    gl.clear(gl.GL.COLOR_BUFFER_BIT);
+
+    gl.use_program(shader_program);
+    gl.bind_vertex_array(vao);
+    gl.draw_arrays(gl.GL.TRIANGLES, 0, 3);
+
+    imgui.render();
+
+
+    window.swap_buffers();
+    gl.poll_events();
+}

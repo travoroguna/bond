@@ -55,7 +55,10 @@ namespace bond {
     public:
         explicit BondObject(const std::string &name);
 
-        GcPtr<NativeStruct<BondObject>> make_native_struct(const NativeFunctionPtr &constructor);
+        BondObject();
+
+        static GcPtr<NativeStruct<BondObject>>
+        make_native_struct(const std::string &name, const NativeFunctionPtr &constructor);
 
         virtual void init() = 0;
 
@@ -73,11 +76,12 @@ namespace bond {
         size_t hash() override;
 
 
-    private:
-        std::unordered_map<std::string, GcPtr<Object>> m_attributes;
+    protected:
         std::string m_name = "Object";
 
+        std::unordered_map<std::string, GcPtr<Object>> m_attributes;
     };
+
 }
 
 

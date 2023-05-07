@@ -12,7 +12,6 @@
 namespace bond {
 
     enum class Opcode : uint32_t {
-
         LOAD_CONST,
         BIN_ADD,
         BIN_SUB,
@@ -26,8 +25,6 @@ namespace bond {
         STORE_GLOBAL,
         LOAD_FAST,
         STORE_FAST,
-
-        PRINT,
 
         NE,
         EQ,
@@ -108,8 +105,7 @@ namespace bond {
     public:
         explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
 
-        explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)},
-                                                                          m_name(std::move(name)) {}
+        explicit NativeFunction(NativeFunctionPtr fn, [[maybe_unused]]std::string name) : m_fn{std::move(fn)} {}
 
         [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
 
@@ -751,17 +747,14 @@ namespace bond {
     };
 
 
-    static auto tr = Bool(true);
-    static auto fl = Bool(false);
-    static auto nl = Nil();
+    namespace Globs {
+        extern GcPtr<Bool> BondTrue;
+        extern GcPtr<Bool> BondFalse;
+        extern GcPtr<Nil> BondNil;
+    }
 
 
-    static auto BondFalse = GcPtr<Bool>(&fl);
-    static auto BondTrue = GcPtr<Bool>(&tr);
-    static auto BondNil = GcPtr<Nil>(&nl);
-
-
-#define BOOL_(x) (x) ? bond::BondTrue : bond::BondFalse
+#define BOOL_(x) (x) ? Globs::BondTrue : Globs::BondFalse
 
 
     class Future : public Object {
@@ -781,14 +774,14 @@ namespace bond {
         static const char *type_name() { return "future"; }
 
         std::string str() override {
-            return fmt::format("<future {} at {}>", m_value->str(), (void *) this);
+            return fmt::format("<future instance at {}>", (void *) this);
         }
 
-        NativeErrorOr get_value(const std::vector<GcPtr<Object>> &args) {
+        NativeErrorOr get_result(const std::vector<GcPtr<Object>> &args) {
             ASSERT_ARG_COUNT(0, args);
 
             std::lock_guard<std::mutex> lock(m_mutex);
-            if (m_value == nullptr) return Err("Future not resolved");
+            if (m_value.get() == nullptr) return Err("Future not resolved");
             return m_value;
         }
 
@@ -796,7 +789,18 @@ namespace bond {
             ASSERT_ARG_COUNT(0, args);
 
             std::lock_guard<std::mutex> lock(m_mutex);
-            return BOOL_(m_value != nullptr);
+            return BOOL_(m_value.get() != nullptr);
+        }
+
+        OBJ_RESULT $get_attribute([[maybe_unused]] const GcPtr<Object> &index) override {
+            auto idx = index->as<String>()->get_value();
+            if (!m_methods.contains(idx)) return std::unexpected(RuntimeError::AttributeNotFound);
+            return GarbageCollector::instance().make<NativeFunction>(m_methods[idx]);
+        }
+
+        bool has_value() {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            return m_value.get() != nullptr;
         }
 
         GcPtr<Object> get_value() {
@@ -811,6 +815,10 @@ namespace bond {
 
     private:
         GcPtr<Object> m_value = nullptr;
+        std::unordered_map<std::string, NativeFunctionPtr> m_methods = {
+                {"has_result", BIND(has_result)},
+                {"get_result", BIND(get_result)},
+        };
         std::mutex m_mutex;
     };
 

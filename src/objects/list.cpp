@@ -97,7 +97,7 @@ namespace bond {
 
                         this->m_internal_list.push_back(args[0]);
                         return GarbageCollector::instance().make<Nil>();
-                    }, "append");
+                    });
         } else if (attr == "prepend") {
             return GarbageCollector::instance().make<NativeFunction>(
                     [this](const arg_t &args) -> NativeErrorOr {
@@ -107,7 +107,7 @@ namespace bond {
 
                         this->prepend(args[0]);
                         return GarbageCollector::instance().make<Nil>();
-                    }, "prepend");
+                    });
         } else if (attr == "pop") {
             return GarbageCollector::instance().make<NativeFunction>(
                     [this](const arg_t &args) -> NativeErrorOr {
@@ -118,7 +118,7 @@ namespace bond {
                         auto result = m_internal_list.back();
                         m_internal_list.pop_back();
                         return result;
-                    }, "pop");
+                    });
         } else if (attr == "remove") {
             return GarbageCollector::instance().make<NativeFunction>(
                     [this](const arg_t &args) -> NativeErrorOr {
@@ -132,7 +132,7 @@ namespace bond {
                                     FunctionError(fmt::format("unable to remove element"), RuntimeError::GenericError));
                         m_internal_list.erase(it);
                         return GarbageCollector::instance().make<Nil>();
-                    }, "remove");
+                    });
 
         } else if (attr == "clear") {
             return GarbageCollector::instance().make<NativeFunction>(
@@ -143,7 +143,7 @@ namespace bond {
 
                         this->m_internal_list.clear();
                         return GarbageCollector::instance().make<Nil>();
-                    }, "clear");
+                    });
         } else if (attr == "size") {
             return GarbageCollector::instance().make<NativeFunction>(
                     [this](const arg_t &args) -> NativeErrorOr {
@@ -151,7 +151,7 @@ namespace bond {
                             return std::unexpected(
                                     FunctionError("size takes no arguments", RuntimeError::InvalidArgument));
                         return GarbageCollector::instance().make<Integer>(m_internal_list.size());
-                    }, "size");
+                    });
         }
 
 

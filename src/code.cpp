@@ -98,7 +98,6 @@ namespace bond {
                 SIMPLE_INSTRUCTION(PUSH_TRUE);
                 SIMPLE_INSTRUCTION(PUSH_FALSE);
                 SIMPLE_INSTRUCTION(PUSH_NIL);
-                SIMPLE_INSTRUCTION(PRINT);
                 SIMPLE_INSTRUCTION(NE);
                 SIMPLE_INSTRUCTION(EQ);
                 SIMPLE_INSTRUCTION(LE);
@@ -155,7 +154,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError> Code::$_bool() {
-        return BondTrue;
+        return Globs::BondTrue;
     }
 
     void CodeGenerator::finish_generation() {
@@ -282,11 +281,6 @@ namespace bond {
 
     void CodeGenerator::visit_nil_lit(NilLiteral *expr) {
         m_code->add_code(Opcode::PUSH_NIL, expr->get_span());
-    }
-
-    void CodeGenerator::visit_print(Print *stmnt) {
-        stmnt->get_expr()->accept(this);
-        m_code->add_code(Opcode::PRINT, stmnt->get_span());
     }
 
     void CodeGenerator::visit_expr_stmnt(ExprStmnt *stmnt) {

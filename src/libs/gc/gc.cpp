@@ -20,7 +20,7 @@ NativeErrorOr resume_gc(const std::vector<GcPtr<Object>> &arguments) {
 
 NativeErrorOr collect(const std::vector<GcPtr<Object>> &arguments) {
     ASSERT_ARG_COUNT(0, arguments);
-    GarbageCollector::instance().collect();
+//    GarbageCollector::instance().collect();
     return GarbageCollector::instance().make<Nil>();
 }
 
@@ -44,17 +44,23 @@ NativeErrorOr set_alloc_limit(const std::vector<GcPtr<Object>> &arguments) {
     return GarbageCollector::instance().make<Nil>();
 }
 
+NativeErrorOr get_alloc_limit(const std::vector<GcPtr<Object>> &arguments) {
+    ASSERT_ARG_COUNT(0, arguments);
+    auto s = GarbageCollector::instance().get_alloc_limit();
+    return GarbageCollector::instance().make<Integer>(s);
+}
+
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     GarbageCollector::instance().set_gc(ctx->gc());
     std::unordered_map<std::string, NativeFunctionPtr> io_module = {
             {"set_allocation_limit", set_alloc_limit},
             {"get_allocation_count", get_alloc_count},
+            {"get_allocation_limit", get_alloc_limit},
             {"get_immortal_count",   get_immortal_count},
             {"collect",              collect},
             {"stop_gc",              stop_gc},
             {"resume_gc",            resume_gc},
     };
-
     auto module = ctx->gc()->make<Module>(path, io_module);
     ctx->add_module(path, module);
 }

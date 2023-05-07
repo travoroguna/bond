@@ -19,7 +19,6 @@ namespace bond {
             {"if",       TokenType::IF},
             {"nil",      TokenType::NIL},
             {"or",       TokenType::OR},
-            {"print",    TokenType::PRINT},
             {"return",   TokenType::RETURN},
             {"super",    TokenType::SUPER},
             {"import",   TokenType::IMPORT},

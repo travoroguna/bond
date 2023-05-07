@@ -31,23 +31,25 @@ function activate(context) {
 	var failFast = !!config.get("failFast") || false;
 
 	var serverOptions = {
-		command: binaryPath,
-		args: ["--rpc"],
-		options: {shell: true},
-	};
+        command: binaryPath,
+        args: ["--lsp"],
+        options: {shell: true},
+        transport: vscode_languageclient.TransportKind.stdio
+    };
 
 	var clientOptions = {
-		documentSelector: [{scheme: "file", language: "bond"}],
-		errorHandler: failFast ? new FailFastErrorHandler() : null,
-	};
+        documentSelector: [{scheme: "file", language: "bond"}],
+        errorHandler: failFast ? new FailFastErrorHandler() : null,
+    };
 
-	var client = new vscode_languageclient.LanguageClient(
-		"bondLanguageServer",
-		"bond language server",
-		serverOptions,
-		clientOptions
-	);
-	// client.start();
+    var client = new vscode_languageclient.LanguageClient(
+        "bondLanguageServer",
+        "bond language server",
+        serverOptions,
+        clientOptions
+    );
+    client.trace = vscode_languageclient.Trace.Verbose;
+    context.subscriptions.push(client.start());
 }
 
 function deactivate() {

@@ -37,8 +37,6 @@ namespace bond {
 
         void visit_nil_lit(NilLiteral *expr) override;
 
-        void visit_print(Print *stmnt) override;
-
         void visit_expr_stmnt(ExprStmnt *stmnt) override;
 
         void visit_identifier(Identifier *expr) override;

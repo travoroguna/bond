@@ -11,11 +11,21 @@
 #include <optional>
 #include <mutex>
 #include <fmt/core.h>
+#include <ranges>
+#include <cassert>
+
 
 #define DEBUG
 
+namespace bond::Globs {
+    extern std::recursive_mutex m_recursive_mutex;
+}
 
 namespace bond {
+    std::string thread_string();
+
+    std::string thread_string(std::thread::id id);
+
     class GarbageCollector;
 
     class Object;
@@ -36,7 +46,7 @@ namespace bond {
 
         GcPtr(GcPtr &&other) noexcept: m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
 
-        ~GcPtr() { m_ptr = nullptr; }
+        virtual ~GcPtr() { m_ptr = nullptr; }
 
         GcPtr &operator=(const GcPtr &other) {
             if (this == &other)
@@ -161,6 +171,10 @@ namespace bond {
 
         [[nodiscard]] bool is_marked() const { return m_marked; }
 
+        bool is_immortal() const { return m_immortal; }
+
+        void set_immortal(bool immortal) { m_immortal = immortal; }
+
         template<typename T>
         static bool is(GcPtr<Object> const &obj) {
             return instanceof<T>(obj.get());
@@ -249,6 +263,7 @@ namespace bond {
 
     protected:
         bool m_marked = false;
+        bool m_immortal = false;
     };
 
 
@@ -289,34 +304,85 @@ namespace bond {
     };
 
 
+    class ThreadStorage {
+    public:
+        explicit ThreadStorage(std::thread::id t_id) { m_t_id = t_id; }
+
+        ~ThreadStorage();
+
+        bool collect_if_needed();
+
+        void add_object(GcPtr<Object> const &obj) { m_objects.push_back(obj); }
+
+        void add_root(Root *root) { m_roots.push_back(root); }
+
+        void pop_root() { m_roots.pop_back(); }
+
+        std::vector<Root *> &get_roots() { return m_roots; }
+
+        void mark_roots();
+
+        void unmark_roots();
+
+        void stop_collect();
+
+        void resume_collect();
+
+
+        void drop_reachable();
+
+    private:
+        std::vector<GcPtr<Object>> m_objects;
+        std::vector<Root *> m_roots;
+        std::thread::id m_t_id;
+
+        bool m_collect = true;
+
+        size_t m_allocation_limit = 200;
+
+        void collect();
+
+    };
+
     class GarbageCollector {
     public:
         static GarbageCollector &instance();
 
         void set_gc(GarbageCollector *_gc) { m_gc = _gc; }
 
-        void collect();
-
         void set_main_thread_id(std::thread::id id) { m_main_thread_id = id; }
 
         template<typename T, typename... Args>
         GcPtr<T> make_immortal(Args &&...args) {
-            m_gc->m_mutex.lock();
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
             auto t = GcPtr<T>(::new T(std::forward<Args>(args)...));
-            m_gc->m_immortal.emplace_back(t);
-            m_gc->m_mutex.unlock();
+            m_immortal.emplace_back(t);
             return t;
         }
 
         template<typename T, typename... Args>
         GcPtr<T> make(Args &&...args) {
-            m_gc->m_mutex.lock();
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+
             auto t = GcPtr<T>(new(*this) T(std::forward<Args>(args)...));
-            m_gc->m_objects.emplace_back(t);
-            m_gc->m_mutex.unlock();
+            auto id = std::this_thread::get_id();
+            m_gc->m_thread_storages[id]->add_object(t);
             return t;
         }
 
+        void make_thread_storage(std::thread::id id) {
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+
+            m_gc->m_thread_storages[id] = new ThreadStorage(id);
+            assert(m_gc->m_thread_storages.contains(id) && m_thread_storages[id] != nullptr &&
+                   "thread storage not created");
+        }
+
+        void make_thread_storage() {
+            make_thread_storage(std::this_thread::get_id());
+        }
+
+        void remove_thread_storage(std::thread::id id);
 
         void *allocate(size_t size) {
             collect_if_needed();
@@ -325,63 +391,97 @@ namespace bond {
 
         ~GarbageCollector();
 
-        void add_root(Root *root) { m_gc->m_roots.push_back(root); }
+        void add_root(Root *root) {
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+
+            auto t_id = std::this_thread::get_id();
+            m_gc->m_thread_storages[t_id]->add_root(root);
+        }
 
         void stop_gc() {
-            m_gc->m_collect = false;
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+            auto t_id = std::this_thread::get_id();
+            m_gc->m_thread_storages[t_id]->stop_collect();
         }
 
         void resume_gc() {
-            m_gc->m_collect = true;
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+            auto t_store = m_gc->m_thread_storages[std::this_thread::get_id()];
+            t_store->resume_collect();
+        }
+
+        void aquire_gc() {
+            Globs::m_recursive_mutex.lock();
+        }
+
+        void release_gc() {
+            Globs::m_recursive_mutex.unlock();
         }
 
         void pop_root() {
-            m_gc->m_roots.pop_back();
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+            m_gc->m_thread_storages[std::this_thread::get_id()]->pop_root();
         }
 
-        void set_alloc_limit(size_t limit) { m_gc->m_alloc_limit = limit; }
+        void set_alloc_limit(size_t limit) {
+            // FIXME: set correct count and make thread safe
+        }
 
-        size_t get_alloc_limit() { return m_gc->m_alloc_limit; }
+        size_t get_alloc_limit() {
+            // FIXME: return correct count and make thread safe
+            return 100;
+        }
 
-        size_t get_alloc_count() { return m_gc->m_objects.size(); }
+        size_t get_alloc_count() {
+            // FIXME: return correct count and make thread safe
+            return 100;
+        }
 
         size_t get_immortal_count() { return m_gc->m_immortal.size(); }
 
         void remove_root(Root *root) {
-            auto it = std::find(m_gc->m_roots.begin(), m_gc->m_roots.end(), root);
-            if (it != m_gc->m_roots.end()) {
-                m_gc->m_roots.erase(it);
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+
+            auto roots = m_gc->m_thread_storages[std::this_thread::get_id()]->get_roots();
+
+            auto it = std::find(roots.begin(), roots.end(), root);
+            if (it != roots.end()) {
+                roots.erase(it);
             }
         }
 
-        std::vector<Root *> get_roots() { return m_roots; }
-
-        GcPtr<Object> TRUE;
-        GcPtr<Object> FALSE;
-        GcPtr<Object> NIL;
+        std::vector<Root *> &get_roots() {
+            std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
+            return m_gc->m_thread_storages[std::this_thread::get_id()]->get_roots();
+        }
 
         void collect_if_needed();
+
+        void free(void *ptr);
 
     private:
         GarbageCollector();
 
         GarbageCollector *m_gc = this;
-
-        std::vector<GcPtr<Object>> m_objects;
-        std::vector<GcPtr<Object>> m_old_objects;
-        std::vector<Root *> m_roots;
         size_t m_alloc_limit = 200;
-        size_t m_old_alloc_limit = 300;
 
-        std::thread::id m_main_thread_id;
-        bool m_collect = true;
         std::recursive_mutex m_mutex;
-
-        void collect_old_objects();
-
-        int gc_cycles = 0;
         std::vector<GcPtr<Object>> m_immortal;
 
+        std::unordered_map<std::thread::id, ThreadStorage *> m_thread_storages;
+        std::thread::id m_main_thread_id;
+    };
+
+
+    class LockGc {
+    public:
+        LockGc() {
+            GarbageCollector::instance().stop_gc();
+        }
+
+        ~LockGc() {
+            GarbageCollector::instance().resume_gc();
+        }
     };
 
 } // namespace bond

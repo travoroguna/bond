@@ -47,9 +47,9 @@ namespace bond {
         m_name = name;
     }
 
-    GcPtr<NativeStruct<BondObject>> BondObject::make_native_struct(const NativeFunctionPtr &constructor) {
-        init();
-        return GarbageCollector::instance().make<NativeStruct<BondObject>>(m_name, constructor);
+    GcPtr<NativeStruct<BondObject>>
+    BondObject::make_native_struct(const std::string &name, const NativeFunctionPtr &constructor) {
+        return GarbageCollector::instance().make<NativeStruct<BondObject>>(name, constructor);
     }
 
     std::expected<GcPtr<Object>, RuntimeError> BondObject::$get_attribute(const GcPtr<Object> &index) {
@@ -105,6 +105,8 @@ namespace bond {
         }
         return hash;
     }
+
+    BondObject::BondObject() = default;
 
 
 };

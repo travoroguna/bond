@@ -150,17 +150,6 @@ namespace bond {
 
     };
 
-    class Print : public Node {
-    public:
-        Print(const SharedSpan &span, const SharedNode &expr);
-
-        void accept(NodeVisitor *visitor) override;
-
-        SharedNode get_expr() { return m_expr; }
-
-    private:
-        SharedNode m_expr;
-    };
 
     class ExprStmnt : public Node {
     public:

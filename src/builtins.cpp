@@ -16,14 +16,14 @@ namespace bond {
 
 
     std::unordered_map<std::string, GcPtr<Object>> builtins = {
-            {"println",     GarbageCollector::instance().make_immortal<NativeFunction>(println, "println")},
-            {"range",       GarbageCollector::instance().make_immortal<NativeFunction>(range, "range")},
+            {"println",     GarbageCollector::instance().make_immortal<NativeFunction>(println)},
+            {"range",       GarbageCollector::instance().make_immortal<NativeFunction>(range)},
             {"str",         STRING},
             {"int",         INT},
             {"float",       FLOAT},
-            {"is_instance", GarbageCollector::instance().make_immortal<NativeFunction>(is_instance, "is_instance")},
-            {"Ok",          GarbageCollector::instance().make_immortal<NativeFunction>(Ok_, "Ok")},
-            {"Err",         GarbageCollector::instance().make_immortal<NativeFunction>(Err_, "Err")}
+            {"is_instance", GarbageCollector::instance().make_immortal<NativeFunction>(is_instance)},
+            {"Ok",          GarbageCollector::instance().make_immortal<NativeFunction>(Ok_)},
+            {"Err",         GarbageCollector::instance().make_immortal<NativeFunction>(Err_)}
     };
 
 

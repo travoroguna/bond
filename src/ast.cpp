@@ -80,14 +80,6 @@ namespace bond {
         visitor->visit_string_lit(this);
     }
 
-    Print::Print(const SharedSpan &span, const SharedNode &expr) {
-        m_span = span;
-        m_expr = expr;
-    }
-
-    void Print::accept(NodeVisitor *visitor) {
-        visitor->visit_print(this);
-    }
 
     ExprStmnt::ExprStmnt(const SharedSpan &span, const SharedNode &expr) {
         m_span = span;

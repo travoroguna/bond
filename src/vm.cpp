@@ -44,9 +44,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         exec();
     }
 
-    void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
-        GarbageCollector::instance().stop_gc();
 
+    void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
+        auto lock = LockGc();
         auto frame = &m_frames[m_frame_pointer++];
 
 
@@ -84,7 +84,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         frame->set_locals(local_args);
 
         m_current_frame = frame;
-        GarbageCollector::instance().resume_gc();
     }
 
     void Vm::call_bound_method(const GcPtr<BoundMethod> &bound_method, std::vector<GcPtr<Object>> &args) {
@@ -120,7 +119,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
 
         for (auto &p: paths) {
-            fmt::print("testing path: {}\n", p);
             if (std::filesystem::exists(p)) {
                 return p;
             }
@@ -163,10 +161,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
         auto mod = m_ctx->get_module(path);
 
-        fmt::print("gc addr: {}\n", (void *) &GarbageCollector::instance());
+        fmt::print("Module: {}\n", path);
 
         for (auto &[k, v]: mod->as<Module>()->get_globals()->get_map()) {
-            fmt::print("{}: {}\n", k->str(), v->str());
+            fmt::print("\t{}: {}\n", k->str(), v->str());
         }
         return mod->as<Module>();
     }
@@ -210,9 +208,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
         GarbageCollector::instance().remove_root(&vm);
 
-        GarbageCollector::instance().stop_gc();
         auto mod = GarbageCollector::instance().make<Module>(resolved_path, vm.get_globals());
-        GarbageCollector::instance().resume_gc();
 
         m_ctx->add_module(resolved_path, mod);
 
@@ -228,14 +224,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             return;
         }
 
-        GarbageCollector::instance().stop_gc();
         auto instance = GarbageCollector::instance().make<StructInstance>(_struct);
         for (size_t i = 0; i < args.size(); i++) {
             instance->set_attr(variables[i], args[i]);
         }
 
         push(instance);
-        GarbageCollector::instance().resume_gc();
     }
 
     void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
@@ -270,6 +264,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     }
 
     void Vm::runtime_error(const std::string &error, RuntimeError e) {
+        if (m_current_frame != nullptr) {
+            runtime_error(error, e, m_current_frame->get_span());
+        }
+
         m_stop = true;
         m_has_error = true;
 
@@ -278,7 +276,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
 
 #define BINARY_OP(X) { \
-    GarbageCollector::instance().stop_gc();                   \
+    auto lock = LockGc();\
     auto right = pop(); \
     auto left = pop(); \
     if (left->is<StructInstance>()) { \
@@ -291,7 +289,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         continue;\
     }\
     push(result.value());                                    \
-    GarbageCollector::instance().resume_gc();                   \
     break;\
     }
 
@@ -299,6 +296,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     void Vm::exec() {
         if (m_frame_pointer == 0) return;
         while (!m_stop) {
+
             auto opcode = m_current_frame->get_opcode();
             switch (opcode) {
                 case Opcode::LOAD_CONST:
@@ -313,18 +311,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::IMPORT: {
+                    auto lock = LockGc();
                     auto path = pop()->as<String>()->get_value();
                     auto constant = m_current_frame->get_constant();
                     auto alias = constant->as<String>()->get_value();
 
-                    GarbageCollector::instance().stop_gc();
                     auto module = create_module(path, alias);
                     if (!module.has_value()) {
                         runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
-                    GarbageCollector::instance().resume_gc();
                     m_current_frame->set_global(constant, module.value());
                     break;
                 }
@@ -340,6 +336,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::GT: BINARY_OP(gt)
                 case Opcode::GE: BINARY_OP(ge)
                 case Opcode::TRY: {
+                    auto lock = LockGc();
+
                     if (peek()->is<BondResult>()) {
                         auto result = pop()->as<BondResult>();
                         auto jmp = m_current_frame->get_oprand();
@@ -360,7 +358,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                                   m_current_frame->get_span());
                     break;
                 }
-                case Opcode::RETURN:
+                case Opcode::RETURN: {
                     if (m_frame_pointer == 1) {
                         m_stop = true;
                         break;
@@ -368,6 +366,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     m_frame_pointer--;
                     m_current_frame = &m_frames[m_frame_pointer - 1];
                     break;
+                }
                 case Opcode::PUSH_TRUE:
                     push(m_True);
                     break;
@@ -376,9 +375,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 case Opcode::PUSH_NIL:
                     push(m_Nil);
-                    break;
-                case Opcode::PRINT:
-                    fmt::print("{}\n", pop()->str());
                     break;
                 case Opcode::LOAD_GLOBAL: {
                     auto name = m_current_frame->get_constant();
@@ -393,6 +389,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
                 case Opcode::CREATE_GLOBAL: {
+                    auto lock = LockGc();
+
                     auto name = m_current_frame->get_constant();
                     auto expr = pop();
                     m_current_frame->set_global(name, expr);
@@ -407,6 +405,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::CREATE_LOCAL: {
+                    auto lock = LockGc();
+
                     auto name = m_current_frame->get_constant();
                     auto expr = pop();
 
@@ -433,7 +433,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
 
-                case Opcode::POP_TOP:
+                case Opcode::POP_TOP: {
+                    auto lock = LockGc();
+
                     if (peek()->is<BondResult>()) {
                         runtime_error(fmt::format("result must be handled: {}", pop()->str()),
                                       RuntimeError::GenericError,
@@ -441,9 +443,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         continue;
                     }
                     pop();
+                }
                     break;
 
                 case Opcode::BUILD_LIST: {
+                    auto lock = LockGc();
+
                     auto size = m_current_frame->get_oprand();
                     auto list = GarbageCollector::instance().make<ListObj>();
 
@@ -455,6 +460,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::GET_ITEM: {
+                    auto lock = LockGc();
+
                     auto index = pop();
                     auto list = pop();
 
@@ -474,6 +481,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::SET_ITEM: {
+                    auto lock = LockGc();
+
                     auto value = pop();
                     auto index = pop();
                     auto list = pop();
@@ -495,7 +504,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::JUMP_IF_FALSE: {
-                    GarbageCollector::instance().stop_gc();
+                    auto lock = LockGc();
+
                     auto position = m_current_frame->get_oprand();
                     auto cond = pop();
 
@@ -511,7 +521,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     if (!res.value()->as<Bool>()->get_value()) {
                         m_current_frame->jump_absolute(position);
                     }
-                    GarbageCollector::instance().resume_gc();
                     break;
                 }
 
@@ -522,7 +531,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::OR: {
-                    GarbageCollector::instance().stop_gc();
+                    auto lock = LockGc();
 
                     auto right = pop();
                     auto left = pop();
@@ -533,7 +542,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to convert {} to bool", left->str()),
                                       res.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
@@ -542,12 +550,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     } else {
                         push(right);
                     }
-                    GarbageCollector::instance().resume_gc();
                     break;
                 }
 
                 case Opcode::AND: {
-                    GarbageCollector::instance().stop_gc();
+                    auto lock = LockGc();
+
                     auto right = pop();
                     auto left = pop();
 
@@ -558,7 +566,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to convert {} to bool", left->str()),
                                       l_bool.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
@@ -566,7 +573,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to convert {} to bool", right->str()),
                                       r_bool.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
@@ -578,12 +584,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     } else {
                         push(l ? right : left);
                     }
-                    GarbageCollector::instance().resume_gc();
                     break;
                 }
 
                 case Opcode::ITER: {
-                    GarbageCollector::instance().stop_gc();
+                    auto lock = LockGc();
+
                     auto expr = pop();
                     auto iter = expr->$iter();
 
@@ -591,16 +597,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to iterate over {}", expr->str()),
                                       iter.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
                     push(iter.value());
-                    GarbageCollector::instance().resume_gc();
                     break;
                 }
 
                 case Opcode::ITER_NEXT: {
+                    auto lock = LockGc();
+
                     auto next = peek()->$next();
 
                     if (!next.has_value()) {
@@ -616,7 +622,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::ITER_END: {
-                    GarbageCollector::instance().stop_gc();
+                    auto lock = LockGc();
+
+
                     auto next = peek()->$has_next();
                     auto jump_pos = m_current_frame->get_oprand();
 
@@ -624,7 +632,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to get next item from {}", peek()->str()),
                                       next.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
@@ -634,24 +641,24 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         runtime_error(fmt::format("unable to convert {} to bool", next.value()->str()),
                                       jump_condition.error(),
                                       m_current_frame->get_span());
-                        GarbageCollector::instance().resume_gc();
                         continue;
                     }
 
                     if (!jump_condition.value()->as<Bool>()->get_value()) {
                         m_current_frame->jump_absolute(jump_pos);
                     }
-                    GarbageCollector::instance().resume_gc();
                     break;
 
                 }
 
                 case Opcode::CALL: {
+                    GarbageCollector::instance().stop_gc();
+
                     auto arg_count = m_current_frame->get_oprand();
-                    std::vector<GcPtr<Object>> args;
+                    m_args.clear();
 
                     for (int i = 0; i < arg_count; i++) {
-                        args.insert(args.begin(), pop());
+                        m_args.insert(m_args.begin(), pop());
                     }
 
                     auto func = pop();
@@ -659,51 +666,48 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     if (func->is<NativeFunction>()) {
                         auto f = func->as<NativeFunction>();
 
-                        GarbageCollector::instance().stop_gc();
-                        auto result = f->get_fn()(args);
-                        GarbageCollector::instance().resume_gc();
+                        auto result = f->get_fn()(m_args);
 
                         if (result.has_value()) {
                             push(result.value());
+                            GarbageCollector::instance().resume_gc();
                             GarbageCollector::instance().collect_if_needed();
                             continue;
                         }
+                        GarbageCollector::instance().resume_gc();
                         runtime_error(result.error().message, result.error().error, m_current_frame->get_span());
                         continue;
 
                     } else if (func->is<Function>()) {
                         auto f = func->as<Function>();
-                        call_function(f, args);
+                        call_function(f, m_args);
+                        GarbageCollector::instance().resume_gc();
                         break;
                     } else if (func->is<Struct>()) {
                         auto st = func->as<Struct>();
-                        create_instance(st, args);
+                        create_instance(st, m_args);
+                        GarbageCollector::instance().resume_gc();
                         break;
                     } else if (func->is<BoundMethod>()) {
                         auto bm = func->as<BoundMethod>();
-                        call_bound_method(bm, args);
+                        call_bound_method(bm, m_args);
+                        GarbageCollector::instance().resume_gc();
                         break;
                     }
 
-                    auto res = func->call__(args);
+                    auto res = func->call__(m_args);
                     if (res.has_value()) {
                         push(res.value());
+                        GarbageCollector::instance().resume_gc();
+
                         continue;
                     }
 
                     runtime_error(fmt::format("{}", res.error()), RuntimeError::GenericError,
                                   m_current_frame->get_span());
+                    GarbageCollector::instance().resume_gc();
                     continue;
 
-                    auto result = func->$call(args);
-                    if (result.has_value()) {
-                        push(result.value());
-                        continue;
-                    }
-
-                    runtime_error(fmt::format("{} is not callable", func->str()), RuntimeError::GenericError,
-                                  m_current_frame->get_span());
-                    continue;
                 }
                 case Opcode::CREATE_STRUCT: {
                     auto st = m_current_frame->get_constant();
@@ -712,6 +716,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
                 case Opcode::GET_ATTRIBUTE: {
+                    auto lock = LockGc();
+
                     auto attr = m_current_frame->get_constant();
                     auto obj = pop();
 
@@ -728,6 +734,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
                 case Opcode::SET_ATTRIBUTE: {
+                    auto lock = LockGc();
+
                     auto attr = m_current_frame->get_constant();
 
                     auto value = pop();
@@ -749,6 +757,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     m_current_frame->jump_absolute(m_current_frame->get_oprand());
                     break;
                 case Opcode::UNARY_SUB: {
+                    auto lock = LockGc();
+
                     auto obj = pop();
                     if (obj->is<Integer>()) {
                         push(GarbageCollector::instance().make<Integer>(-obj->as<Integer>()->get_value()));
@@ -764,6 +774,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     continue;
                 }
                 case Opcode::NOT: {
+                    auto lock = LockGc();
+
                     auto obj = pop();
                     auto res = obj->$_bool();
 
@@ -778,6 +790,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::BIT_OR: {
+                    auto lock = LockGc();
+
                     auto right = pop();
                     auto left = pop();
 
@@ -794,6 +808,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::BIT_AND: {
+                    auto lock = LockGc();
+
                     auto right = pop();
                     auto left = pop();
 
@@ -810,6 +826,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::BIT_XOR: {
+                    auto lock = LockGc();
+
                     auto right = pop();
                     auto left = pop();
 
@@ -827,24 +845,41 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
             }
 
+//            GarbageCollector::instance().collect_if_needed();
         }
     }
 
     void Vm::mark() {
         Root::mark();
-        for (size_t i = 0; i < m_frame_pointer; i++) {
-            m_frames[i].mark();
+
+        for (auto &arg: m_args) {
+            arg.mark();
         }
+
+        if (m_current_frame) {
+            for (size_t i = 0; i < m_frame_pointer; i++) {
+                m_frames[i].mark();
+            }
+        }
+
         m_globals.mark();
+
         if (m_current_frame) m_current_frame->mark();
+
         m_ctx->mark();
     }
 
     void Vm::unmark() {
         Root::unmark();
 
-        for (size_t i = 0; i < m_frame_pointer; i++) { ;
-            m_frames[i].unmark();
+        for (auto &arg: m_args) {
+            arg.unmark();
+        }
+
+        if (m_current_frame) {
+            for (size_t i = 0; i < m_frame_pointer; i++) { ;
+                m_frames[i].unmark();
+            }
         }
         m_globals.unmark();
         if (m_current_frame) m_current_frame->unmark();

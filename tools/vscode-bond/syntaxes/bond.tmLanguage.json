@@ -29,7 +29,11 @@
       "patterns": [
         {
           "name": "keyword.control.bond",
-          "match": "\\b(if|else|while|for|return|and|or|in)\\b"
+          "match": "\\b(if|else|while|for|return)\\b"
+        },
+        {
+          "name": "keyword.operator.bond",
+          "match": "\\b(and|or|in|try|import)\\b"
         },
         {
           "name": "constant.language.null.bond",
@@ -44,7 +48,7 @@
           "match": "\\b(print)\\b"
         },
         {
-          "name": "variable.parameter.function.language.special.self.bond",
+          "name": "variable.parameter.bond",
           "match": "\\b(self)\\b"
         }
       ]

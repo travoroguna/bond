@@ -24,7 +24,6 @@ namespace bond {
     class List;
     class GetItem;
     class SetItem;
-    class Print;
     class ExprStmnt;
     class NewVar;
     class Block;
@@ -76,7 +75,6 @@ namespace bond {
         virtual void visit_string_lit(StringLiteral *expr) = 0;
         virtual void visit_nil_lit(NilLiteral *expr) = 0;
         virtual void visit_identifier(Identifier *expr) = 0;
-        virtual void visit_print(Print *stmnt) = 0;
         virtual void visit_expr_stmnt(ExprStmnt *stmnt) = 0;
         virtual void visit_new_var(NewVar *stmnt) = 0;
         virtual void visit_assign(Assign *stmnt) = 0;

@@ -43,11 +43,21 @@
           "type": "boolean",
           "default": false,
           "description": "prevent server from being restarted"
+        },
+        "bondLanguageServer.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "verbose",
+          "description": "bond language server trace level."
         }
       }
     }
   },
   "dependencies": {
-    "vscode-languageclient": "^8.1.0"
+    "vscode-languageclient": "8.0.2"
   }
 }

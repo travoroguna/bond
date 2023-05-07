@@ -11,7 +11,14 @@ CPMAddPackage(
         GITHUB_REPOSITORY saprykin/plibsys
         GIT_TAG 0.0.4
 )
+
+CPMAddPackage(
+        NAME CPMLicenses.cmake
+        GITHUB_REPOSITORY cpm-cmake/CPMLicenses.cmake
+        VERSION 0.0.7
+)
 add_subdirectory(src)
+add_subdirectory(src/lsp)
 
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
@@ -22,11 +29,15 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     message("Windows")
 else ()
     add_executable(bond src/main.cpp)
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fexceptions")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fexceptions ")
     message("Linux")
 endif ()
 
-target_link_libraries(bond bondlib plibsys)
+target_link_libraries(bond bondlib plibsys bondlsp)
+
+cpm_licenses_create_disclaimer_target(
+        write-licenses "${CMAKE_CURRENT_BINARY_DIR}/third_party.txt" "${CPM_PACKAGES}"
+)
 
 install(TARGETS bond DESTINATION .)
 INSTALL(TARGETS plibsys RUNTIME DESTINATION .)

@@ -27,23 +27,17 @@ namespace bond {
     }
 
     OBJ_RESULT Float::$div(const GcPtr<Object> &other) {
-        auto res = const_cast<GcPtr<Object> &>(other)
-                .use_if<Float, std::optional<GcPtr<Float>>>(
-                        [&](Float &other_number) -> std::optional<GcPtr<Float>> {
-                            if (other_number.get_value() == 0) {
-                                return std::nullopt;
-                            }
-                            return GarbageCollector::instance().make<Float>(m_value / other_number.get_value());
+        if (!other->is<Float>()) {
+            return std::unexpected(RuntimeError::TypeError);
+        }
 
-                        });
+        auto other_float = other->as<Float>();
 
-        if (res.has_value()) {
-            if (res.value().has_value()) {
-                return res.value().value();
-            }
+        if (other_float->get_value() == 0) {
             return std::unexpected(RuntimeError::DivisionByZero);
         }
-        return std::unexpected(RuntimeError::TypeError);
+
+        return GarbageCollector::instance().make<Float>(m_value / other_float->get_value());
     }
 
     std::string Float::str() {

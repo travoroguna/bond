@@ -11,3 +11,4 @@
 #include "parser.h"
 #include "vm.h"
 #include "result.h"
+#include "globs.h"

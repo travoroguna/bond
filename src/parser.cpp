@@ -46,7 +46,6 @@ namespace bond {
                 case TokenType::FOR:
                 case TokenType::IF:
                 case TokenType::WHILE:
-                case TokenType::PRINT:
                 case TokenType::RETURN:
                     return;
             }
@@ -257,7 +256,6 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::statement() {
         if (match({TokenType::IF})) return if_stmnt();
-        else if (match({TokenType::PRINT})) return print_stmnt();
         else if (match({TokenType::WHILE})) return while_statement();
         else if (match({TokenType::LEFT_BRACE})) return block(true);
         else if (match({TokenType::FOR})) return for_statement();
@@ -396,12 +394,6 @@ namespace bond {
                                            statement());
         m_in_loop = false;
         return res;
-    }
-
-    std::shared_ptr<Node> Parser::print_stmnt() {
-        auto expr = expression();
-        consume(TokenType::SEMICOLON, expr->get_span(), "Expected semicolon, ';' after expression");
-        return std::make_shared<Print>(expr->get_span(), expr);
     }
 
     std::shared_ptr<Node> Parser::expr_stmnt() {

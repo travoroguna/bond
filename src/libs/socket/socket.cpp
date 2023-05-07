@@ -18,7 +18,8 @@ public:
 
     PSocketAddress *get_socket_address() { return m_socket_address; }
 
-    NativeErrorOr get_address([[maybe_unused]]const std::vector<GcPtr<Object>> &obj) {
+    NativeErrorOr get_address(const std::vector<GcPtr<Object>> &obj) {
+        ASSERT_ARG_COUNT(0, obj);
         char *address = p_socket_address_get_address(m_socket_address);
         if (address == nullptr) {
             return Err("Failed to get address");
@@ -28,7 +29,9 @@ public:
         return res;
     }
 
-    NativeErrorOr get_port([[maybe_unused]] const std::vector<GcPtr<Object>> &obj) {
+    NativeErrorOr get_port(const std::vector<GcPtr<Object>> &obj) {
+        ASSERT_ARG_COUNT(0, obj);
+
         auto port = p_socket_address_get_port(m_socket_address);
         if (port == 0) {
             return Err("Failed to get port");
@@ -243,7 +246,7 @@ public:
         return Ok(m_gc->make<Integer>(res));
     }
 
-    NativeErrorOr recieve_from(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr receive_from(const std::vector<GcPtr<Object>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(address, SocketAddress, 0, arguments);
         DEFINE(size, bond::Integer, 1, arguments);
@@ -297,59 +300,36 @@ public:
         return Ok(m_gc->make<SocketAddress>(addr));
     }
 
-    void mark() override {
-        Object::mark();
-        for (auto &f: m_functions) {
-            f.second->mark();
-        }
-    }
-
-    void unmark() override {
-        Object::unmark();
-        for (auto &f: m_functions) {
-            f.second->unmark();
-        }
-    }
-
     std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override {
         if (!index->is<String>()) {
             return std::unexpected(RuntimeError::AttributeNotFound);
         }
 
         auto name = index->as<String>()->get_value();
-        if (!m_functions.contains(name)) {
+        if (!m_methods.contains(name)) {
             return std::unexpected(RuntimeError::AttributeNotFound);
         }
 
-        return m_functions[name];
+        return m_gc->make<NativeFunction>(m_methods[name], name);
     }
 
 
 private:
     PSocket *m_socket;
-    std::unordered_map<std::string, GcPtr<NativeFunction>> m_functions = {
-            {"close",        m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return close(std::forward<decltype(PH1)>(PH1)); }, "close")},
-            {"shutdown",     m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return shutdown(std::forward<decltype(PH1)>(PH1)); }, "shutdown")},
-            {"bind",         m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return bind(std::forward<decltype(PH1)>(PH1)); }, "bind")},
-            {"listen",       m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return listen(std::forward<decltype(PH1)>(PH1)); }, "listen")},
-            {"accept",       m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return accept(std::forward<decltype(PH1)>(PH1)); }, "accept")},
-            {"connect",      m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return connect(std::forward<decltype(PH1)>(PH1)); }, "connect")},
-            {"send",         m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return send(std::forward<decltype(PH1)>(PH1)); }, "send")},
-            {"receive",      m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return receive(std::forward<decltype(PH1)>(PH1)); }, "receive")},
-            {"send_to",      m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return send_to(std::forward<decltype(PH1)>(PH1)); }, "send_to")},
-            {"receive_from", m_gc->make<NativeFunction>(
-                    [this](auto &&PH1) { return recieve_from(std::forward<decltype(PH1)>(PH1)); }, "receive_from")},
-            {"get_local_address",  MAKE_METHOD(get_local_address)},
-            {"get_remote_address", MAKE_METHOD(get_remote_address)}
+#define METHOD(name) {#name, BIND(name)}
+    std::unordered_map<std::string, std::function<NativeErrorOr(const std::vector<GcPtr<Object>> &)>> m_methods = {
+            METHOD(close),
+            METHOD(shutdown),
+            METHOD(bind),
+            METHOD(listen),
+            METHOD(accept),
+            METHOD(connect),
+            METHOD(send),
+            METHOD(receive),
+            METHOD(send_to),
+            METHOD(receive_from),
+            METHOD(get_local_address),
+            METHOD(get_remote_address)
     };
 };
 

@@ -40,15 +40,8 @@ namespace bond {
 
 
     OBJ_RESULT String::$add(const GcPtr<Object> &other) {
-        auto res = const_cast<GcPtr<Object> &>(other)
-                .use_if<String, GcPtr<String >>([&](String &other_string) {
-                    return GarbageCollector::instance().make<String>(m_value + other_string.get_value());
-                });
-
-        if (res.has_value()) {
-            return res.value();
-        }
-        return std::unexpected(RuntimeError::TypeError);
+        if (!is<String>(other)) return std::unexpected(RuntimeError::TypeError);
+        return GarbageCollector::instance().make<String>(m_value + as<String>(other)->get_value());
     }
 
     bool String::equal(const GcPtr<Object> &other) {
@@ -138,24 +131,18 @@ namespace bond {
         ASSERT_ARG_COUNT(1, args);
         DEFINE(sep, String, 0, args);
 
-        std::vector<std::string> result;
+        auto result = GarbageCollector::instance().make<ListObj>();
+        size_t end = m_value.find(sep->get_value());
+        auto copy_str = m_value;
 
-        size_t pos = 0;
-
-        while ((pos = m_value.find(sep->get_value(), pos)) != std::string::npos) {
-            result.push_back(m_value.substr(0, pos));
-            pos += sep->get_value().length();
+        while (end != std::string::npos) {
+            result->append(GarbageCollector::instance().make<String>(copy_str.substr(0, end)));
+            copy_str.erase(copy_str.begin(), copy_str.begin() + end + sep->get_value().size());
+            end = copy_str.find(sep->get_value());
         }
 
-        result.push_back(m_value.substr(pos));
-
-        auto list = GarbageCollector::instance().make<ListObj>();
-
-        for (auto &s: result) {
-            list->append(GarbageCollector::instance().make<String>(s));
-        }
-
-        return list;
+        result->append(GarbageCollector::instance().make<String>(copy_str.substr(0, end)));
+        return result;
     }
 
     NativeErrorOr String::find(const std::vector<GcPtr<Object>> &args) {
@@ -165,7 +152,7 @@ namespace bond {
         auto pos = m_value.find(sub->get_value());
 
         if (pos == std::string::npos) {
-            return BondNil;
+            return Globs::BondNil;
         }
 
         return GarbageCollector::instance().make<Integer>(pos);

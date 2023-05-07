@@ -6,9 +6,10 @@
 #include "code.h"
 #include "vm.h"
 #include "gc.h"
-#include "object.h"
-
+#include "lsp/lsp.h"
 #include <plibsys.h>
+
+
 
 
 void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::Context &ctx) {
@@ -31,9 +32,15 @@ void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::C
     file << bytecode->dissasemble();
     file.close();
 
+//    try {
     fmt::print("[VM] start\n");
     vm.run(bytecode);
     fmt::print("[VM] end\n");
+//    }
+//    catch (std::exception &e) {
+//        fmt::print("Error in application\n");
+//        vm.runtime_error(e.what(), bond::RuntimeError::GenericError);
+//    }
 }
 
 void run_repl(const std::string &lib_path, const std::vector<std::string> &args) {
@@ -74,11 +81,13 @@ void run_file(const std::string &path, const std::string &lib_path, const std::v
 
 
 int main(int32_t argc, char **argv) {
+    bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
+    bond::GarbageCollector::instance().make_thread_storage();
+
     auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/libraries/";
     fmt::print("lib path: {} [{}]\n", lib_path, std::filesystem::exists(lib_path));
     p_libsys_init();
 
-    bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
 
     auto args = std::vector<std::string>(argv, argv + argc);
 
@@ -86,6 +95,12 @@ int main(int32_t argc, char **argv) {
         fmt::print("bond 0.0.0 \n");
         run_repl(lib_path, args);
     } else {
+        if (std::string(argv[1]) == "--lsp") {
+            auto lsp = bond::Lsp();
+            lsp.init();
+            lsp.run();
+        }
+
         if (!std::filesystem::exists(argv[1])) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;

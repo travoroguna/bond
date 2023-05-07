@@ -26,7 +26,7 @@ namespace bond {
 
 #define MAKE_METHOD(name) bond::GarbageCollector::instance().make<bond::NativeFunction>([this](auto && ARGS){ return name (std::forward<decltype(ARGS)>(ARGS)); }, #name)
 #define BIND(name) [this](auto && ARGS){ return name (std::forward<decltype(ARGS)>(ARGS)); }
-#define MAKE_FORM_BIND(bind) bond::GarbageCollector::instance().make<bond::NativeFunction>((bind), #bind)
+#define MAKE_FORM_BIND(bind) bond::GarbageCollector::instance().make<bond::NativeFunction>((bind))
 
 #define ASSERT_ARG_COUNT(X, ARGS) \
   if ((ARGS).size() != (X)) return std::unexpected(bond::FunctionError(fmt::format("expected {} arguments got {}", (X), (ARGS).size()), bond::RuntimeError::InvalidArgument))

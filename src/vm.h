@@ -154,9 +154,9 @@ namespace bond {
     public:
         explicit Vm(Context *ctx) {
             m_ctx = ctx;
-            m_True = BondTrue;
-            m_False = BondFalse;
-            m_Nil = BondNil;
+            m_True = Globs::BondTrue;
+            m_False = Globs::BondFalse;
+            m_Nil = Globs::BondNil;
             m_globals = GarbageCollector::instance().make<Map>();
             assert(m_globals.get() != nullptr);
             add_builtins_to_globals(m_globals);
@@ -172,6 +172,9 @@ namespace bond {
 
         void exec();
 
+        void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
+
+        void runtime_error(const std::string &error, RuntimeError e);
 
     private:
         GcPtr<Bool> m_True;
@@ -184,16 +187,12 @@ namespace bond {
         size_t m_frame_pointer = 0;
         std::array<Frame, FRAME_MAX> m_frames;
         Frame *m_current_frame = nullptr;
+        std::vector<GcPtr<Object>> m_args;
+
 
         void mark() override;
 
         void unmark() override;
-
-
-        void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
-
-        void runtime_error(const std::string &error, RuntimeError e);
-
 
         std::expected<GcPtr<Module>, std::string> load_dynamic_lib(const std::string &path, std::string &alias);
 
