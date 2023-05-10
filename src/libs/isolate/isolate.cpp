@@ -159,7 +159,7 @@ NativeErrorOr sleep_ms(const std::vector<GcPtr<Object>> &arguments) {
     return Globs::BondNil;
 }
 
-NativeErrorOr sleep(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr sleep_(const std::vector<GcPtr<Object>> &arguments) {
     ASSERT_ARG_COUNT(1, arguments);
     DEFINE(duration, Integer, 0, arguments);
 
@@ -212,15 +212,16 @@ NativeErrorOr wait_until_completed(const std::vector<GcPtr<Object>> &arguments) 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     m_ctx = ctx;
     GarbageCollector::instance().set_gc(ctx->gc());
+    auto gc = ctx->gc();
     iso_mutex = p_mutex_new();
 
 
-    std::unordered_map<std::string, NativeFunctionPtr> io_module = {
-            {"start_isolate",        start_isolate},
-            {"sleep",                sleep},
-            {"sleep_ms",             sleep_ms},
-            {"wait_until_completed", wait_until_completed},
-            {"Mutex",                c_Mutex}
+    std::unordered_map<std::string, GcPtr<Object>> io_module = {
+            {"start_isolate",        gc->make<NativeFunction>(start_isolate)},
+            {"sleep",                gc->make<NativeFunction>(sleep_)},
+            {"sleep_ms",             gc->make<NativeFunction>(sleep_ms)},
+            {"wait_until_completed", gc->make<NativeFunction>(wait_until_completed)},
+            {"Mutex",                gc->make<NativeFunction>(c_Mutex)}
     };
 
     auto module = ctx->gc()->make<Module>(path, io_module);

@@ -108,8 +108,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         auto test_compiled_native = m_ctx->get_lib_path() + path + ".dll";
         auto test_compiled_c_path = path + ".dll";
 #else
-        auto test_compiled_native = m_ctx->get_lib_path() + path + ".so";
-        auto test_compiled_c_path = path + ".so";
+        auto lib_p = std::string("lib") + path + ".so";
+        auto test_compiled_native = m_ctx->get_lib_path() + lib_p + ".so";
+        auto test_compiled_c_path = lib_p + ".so";
 #endif
 
         auto test_native = m_ctx->get_lib_path() + path + ".bd";
@@ -292,6 +293,19 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
     break;\
     }
 
+#define COMPARE_OP(X) { \
+    auto lock = LockGc();\
+    auto right = pop(); \
+    auto left = pop(); \
+    auto result = left->$##X(right); \
+    if (!result.has_value()) { \
+        runtime_error(fmt::format("unable to " #X " values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
+        continue;\
+    }\
+    push(result.value());                                    \
+    break;\
+    }
+
 
     void Vm::exec() {
         if (m_frame_pointer == 0) return;
@@ -329,8 +343,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::BIN_MUL: BINARY_OP(mul)
                 case Opcode::BIN_DIV: BINARY_OP(div)
                 case Opcode::BIN_MOD: BINARY_OP(mod)
-                case Opcode::NE: BINARY_OP(ne)
-                case Opcode::EQ: BINARY_OP(eq)
+                case Opcode::NE: COMPARE_OP(ne)
+                case Opcode::EQ: COMPARE_OP(eq)
                 case Opcode::LT: BINARY_OP(lt)
                 case Opcode::LE: BINARY_OP(le)
                 case Opcode::GT: BINARY_OP(gt)
@@ -623,7 +637,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
                 case Opcode::ITER_END: {
                     auto lock = LockGc();
-
 
                     auto next = peek()->$has_next();
                     auto jump_pos = m_current_frame->get_oprand();

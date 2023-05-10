@@ -9,6 +9,8 @@ CPMAddPackage(
         GIT_TAG 3.3.8
 )
 
+option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
+option(GLFW_INSTALL "Generate installation target" OFF)
 #CPMAddPackage(
 #        NAME glew
 #        GITHUB_REPOSITORY nigels-com/glew

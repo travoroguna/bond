@@ -3,6 +3,8 @@ project(bond)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 
 include(cmake/CPM.cmake)
 
@@ -29,7 +31,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     message("Windows")
 else ()
     add_executable(bond src/main.cpp)
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fexceptions ")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fexceptions -pthread -dl")
     message("Linux")
 endif ()
 

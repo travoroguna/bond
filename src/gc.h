@@ -13,6 +13,7 @@
 #include <fmt/core.h>
 #include <ranges>
 #include <cassert>
+#include <thread>
 
 
 #define DEBUG
@@ -195,9 +196,19 @@ namespace bond {
 
         bool operator==(Object const &other) const { return this == &other; }
 
-        virtual void mark() { m_marked = true; }
+        virtual void mark() {
+            m_marked = true;
 
-        virtual void unmark() { m_marked = false; }
+            for (auto &[_, attr]: m_attr)
+                attr->mark();
+        }
+
+        virtual void unmark() {
+            m_marked = false;
+
+            for (auto &[_, attr]: m_attr)
+                attr->mark();
+        }
 
         virtual OBJ_RESULT $add([[maybe_unused]] const GcPtr<Object> &other) { UNIMPLEMENTED; }
 
@@ -261,9 +272,22 @@ namespace bond {
             }
         };
 
+        OBJ_RESULT get_attribute(const std::string &name) {
+            if (m_attr.find(name) == m_attr.end()) {
+                return std::unexpected(RuntimeError::AttributeNotFound);
+            }
+            return m_attr[name];
+        }
+
+        void set_attribute(const std::string &name, const GcPtr<Object> &value) {
+            m_attr[name] = value;
+        }
+
+
     protected:
         bool m_marked = false;
         bool m_immortal = false;
+        std::unordered_map<std::string, GcPtr<Object>> m_attr;
     };
 
 

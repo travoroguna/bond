@@ -66,7 +66,7 @@ namespace bond {
     }
 
     std::string String::str() {
-        return fmt::format("\"{}\"", m_value);
+        return m_value;
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
