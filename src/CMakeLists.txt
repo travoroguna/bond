@@ -35,7 +35,7 @@ add_library(bondlib lexer.cpp lexer.h context.cpp context.h span.h ast.cpp ast.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
         objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp globs.cpp globs.h)
 
-target_link_libraries(bondlib fmt::fmt-header-only nlohmann_json plibsys)
+target_link_libraries(bondlib fmt::fmt-header-only nlohmann_json plibsysstatic)
 
 set_target_properties(bondlib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;")
 
@@ -43,3 +43,5 @@ INSTALL(TARGETS bondlib
         LIBRARY DESTINATION lib
         PUBLIC_HEADER DESTINATION include/bondlib
         )
+
+#INSTALL(FILES bondlibConfig.cmake DESTINATION lib/cmake/bondlib)

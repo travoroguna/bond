@@ -47,7 +47,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
     void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
         auto lock = LockGc();
-        auto frame = &m_frames[m_frame_pointer++];
+        auto frame = &m_frames[m_frame_pointer];
+        m_frame_pointer++;
 
 
         if (m_frame_pointer >= FRAME_MAX) {
@@ -448,8 +449,6 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::POP_TOP: {
-                    auto lock = LockGc();
-
                     if (peek()->is<BondResult>()) {
                         runtime_error(fmt::format("result must be handled: {}", pop()->str()),
                                       RuntimeError::GenericError,
@@ -869,15 +868,13 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             arg.mark();
         }
 
-        if (m_current_frame) {
-            for (size_t i = 0; i < m_frame_pointer; i++) {
-                m_frames[i].mark();
-            }
+        for (size_t i = 0; i < m_frame_pointer; i++) {
+            m_frames[i].mark();
         }
 
         m_globals.mark();
 
-        if (m_current_frame) m_current_frame->mark();
+        m_current_frame->mark();
 
         m_ctx->mark();
     }
@@ -889,13 +886,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             arg.unmark();
         }
 
-        if (m_current_frame) {
-            for (size_t i = 0; i < m_frame_pointer; i++) { ;
-                m_frames[i].unmark();
-            }
+        for (size_t i = 0; i < m_frame_pointer; i++) { ;
+            m_frames[i].unmark();
         }
+
         m_globals.unmark();
-        if (m_current_frame) m_current_frame->unmark();
+        m_current_frame->unmark();
         m_ctx->unmark();
     }
 

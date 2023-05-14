@@ -66,9 +66,9 @@ namespace bond {
         GcPtr<Object> get_local(const GcPtr<Object> &key) { return m_locals->get_unchecked(key); }
 
         void mark() {
-            m_function->mark();
             m_globals->mark();
             m_locals->mark();
+            m_function->mark();
         }
 
         void unmark() {

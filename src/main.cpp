@@ -10,8 +10,6 @@
 #include <plibsys.h>
 
 
-
-
 void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::Context &ctx) {
     auto id = ctx.new_module(std::string(path));
 

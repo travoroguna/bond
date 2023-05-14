@@ -31,7 +31,7 @@ target_link_libraries(reflection bondlib)
 set_target_properties(reflection PROPERTIES PUBLIC_HEADER "reflection/reflection.bd")
 
 add_library(socket SHARED socket/socket.cpp)
-target_link_libraries(socket bondlib plibsys)
+target_link_libraries(socket bondlib plibsysstatic)
 set_target_properties(socket PROPERTIES PUBLIC_HEADER "socket/socket.bd")
 
 

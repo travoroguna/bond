@@ -285,8 +285,8 @@ namespace bond {
 
 
     protected:
-        bool m_marked = false;
-        bool m_immortal = false;
+        bool m_marked{false};
+        bool m_immortal{false};
         std::unordered_map<std::string, GcPtr<Object>> m_attr;
     };
 
@@ -343,6 +343,13 @@ namespace bond {
         void pop_root() { m_roots.pop_back(); }
 
         std::vector<Root *> &get_roots() { return m_roots; }
+
+        void remove_root(Root *root) {
+            auto it = std::find(m_roots.begin(), m_roots.end(), root);
+            if (it != m_roots.end()) {
+                m_roots.erase(it);
+            }
+        }
 
         void mark_roots();
 
@@ -465,13 +472,7 @@ namespace bond {
 
         void remove_root(Root *root) {
             std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
-
-            auto roots = m_gc->m_thread_storages[std::this_thread::get_id()]->get_roots();
-
-            auto it = std::find(roots.begin(), roots.end(), root);
-            if (it != roots.end()) {
-                roots.erase(it);
-            }
+            m_gc->m_thread_storages[std::this_thread::get_id()]->remove_root(root);
         }
 
         std::vector<Root *> &get_roots() {

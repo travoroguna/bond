@@ -29,8 +29,8 @@ namespace bond {
 
     void GarbageCollector::collect_if_needed() {
         std::lock_guard<std::recursive_mutex> lock(m_mutex);
-        if (m_gc->m_thread_storages[std::this_thread::get_id()]->collect_if_needed())
-            fmt::print("[GC]({}) done. {} threads\n", thread_string(), m_gc->m_thread_storages.size());
+        m_gc->m_thread_storages[std::this_thread::get_id()]->collect_if_needed();
+//            fmt::print("[GC]({}) done. {} threads\n", thread_string(), m_gc->m_thread_storages.size());
     }
 
     void Root::mark() {
@@ -138,10 +138,14 @@ namespace bond {
             root->mark();
         }
 
+//        fmt::print("[GC]({}) collect start, objects: {}, alloc limit {}\n", thread_string(), m_objects.size(),
+//                   m_allocation_limit);
+
         for (auto &obj: m_objects) {
 
             if (obj.get() == nullptr) continue;
             if (!obj.is_marked()) {
+//                fmt::print("[GC]({}) collect: {}\n", thread_string(), obj->str());
 //                free((void *)&obj);
                 obj.get()->~Object();
                 std::free(obj.get());
@@ -158,8 +162,9 @@ namespace bond {
         for (auto root: m_roots) {
             root->unmark();
         }
-        fmt::print("[GC]({}) collect end, objects: {}, alloc limit {}\n", thread_string(), m_objects.size(),
-                   m_allocation_limit);
+
+//        fmt::print("[GC]({}) collect end, objects: {}, alloc limit {}\n", thread_string(), m_objects.size(),
+//                   m_allocation_limit);
     }
 
 }; // namespace bond
