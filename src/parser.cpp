@@ -428,6 +428,25 @@ namespace bond {
                 auto sp = span_from_spans(expr->get_span(), value->get_span());
                 auto e = dynamic_cast<GetAttribute *>(expr.get());
                 return std::make_shared<SetAttribute>(sp, e->get_expr(), e->get_name(), value);
+            } else if (instanceof<List>(expr.get())) {
+                auto e = dynamic_cast<List *>(expr.get());
+                auto list = e->get_nodes();
+
+                std::vector<SharedNode> targets;
+
+                for (auto &node: list) {
+                    if (!instanceof<Identifier>(node.get())) {
+                        throw ParserError("invalid assignment target", node->get_span());
+                    }
+                    auto n = dynamic_cast<Identifier *>(node.get());
+                    if (!m_scopes.is_declared(n->get_name())) {
+                        throw ParserError(fmt::format("variable {} is not declared", n->get_name()), n->get_span());
+                    }
+                    targets.push_back(node);
+                }
+
+                auto sp = span_from_spans(expr->get_span(), value->get_span());
+                return std::make_shared<StructuredAssign>(sp, targets, value);
             }
 
             throw ParserError("invalid assignment target", expr->get_span());
@@ -768,6 +787,11 @@ namespace bond {
     bool Scopes::is_declared_in_current_scope(const std::string &name) {
         if (m_scopes.empty()) return false;
         return m_scopes[m_scopes.size() - 1].find(name) != m_scopes[m_scopes.size() - 1].end();
+    }
+
+    bool Scopes::is_global(const std::string &name) {
+        if (m_scopes.empty()) return false;
+        return m_scopes[0].contains(name);
     }
 
 } // bond

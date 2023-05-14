@@ -472,5 +472,21 @@ namespace bond {
         SharedNode m_expr;
     };
 
+    class StructuredAssign : public Node {
+    public:
+        StructuredAssign(const SharedSpan &span, const std::vector<SharedNode> &targets, const SharedNode &value);
+
+        std::vector<SharedNode> get_targets() { return m_targets; }
+
+        SharedNode get_value() { return m_value; }
+
+        void accept(NodeVisitor *visitor) override;
+
+    private:
+        std::vector<SharedNode> m_targets;
+        SharedNode m_value;
+
+    };
+
 
 };

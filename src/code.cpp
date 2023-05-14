@@ -69,6 +69,7 @@ namespace bond {
                 CONSTANT_INSTRUCTION(SET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(IMPORT);
                 CONSTANT_INSTRUCTION(MAKE_ASYNC);
+                CONSTANT_INSTRUCTION(UNPACK_SEQ);
 
 
                 OPRAND_INSTRUCTION(BUILD_LIST);
@@ -646,6 +647,31 @@ namespace bond {
         expr->get_expr()->accept(this);
         m_code->add_code(Opcode::AWAIT, expr->get_span());
         m_ctx->error(expr->get_span(), "await incomplete implementation");
+
+    }
+
+    void CodeGenerator::visit_structured_assign(StructuredAssign *stmnt) {
+        std::vector<std::pair<std::string, bool>> targets;
+
+        for (auto &target: stmnt->get_targets()) {
+            auto t = dynamic_cast<Identifier *>(target.get());
+            auto is_glob = m_scopes->is_global(t->get_name());
+            targets.emplace_back(t->get_name(), is_glob);
+        }
+
+        stmnt->get_value()->accept(this);
+        m_code->add_code(Opcode::UNPACK_SEQ, targets.size(), stmnt->get_span());
+
+        for (auto &[name, is_global]: std::ranges::reverse_view(targets)) {
+            auto idx = m_code->add_constant<String>(name);
+
+            if (is_global) {
+                m_code->add_code(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
+            } else {
+                m_code->add_code(Opcode::CREATE_LOCAL, idx, stmnt->get_span());
+            }
+
+        }
 
     }
 

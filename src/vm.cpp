@@ -855,6 +855,63 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
 
+                case Opcode::UNPACK_SEQ: {
+                    auto lock = LockGc();
+                    auto obj = pop();
+
+                    auto count = m_current_frame->get_oprand();
+
+                    // check iter
+                    auto iterator = obj->$iter();
+                    if (!iterator.has_value()) {
+                        runtime_error(fmt::format("unable to unpack {}", obj->str()),
+                                      iterator.error(),
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+
+                    auto iter = iterator.value();
+
+                    size_t i = 0;
+                    while (true) {
+                        auto n = iter->$has_next();
+                        if (!n.has_value()) {
+                            runtime_error(fmt::format("unable to unpack {}", obj->str()),
+                                          n.error(),
+                                          m_current_frame->get_span());
+                            continue;
+                        }
+
+                        // FIXME: this is a hack, it assumes n will always be a bool
+                        assert(n.value()->is<Bool>());
+                        if (!n.value()->as<Bool>()->get_value()) {
+                            break;
+                        }
+
+                        auto next = iter->$next();
+
+                        if (!next.has_value()) {
+                            runtime_error(fmt::format("unable to unpack {}", obj->str()),
+                                          next.error(),
+                                          m_current_frame->get_span());
+                            continue;
+                        }
+
+
+                        push(next.value());
+                        i++;
+                    }
+
+                    if (i != count) {
+                        runtime_error(fmt::format("unable to unpack {} into {} values", obj->str(), count),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                        continue;
+                    }
+
+                    break;
+                }
+
             }
 
 //            GarbageCollector::instance().collect_if_needed();

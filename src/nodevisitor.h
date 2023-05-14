@@ -57,6 +57,8 @@ namespace bond {
 
     class Await;
 
+    class StructuredAssign;
+
     class NodeVisitor {
     public:
         NodeVisitor();
@@ -110,5 +112,7 @@ namespace bond {
         virtual void visit_async_def(AsyncDef *stmnt) = 0;
 
         virtual void visit_await(Await *expr) = 0;
+
+        virtual void visit_structured_assign(StructuredAssign *expr) = 0;
     };
 }

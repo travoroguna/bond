@@ -66,6 +66,7 @@ namespace bond {
         BIT_XOR,
         MAKE_ASYNC,
         AWAIT,
+        UNPACK_SEQ
     };
 
 

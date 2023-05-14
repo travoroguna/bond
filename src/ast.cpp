@@ -326,4 +326,16 @@ namespace bond {
     void Await::accept(bond::NodeVisitor *visitor) {
         visitor->visit_await(this);
     }
+
+    StructuredAssign::StructuredAssign(const SharedSpan &span, const std::vector<SharedNode> &targets,
+                                       const SharedNode &value) {
+        m_span = span;
+        m_targets = targets;
+        m_value = value;
+    }
+
+    void StructuredAssign::accept(NodeVisitor *visitor) {
+        visitor->visit_structured_assign(this);
+    }
+
 }

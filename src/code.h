@@ -85,6 +85,8 @@ namespace bond {
 
         void visit_await(Await *expr) override;
 
+        void visit_structured_assign(StructuredAssign *stmnt) override;
+
 
         bool m_in_function = false;
         bool m_in_closure = false;

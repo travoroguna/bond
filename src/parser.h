@@ -58,6 +58,8 @@ namespace bond {
 
         bool is_declared_in_current_scope(const std::string &name);
 
+        bool is_global(const std::string &name);
+
         std::optional<std::shared_ptr<Variable>> get(const std::string &name);
 
     private:
