@@ -7,6 +7,7 @@ CPMAddPackage(
         NAME glfw
         GITHUB_REPOSITORY glfw/glfw
         GIT_TAG 3.3.8
+        EXCLUDE_FROM_ALL YES
 )
 
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
@@ -39,7 +40,7 @@ set_target_properties(imgui PROPERTIES PUBLIC_HEADER "imgui/imgui.bd")
 add_library(gl SHARED gl/glmodule.cpp gl/glmodule.h)
 
 target_link_libraries(gl bondlib glad glfw)
-set_target_properties(imgui PROPERTIES PUBLIC_HEADER "gl/gl.bd")
+set_target_properties(imgui PROPERTIES PUBLIC_HEADER "gl/gl.bd;imgui/imgui.bd")
 
 
 INSTALL(TARGETS imgui gl

@@ -280,7 +280,7 @@
 //  Incomplete text-in-3d-api example, which draws quads properly aligned to be lossless.
 //  See "tests/truetype_demo_win32.c" for a complete version.
 #if 0
-                                                                                                                        #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
+#define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
 #include "stb_truetype.h"
 
 unsigned char ttf_buffer[1<<20];
@@ -2900,7 +2900,6 @@ stbtt__new_active(stbtt__hheap *hh, stbtt__edge *e, int off_x, float start_point
     z->next = 0;
     return z;
 }
-
 #else
 #error "Unrecognized value of STBTT_RASTERIZER_VERSION"
 #endif
@@ -3425,7 +3424,6 @@ stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e, int n, int 
     if (scanline != scanline_data)
         STBTT_free(scanline, userdata);
 }
-
 #else
 #error "Unrecognized value of STBTT_RASTERIZER_VERSION"
 #endif

@@ -14,6 +14,9 @@ static void glfw_error_callback(int error, const char *description) {
     fmt::print(stderr, "Glfw Error {}: {}\n", error, description);
 }
 
+static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
 
 namespace bond {
 
@@ -27,8 +30,8 @@ namespace bond {
         if (!glfwInit())
             return Err("Failed to initialize GLFW");
 
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 
         GLFWwindow *window = glfwCreateWindow(width->get_value(), height->get_value(), title->get_value().c_str(),
                                               nullptr, nullptr);
@@ -38,7 +41,13 @@ namespace bond {
         glfwMakeContextCurrent(window);
         gladLoadGL();
 
+        glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+        fmt::print("[INFO] OpenGL version: {}\n", reinterpret_cast<const char *>(glGetString(GL_VERSION)));
+        fmt::print("[INFO] OpenGL renderer: {}\n", reinterpret_cast<const char *>(glGetString(GL_RENDERER)));
+        fmt::print("[INFO] OpenGL vendor: {}\n", reinterpret_cast<const char *>(glGetString(GL_VENDOR)));
+        fmt::print("[INFO] OpenGL shading language version: {}\n",
+                   reinterpret_cast<const char *>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
         return Ok(m_gc->make<GlWindow>(window));
     }
 
@@ -64,20 +73,21 @@ namespace bond {
         return Globs::BondNil;
     }
 
+    template<typename T, typename K>
     NativeErrorOr gl_buffer_data(const std::vector<GcPtr<Object>> &arguments) {
         ASSERT_ARG_COUNT(3, arguments);
         DEFINE(target, Integer, 0, arguments);
         DEFINE(vertices, ListObj, 1, arguments);
         DEFINE(usage, Integer, 2, arguments);
 
-        std::vector<float> data;
+        std::vector<T> data;
 
         for (auto &item: vertices->get_list()) {
-            if (!item->is<Float>()) return Err("Expected float");
-            data.push_back(item->as<Float>()->get_value());
+            if (!item->is<K>()) return Err(fmt::format("Expected {}", typeid(K).name()));
+            data.push_back(item->as<K>()->get_value());
         }
 
-        glBufferData(target->get_value(), data.size() * sizeof(float), data.data(), usage->get_value());
+        glBufferData(target->get_value(), data.size() * sizeof(T), data.data(), usage->get_value());
         return Ok(Globs::BondNil);
     }
 
@@ -231,6 +241,100 @@ namespace bond {
         return Globs::BondNil;
     }
 
+    NativeErrorOr gl_view_port(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(x, Integer, 0, arguments);
+        DEFINE(y, Integer, 1, arguments);
+        DEFINE(width, Integer, 2, arguments);
+        DEFINE(height, Integer, 3, arguments);
+
+        glViewport(x->get_value(), y->get_value(), width->get_value(), height->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_clear_color(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(r, Float, 0, arguments);
+        DEFINE(g, Float, 1, arguments);
+        DEFINE(b, Float, 2, arguments);
+        DEFINE(a, Float, 3, arguments);
+
+        glClearColor(r->get_value(), g->get_value(), b->get_value(), a->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_uniform1i(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(2, arguments);
+        DEFINE(location, Integer, 0, arguments);
+        DEFINE(value, Integer, 1, arguments);
+
+        glUniform1i(location->get_value(), value->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_uniform1f(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(2, arguments);
+        DEFINE(location, Integer, 0, arguments);
+        DEFINE(value, Float, 1, arguments);
+
+        glUniform1f(location->get_value(), value->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_uniform2f(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(3, arguments);
+        DEFINE(location, Integer, 0, arguments);
+        DEFINE(value1, Float, 1, arguments);
+        DEFINE(value2, Float, 2, arguments);
+
+        glUniform2f(location->get_value(), value1->get_value(), value2->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_uniform3f(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(location, Integer, 0, arguments);
+        DEFINE(value1, Float, 1, arguments);
+        DEFINE(value2, Float, 2, arguments);
+        DEFINE(value3, Float, 3, arguments);
+
+        glUniform3f(location->get_value(), value1->get_value(), value2->get_value(), value3->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_uniform4f(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(5, arguments);
+        DEFINE(location, Integer, 0, arguments);
+        DEFINE(value1, Float, 1, arguments);
+        DEFINE(value2, Float, 2, arguments);
+        DEFINE(value3, Float, 3, arguments);
+        DEFINE(value4, Float, 4, arguments);
+
+        glUniform4f(location->get_value(), value1->get_value(), value2->get_value(), value3->get_value(),
+                    value4->get_value());
+        return Globs::BondNil;
+    }
+
+    NativeErrorOr gl_get_uniform_location(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(2, arguments);
+        DEFINE(program, Integer, 0, arguments);
+        DEFINE(name, String, 1, arguments);
+
+        auto location = glGetUniformLocation(program->get_value(), name->get_value().c_str());
+        return m_gc->make<Integer>(location);
+    }
+
+    NativeErrorOr gl_draw_elements(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(mode, Integer, 0, arguments);
+        DEFINE(count, Integer, 1, arguments);
+        DEFINE(type, Integer, 2, arguments);
+        DEFINE(indices, Integer, 3, arguments);
+
+        glDrawElements(mode->get_value(), count->get_value(), type->get_value(), (void *) indices->get_value());
+        return Globs::BondNil;
+    }
+
     std::expected<GcPtr<Object>, RuntimeError> GlWindow::$get_attribute(const GcPtr<bond::Object> &index) {
         if (!index->is<String>()) return std::unexpected(RuntimeError::AttributeNotFound);
 
@@ -250,6 +354,8 @@ namespace bond {
     NativeErrorOr GlWindow::should_close(const std::vector<GcPtr<Object>> &arguments) {
         return BOOL_(glfwWindowShouldClose(m_window));
     }
+
+
 }
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
@@ -258,6 +364,7 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     GarbageCollector::instance().set_gc(ctx->gc());
 
     glfwSetErrorCallback(glfw_error_callback);
+
 
     auto gl_enum = m_gc->make<Enum>("GL", bond::gl_constants);
 
@@ -268,7 +375,8 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
             {"bind_buffer",                m_gc->make<NativeFunction>(gl_bind_buffer)},
             {"clear",                      m_gc->make<NativeFunction>(gl_clear)},
             {"poll_events",                m_gc->make<NativeFunction>(gl_poll_events)},
-            {"buffer_data",                m_gc->make<NativeFunction>(gl_buffer_data)},
+            {"buffer_data_f",              m_gc->make<NativeFunction>(gl_buffer_data<float, Float>)},
+            {"buffer_data_i",              m_gc->make<NativeFunction>(gl_buffer_data<int, Integer>)},
 
             {"create_shader",              m_gc->make<NativeFunction>(gl_create_shader)},
             {"shader_source",              m_gc->make<NativeFunction>(gl_shader_source)},
@@ -284,11 +392,20 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
             {"gen_vertex_arrays",          m_gc->make<NativeFunction>(gl_gen_vertex_arrays)},
             {"bind_vertex_array",          m_gc->make<NativeFunction>(gl_bind_vertex_array)},
             {"draw_arrays",                m_gc->make<NativeFunction>(gl_draw_arrays)},
+            {"view_port",                  m_gc->make<NativeFunction>(gl_view_port)},
+            {"clear_color",                m_gc->make<NativeFunction>(gl_clear_color)},
+            {"uniform1i",                  m_gc->make<NativeFunction>(gl_uniform1i)},
+            {"uniform1f",                  m_gc->make<NativeFunction>(gl_uniform1f)},
+            {"uniform2f",                  m_gc->make<NativeFunction>(gl_uniform2f)},
+            {"uniform3f",                  m_gc->make<NativeFunction>(gl_uniform3f)},
+            {"uniform4f",                  m_gc->make<NativeFunction>(gl_uniform4f)},
+            {"get_uniform_location",       m_gc->make<NativeFunction>(gl_get_uniform_location)},
+            {"draw_elements",              m_gc->make<NativeFunction>(gl_draw_elements)}
 
-//            {"swap_buffers", m_gc->make<NativeFunction>(GlWindow::swap_buffers)},
-//            {"should_close", m_gc->make<NativeFunction>(GlWindow::should_close)
 
-
+            // implemented in window class
+//            {"swap_buffers",               m_gc->make<NativeFunction>(GlWindow::swap_buffers)},
+//            {"should_close",               m_gc->make<NativeFunction>(GlWindow::should_close)},
     };
 
     auto module = ctx->gc()->make<Module>(path, imgui_module);

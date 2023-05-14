@@ -35,11 +35,9 @@ NativeErrorOr imgui_init(const std::vector<GcPtr<Object>> &arguments) {
     (void) io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     ImGui::StyleColorsDark();
-
-    fmt::print("GLFW version: {}\nwindow {} {}\n ", glfwGetVersionString(), (void *) win->get_window(),
-               (void *) glfwGetCurrentContext());
 
     ImGui_ImplGlfw_InitForOpenGL(win->get_window(), true);
     ImGui_ImplOpenGL3_Init(GlWindow::get_glsl_version());
@@ -72,12 +70,15 @@ NativeErrorOr imgui_render_loop(const std::vector<GcPtr<Object>> &arguments) {
 
 
 NativeErrorOr imgui_begin(const std::vector<GcPtr<Object>> &arguments) {
-    ASSERT_ARG_COUNT(1, arguments);
+    ASSERT_ARG_COUNT(3, arguments);
     DEFINE(title, String, 0, arguments);
+    DEFINE(open, Bool, 1, arguments);
+    DEFINE(flags, Integer, 2, arguments);
 
-    ImGui::Begin(title->get_value().c_str());
+    auto op = open->get_value();
+    ImGui::Begin(title->get_value().c_str(), &op, (int) flags->get_value());
 
-    return Globs::BondNil;
+    return BOOL_(op);
 }
 
 NativeErrorOr imgui_end(const std::vector<GcPtr<Object>> &arguments) {
@@ -150,6 +151,30 @@ NativeErrorOr imgui_text_input(const std::vector<GcPtr<Object>> &arguments) {
     ImGui::InputText(label->get_value().c_str(), &text);
 
     return m_ctx->gc()->make<String>(text);
+}
+
+NativeErrorOr imgui_begin_menu_bar(const std::vector<GcPtr<Object>> &arguments) {
+    ASSERT_ARG_COUNT(0, arguments);
+    return BOOL_(ImGui::BeginMenuBar());
+}
+
+NativeErrorOr imgui_begin_main_menu_bar(const std::vector<GcPtr<Object>> &arguments) {
+    ASSERT_ARG_COUNT(0, arguments);
+    return BOOL_(ImGui::BeginMainMenuBar());
+}
+
+NativeErrorOr imgui_end_main_menu_bar(const std::vector<GcPtr<Object>> &arguments) {
+    ASSERT_ARG_COUNT(0, arguments);
+    ImGui::EndMainMenuBar();
+    return Globs::BondNil;
+}
+
+NativeErrorOr imgui_end_menu_bar(const std::vector<GcPtr<Object>> &arguments) {
+    ASSERT_ARG_COUNT(0, arguments);
+
+    ImGui::EndMenuBar();
+
+    return Globs::BondNil;
 }
 
 std::expected<std::vector<float>, std::string> get_float_list(ListObj *list) {
@@ -235,24 +260,56 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
 
     glfwSetErrorCallback(glfw_error_callback);
 
+    std::unordered_map<std::string, uintmax_t> WINDOW_FLAGS = {
+            {"None",                      ImGuiWindowFlags_None},
+            {"NoTitleBar",                ImGuiWindowFlags_NoTitleBar},
+            {"NoResize",                  ImGuiWindowFlags_NoResize},
+            {"NoResize",                  ImGuiWindowFlags_NoResize},
+            {"NoScrollbar",               ImGuiWindowFlags_NoScrollbar},
+            {"NoScrollWithMouse",         ImGuiWindowFlags_NoScrollWithMouse},
+            {"NoCollapse",                ImGuiWindowFlags_NoCollapse},
+            {"AlwaysAutoResize",          ImGuiWindowFlags_AlwaysAutoResize},
+            {"NoBackground",              ImGuiWindowFlags_NoBackground},
+            {"NoSavedSettings",           ImGuiWindowFlags_NoSavedSettings},
+            {"NoMouseInputs",             ImGuiWindowFlags_NoMouseInputs},
+            {"MenuBar",                   ImGuiWindowFlags_MenuBar},
+            {"HorizontalScrollbar",       ImGuiWindowFlags_HorizontalScrollbar},
+            {"NoFocusOnAppearing",        ImGuiWindowFlags_NoFocusOnAppearing},
+            {"NoBringToFrontOnFocus",     ImGuiWindowFlags_NoBringToFrontOnFocus},
+            {"AlwaysVerticalScrollbar",   ImGuiWindowFlags_AlwaysVerticalScrollbar},
+            {"AlwaysHorizontalScrollbar", ImGuiWindowFlags_AlwaysHorizontalScrollbar},
+            {"AlwaysUseWindowPadding",    ImGuiWindowFlags_AlwaysUseWindowPadding},
+            {"NoNavInputs",               ImGuiWindowFlags_NoNavInputs},
+            {"NoNavFocus",                ImGuiWindowFlags_NoNavFocus},
+            {"UnsavedDocument",           ImGuiWindowFlags_UnsavedDocument},
+            {"NoNav",                     ImGuiWindowFlags_NoNav},
+            {"NoDecoration",              ImGuiWindowFlags_NoDecoration},
+            {"NoInputs",                  ImGuiWindowFlags_NoInputs},
+    };
+
 
     std::unordered_map<std::string, GcPtr<Object>> imgui_module = {
-            {"init",             ctx->gc()->make<NativeFunction>(imgui_init)},
-            {"render",           ctx->gc()->make<NativeFunction>(imgui_render_loop)},
-            {"begin",            m_gc->make<NativeFunction>(imgui_begin)},
-            {"end",              m_gc->make<NativeFunction>(imgui_end)},
-            {"new_frame",        m_gc->make<NativeFunction>(imgui_new_frame)},
-            {"end_frame",        m_gc->make<NativeFunction>(imgui_end_frame)},
-            {"show_demo_window", m_gc->make<NativeFunction>(show_demo_window)},
-            {"text",             m_gc->make<NativeFunction>(imgui_text)},
-            {"button",           m_gc->make<NativeFunction>(imgui_button)},
-            {"float_slider",     m_gc->make<NativeFunction>(imgui_float_slider)},
-            {"text_input",       m_gc->make<NativeFunction>(imgui_text_input)},
-            {"progress_bar",     m_gc->make<NativeFunction>(imgui_progress_bar)},
-            {"begin_menu",       m_gc->make<NativeFunction>(imgui_begin_menu)},
-            {"end_menu",         m_gc->make<NativeFunction>(imgui_end_menu)},
-            {"same_line",        m_gc->make<NativeFunction>(imgui_same_line)},
-            {"menu_item",        m_gc->make<NativeFunction>(imgui_menu_item)},
+            {"WINDOW",              m_gc->make<Enum>("WINDOW", WINDOW_FLAGS)},
+            {"init",                ctx->gc()->make<NativeFunction>(imgui_init)},
+            {"render",              ctx->gc()->make<NativeFunction>(imgui_render_loop)},
+            {"begin",               m_gc->make<NativeFunction>(imgui_begin)},
+            {"end",                 m_gc->make<NativeFunction>(imgui_end)},
+            {"new_frame",           m_gc->make<NativeFunction>(imgui_new_frame)},
+            {"end_frame",           m_gc->make<NativeFunction>(imgui_end_frame)},
+            {"show_demo_window",    m_gc->make<NativeFunction>(show_demo_window)},
+            {"text",                m_gc->make<NativeFunction>(imgui_text)},
+            {"button",              m_gc->make<NativeFunction>(imgui_button)},
+            {"float_slider",        m_gc->make<NativeFunction>(imgui_float_slider)},
+            {"text_input",          m_gc->make<NativeFunction>(imgui_text_input)},
+            {"progress_bar",        m_gc->make<NativeFunction>(imgui_progress_bar)},
+            {"begin_menu",          m_gc->make<NativeFunction>(imgui_begin_menu)},
+            {"end_menu",            m_gc->make<NativeFunction>(imgui_end_menu)},
+            {"same_line",           m_gc->make<NativeFunction>(imgui_same_line)},
+            {"menu_item",           m_gc->make<NativeFunction>(imgui_menu_item)},
+            {"begin_menu_bar",      m_gc->make<NativeFunction>(imgui_begin_menu_bar)},
+            {"end_menu_bar",        m_gc->make<NativeFunction>(imgui_end_menu_bar)},
+            {"begin_main_menu_bar", m_gc->make<NativeFunction>(imgui_begin_main_menu_bar)},
+            {"end_main_menu_bar",   m_gc->make<NativeFunction>(imgui_end_main_menu_bar)},
     };
 
     auto module = ctx->gc()->make<Module>(path, imgui_module);

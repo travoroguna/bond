@@ -256,16 +256,16 @@ typedef uintptr_t              khronos_uintptr_t;
 typedef signed   long long int khronos_intptr_t;
 typedef unsigned long long int khronos_uintptr_t;
 #else
-typedef signed long int khronos_intptr_t;
-typedef unsigned long int khronos_uintptr_t;
+typedef signed   long  int     khronos_intptr_t;
+typedef unsigned long  int     khronos_uintptr_t;
 #endif
 
 #if defined(_WIN64)
 typedef signed   long long int khronos_ssize_t;
 typedef unsigned long long int khronos_usize_t;
 #else
-typedef signed long int khronos_ssize_t;
-typedef unsigned long int khronos_usize_t;
+typedef signed   long  int     khronos_ssize_t;
+typedef unsigned long  int     khronos_usize_t;
 #endif
 
 #if KHRONOS_SUPPORT_FLOAT

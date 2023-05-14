@@ -1,4 +1,4 @@
-// dear gl, v1.89.6 WIP
+// dear imgui, v1.89.6 WIP
 // (tables and columns code)
 
 /*
@@ -193,18 +193,14 @@ Index of this file:
 #endif
 
 #include "imgui.h"
-
 #ifndef IMGUI_DISABLE
-
 #include "imgui_internal.h"
 
 // System includes
 #if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
 #include <stddef.h>     // intptr_t
 #else
-
 #include <stdint.h>     // intptr_t
-
 #endif
 
 // Visual Studio warnings

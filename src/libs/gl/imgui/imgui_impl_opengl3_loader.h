@@ -18,7 +18,7 @@
 // WILL NOT BE USING OUR LOADER, AND INSTEAD EXPECT ANOTHER/YOUR LOADER TO BE AVAILABLE IN THE COMPILATION UNIT.
 //
 // Regenerate with:
-//   python gl3w_gen.py --output ../gl/backends/imgui_impl_opengl3_loader.h --ref ../gl/backends/imgui_impl_opengl3.cpp ./extra_symbols.txt
+//   python gl3w_gen.py --output ../imgui/backends/imgui_impl_opengl3_loader.h --ref ../imgui/backends/imgui_impl_opengl3.cpp ./extra_symbols.txt
 //
 // More info:
 //   https://github.com/dearimgui/gl3w_stripped
@@ -64,11 +64,11 @@ typedef unsigned char khronos_uint8_t;
 typedef signed short int khronos_int16_t;
 typedef unsigned short int khronos_uint16_t;
 #ifdef _WIN64
-typedef signed   long long int khronos_intptr_t;
-typedef signed   long long int khronos_ssize_t;
+typedef signed long long int khronos_intptr_t;
+typedef signed long long int khronos_ssize_t;
 #else
-typedef signed long int khronos_intptr_t;
-typedef signed long int khronos_ssize_t;
+typedef signed   long  int     khronos_intptr_t;
+typedef signed   long  int     khronos_ssize_t;
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
