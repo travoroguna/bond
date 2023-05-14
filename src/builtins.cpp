@@ -13,6 +13,7 @@ namespace bond {
     auto INT = GarbageCollector::instance().make_immortal<NativeStruct<Integer>>("int", int_);
     auto FLOAT = GarbageCollector::instance().make_immortal<NativeStruct<Float>>("float", float_);
     auto STRING = GarbageCollector::instance().make_immortal<NativeStruct<String>>("str", str);
+    auto MAP = GarbageCollector::instance().make_immortal<NativeStruct<Map>>("map", map);
 
 
     std::unordered_map<std::string, GcPtr<Object>> builtins = {
@@ -23,7 +24,8 @@ namespace bond {
             {"float",       FLOAT},
             {"is_instance", GarbageCollector::instance().make_immortal<NativeFunction>(is_instance)},
             {"Ok",          GarbageCollector::instance().make_immortal<NativeFunction>(Ok_)},
-            {"Err",         GarbageCollector::instance().make_immortal<NativeFunction>(Err_)}
+            {"Err",         GarbageCollector::instance().make_immortal<NativeFunction>(Err_)},
+            {"map",         MAP},
     };
 
 
@@ -76,6 +78,11 @@ namespace bond {
 //
 //        return GarbageCollector::instance().make<Bool>(obj->is(class_));
 //    }
+
+    NativeErrorOr map(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(0, arguments);
+        return GarbageCollector::instance().make<Map>();
+    }
 
 
     void add_builtins_to_globals(GcPtr<Map> &globals) {

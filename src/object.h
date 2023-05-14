@@ -96,6 +96,20 @@ namespace bond {
 
         std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe> get_map() { return m_internal_map; }
 
+        std::expected<GcPtr<Object>, RuntimeError> $get_item(const GcPtr<bond::Object> &index) override;
+
+        std::expected<GcPtr<Object>, RuntimeError>
+        $set_item(const GcPtr<bond::Object> &index, const GcPtr<bond::Object> &value) override;
+
+        std::string str() override {
+            std::string result = "{";
+            for (auto &[key, value]: m_internal_map) {
+                result += fmt::format("{}: {}, ", key->str(), value->str());
+            }
+            result += "}";
+            return result;
+        }
+
     private:
         std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe>
                 m_internal_map;
@@ -238,6 +252,10 @@ namespace bond {
         size_t hash() override { return 0; }
 
         OBJ_RESULT $_bool() override;
+
+        void mark() override;
+
+        void unmark() override;
 
     private:
         std::vector<uint32_t> m_code{};

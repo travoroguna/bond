@@ -25,4 +25,6 @@ namespace bond {
     void add_builtins_to_globals(GcPtr<Map> &globals);
 
     NativeErrorOr is_instance(const std::vector<GcPtr<Object>> &arguments);
+
+    NativeErrorOr map(const std::vector<GcPtr<Object>> &arguments);
 }

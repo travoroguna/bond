@@ -23,6 +23,7 @@ namespace bond {
         m_scopes.declare("Ok", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("Err", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("is_instance", std::make_shared<Span>(0, 0, 0, 1), false);
+        m_scopes.declare("map", std::make_shared<Span>(0, 0, 0, 1), false);
 
         while (!is_at_end()) {
             auto res = declaration();
@@ -83,6 +84,7 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::import_declaration() {
         auto path = consume(TokenType::STRING, peek().get_span(), "Expected string after import keyword");
+
         consume(TokenType::AS, peek().get_span(), "Expected 'as' after import path");
         auto alias = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected identifier after 'as' keyword");
         consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after import statement");
