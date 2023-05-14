@@ -98,6 +98,7 @@ namespace bond {
     std::shared_ptr<Node> Parser::struct_declaration() {
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected struct name after struct keyword");
 
+
         if (m_scopes.is_declared(id.get_lexeme())) {
             ctx->error(id.get_span(), fmt::format("Struct {} is already declared in this scope", id.get_lexeme()));
             auto sp = m_scopes.get(id.get_lexeme()).value()->span;
@@ -106,12 +107,14 @@ namespace bond {
 
         m_scopes.declare(id.get_lexeme(), id.get_span(), false);
 
+        m_scopes.new_scope();
+
+
         consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' after struct name");
 
         //capture instance variables
         std::vector<std::string> instance_variables;
 
-        m_scopes.new_scope();
 
 //        if (check(TokenType::VAR)) {
 //            consume(TokenType::VAR, peek().get_span(), "");
@@ -147,14 +150,25 @@ namespace bond {
         //capture methods
 
         std::vector<std::shared_ptr<Node>> methods;
+        std::unordered_map<std::string, SharedSpan> instance_methods;
 
         while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
             if (check(TokenType::VAR)) {
                 throw ParserError("Instance variables must be declared before methods", peek().get_span());
             } else if (check(TokenType::FUN)) {
                 consume(TokenType::FUN, peek().get_span(), "");
-                auto method = function_declaration(false);
+                auto method = function_declaration(true);
                 methods.push_back(method);
+
+                if (instance_methods.contains(dynamic_cast<FuncDef *>(method.get())->get_name())) {
+                    ctx->error(method->get_span(), fmt::format("Method {} is already declared",
+                                                               dynamic_cast<FuncDef *>(method.get())->get_name()));
+                    auto sp = instance_methods[dynamic_cast<FuncDef *>(method.get())->get_name()];
+                    throw ParserError(fmt::format("Note Method {} is already declared here",
+                                                  dynamic_cast<FuncDef *>(method.get())->get_name()), sp);
+                }
+
+                instance_methods[dynamic_cast<FuncDef *>(method.get())->get_name()] = method->get_span();
                 continue;
             }
 
@@ -184,10 +198,11 @@ namespace bond {
                 ctx->error(id.get_span(),
                            fmt::format("Function {} is already declared in this scope", id.get_lexeme()));
                 auto sp = m_scopes.get(id.get_lexeme()).value()->span;
-                throw ParserError(fmt::format("Note Function {} is already declared here", id.get_lexeme()), sp);
+                throw ParserError(fmt::format("Note {} is already declared here", id.get_lexeme()), sp);
             }
+
+            m_scopes.declare(id.get_lexeme(), id.get_span(), false);
         }
-        m_scopes.declare(id.get_lexeme(), id.get_span(), false);
 
         consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after function name");
 
@@ -226,6 +241,35 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::variable_declaration() {
+        if (match({TokenType::LEFT_SQ})) {
+            auto start = previous().get_span();
+            auto exprs = expr_list(TokenType::RIGHT_SQ);
+            consume(TokenType::RIGHT_SQ, previous().get_span(), "Expected ']' after expression");
+
+            consume(TokenType::EQUAL, peek().get_span(), "Expected '=' after bindings");
+            auto initializer = expression();
+
+            for (auto &expr: exprs) {
+                if (!instanceof<Identifier>(expr.get())) {
+                    throw ParserError("Expected identifier in declaration", expr.get()->get_span());
+                }
+
+                auto id = std::dynamic_pointer_cast<Identifier>(expr);
+                if (m_scopes.is_declared(id->get_name())) {
+                    ctx->error(id->get_span(),
+                               fmt::format("Variable {} is already declared in this scope", id->get_name()));
+                    auto sp = m_scopes.get(id->get_name()).value()->span;
+                    throw ParserError(fmt::format("Note Variable {} is already declared here", id->get_name()), sp);
+                }
+
+                m_scopes.declare(id->get_name(), id->get_span(), true);
+            }
+
+            consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after expression in variable declaration");
+            return std::make_shared<StructuredAssign>(start, exprs, initializer);
+        }
+
+
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
 
         if (m_scopes.is_declared(id.get_lexeme())) {
@@ -333,7 +377,9 @@ namespace bond {
 //  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
 //        consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
         m_in_loop = true;
-        auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
+
+
+        auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after for keyword");
 
         consume(TokenType::IN, peek().get_span(), "Expected 'in' after variable name");
         auto iterable = expression();

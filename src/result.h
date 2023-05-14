@@ -32,7 +32,7 @@ namespace bond {
 
         std::string str() override {
             if (m_is_error) return fmt::format("Error({})", m_obj->str());
-            return fmt::format("Ok({})", m_obj->str());
+                return fmt::format("Ok({})", m_obj->str());
         }
 
         bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }

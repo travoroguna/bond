@@ -254,10 +254,6 @@ namespace bond {
 
         OBJ_RESULT $_bool() override;
 
-        void mark() override;
-
-        void unmark() override;
-
     private:
         std::vector<uint32_t> m_code{};
         std::vector<GcPtr<Object>> m_constants{};

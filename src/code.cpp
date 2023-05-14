@@ -158,21 +158,6 @@ namespace bond {
         return Globs::BondTrue;
     }
 
-    void Code::mark() {
-        Object::mark();
-
-        for (auto &constant: m_constants) {
-            constant->mark();
-        }
-    }
-
-    void Code::unmark() {
-        Object::unmark();
-
-        for (auto &constant: m_constants) {
-            constant->unmark();
-        }
-    }
 
     void CodeGenerator::finish_generation() {
         if (m_code->get_opcodes().empty()) {

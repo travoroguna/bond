@@ -393,12 +393,12 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 case Opcode::LOAD_GLOBAL: {
                     auto name = m_current_frame->get_constant();
-//        if (!m_current_frame->has_global(name)) {
-//          auto err = fmt::format("Global variable {} is not defined at this point",
-//                                 name->as<String>()->get_value());
-//          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
-//          continue;
-//        }
+                    if (!m_current_frame->has_global(name)) {
+                        auto err = fmt::format("Global variable {} is not defined at this point",
+                                               name->as<String>()->get_value());
+                        runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
+                        continue;
+                    }
                     push(m_current_frame->get_global(name));
 
                     break;
@@ -931,7 +931,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
         m_globals.mark();
 
-        m_current_frame->mark();
+        if (m_current_frame)
+            m_current_frame->mark();
 
         m_ctx->mark();
     }
@@ -948,7 +949,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         }
 
         m_globals.unmark();
-        m_current_frame->unmark();
+
+        if (m_current_frame)
+            m_current_frame->unmark();
         m_ctx->unmark();
     }
 
