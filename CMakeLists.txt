@@ -15,6 +15,8 @@ CPMAddPackage(
         GITHUB_REPOSITORY saprykin/plibsys
         GIT_TAG 0.0.4
         EXCLUDE_FROM_ALL YES
+        GIT_SHALLOW ON
+
 )
 
 CPMAddPackage(
