@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.22)
 project(gl)
 
 set(CMAKE_CXX_STANDARD 23)
-
-CPMAddPackage(
-        NAME glfw
-        GITHUB_REPOSITORY glfw/glfw
-        GIT_TAG 3.3.8
-        EXCLUDE_FROM_ALL YES
-)
+#
+#CPMAddPackage(
+#        NAME glfw
+#        GITHUB_REPOSITORY glfw/glfw
+#        GIT_TAG 3.3.8
+#        EXCLUDE_FROM_ALL YES
+#)
 
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
