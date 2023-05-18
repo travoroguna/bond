@@ -1,0 +1,358 @@
+// bond quick refrence
+
+// integers or floats
+// currently you can not do operations with floats and integers
+// have to convert them to the same type first
+// I have not decided if I want to keep this or not
+// It works well in python but I will have to implement floor division
+
+
+var a = 1;
+var b = 2;
+
+var sum = a + b;
+var diff = a - b;
+var product = a * b;
+var div = a / b;
+
+
+// inplace operators are not yet implemented (+= -= *= /=)
+
+
+// strings
+// only + is implemented for strings
+var str1 = "hello" + " world";
+
+
+// lists
+// a list can be  created with the []
+var numbers = [1, 2, 3, 4, 5];
+var strings = ["hello", "world"];
+
+// lists can have mixed types
+var mixed = [1, "hello", 2, "world"];
+
+// lists can be indexed
+
+var first = numbers[0];
+var last = numbers[4];
+
+
+// elements can be modified
+numbers[0] = 10;
+numbers[4] = 50;
+
+
+// functions
+// inbuilt functions
+
+// println - takes in a variable number of arguments and prints them to the console
+println("hello", "world");
+
+// int - takes in a string and converts it to an integer
+var num0 = try int("10");
+
+// float - takes in a string and converts it to a float
+var num1 = try float("10.5");
+
+// str - takes in  any type  and converts them to a string
+var str0 = str(10);
+
+// range - takes in a start and end and returns a range iterator that is lazy
+var range0 = range(0, 10);
+println(range0);
+
+// Ok = wraps a value in a result
+var ok0 = Ok(10);
+
+// Err = wraps an error in a result
+var err0 = Err("error");
+
+// is_instance - takes in a value and a type and returns true if the value is an instance of the type
+var is_instance0 = is_instance(int, 10);
+
+
+// map = creates a hashmap, poorly named .
+var map0 = map();
+map0["hello"] = "world";
+map0["foo"] = "bar";
+
+// map can be indexed
+var hello = try map0["hello"];
+
+
+
+// user defined functions
+// functions can be defined with the fn keyword
+// functions can take in a variable number of arguments upto 255
+
+fn add(c, g) {
+    return c + g;
+}
+
+var add_result = add(1, 2);
+println(add_result);
+
+
+// functions can be marked with ! to indicate that they can return a result
+// it does nothing at the moment but will add checking in the future
+
+fn divide(l, m) ! {
+    if m == 0 {
+        return Err("cannot divide by zero");
+    }
+    return Ok(l / m);
+}
+
+// in the future Ok and Err will be language constructs and not functions
+// this will allow for better error handling
+
+var divide_result = try divide(10, 2);
+println(divide_result);
+
+// if the function returns a result it must be unwrapped
+// divide(10, 0); will return cause the program to exit with an error
+
+
+// notice the try keyword
+// this is used to unwrap a result
+// if the result is an error it will return the error
+// if the result is ok it will return the value
+// if we get to the global scope and the result is an error it will print the error and exit the program
+
+// results are types and have methods
+// Result.has_value() - returns true if the result is an ok
+// Result.has_error() - returns true if the result is an error
+// Result.value() - returns the value otherwise the program will exit with an error
+// Result.error() - returns the error otherwise the program will exit with an error
+// Result.or_else(value) - returns the value if the result is an ok otherwise it returns the value passed in
+
+var divide_result_or_else = divide(10, 0).or_else(0);
+println(divide_result_or_else);
+
+// variables
+// variables can be declared with the var keyword
+// variables must be initialized when declared
+// variables are unique in the scope and outer scope they are declared in
+
+var new_variable = 10;
+{
+    // this will not work because new_variable is declared in the outer scope
+    // var new_variable = 20;
+    // println(new_variable);
+}
+
+// variables can be reassigned
+new_variable = 20;
+println(new_variable);
+
+// if you need to declare a variable without initializing assign it to nil
+var uninitialized_variable = nil;
+
+
+// if statements
+// if statements can be used to control the flow of the program
+
+var k = 10;
+
+if k == 10 {
+    var c = 10;
+    println("a is 10");
+} else if a == 20 {
+    var c = 20;
+    println("a is 20");
+} else {
+    var c = 30;
+    println("a is not 10 or 20");
+}
+
+// notice the var c, this is accepted as variables are unique in the scope and outer scopes they are declared in
+
+// while loops
+// while loops can be used to repeat code until a condition is met
+
+var counter = 0;
+
+while counter < 10 {
+    println(counter);
+    counter = counter + 1;
+}
+
+// for loops
+// for loops can be used to iterate over an itratble
+
+var number_l = [1, 2, 3, 4, 5];
+
+for number in number_l {
+    println(number);
+}
+
+// for loops can also be used to iterate over a range
+for number in range(0, 10) {
+    println(number);
+}
+
+
+// break and continue
+// break and continue can be used to control the flow of loops
+
+var counter1 = 0;
+
+while counter1 < 10 {
+    if counter1 == 5 {
+        break;
+    }
+    println(counter1);
+    counter1 = counter1 + 1;
+}
+
+var counter2 = 0;
+
+while counter2 < 10 {
+    if counter2 == 5 {
+        counter2 = counter2 + 1;
+        continue;
+    }
+    println(counter2);
+    counter2 = counter2 + 1;
+}
+
+
+// structs
+// structs can be defined with the struct keyword
+
+struct Point{
+    var x;
+    var y;
+
+    fn new(x, y) {
+        return Point(x, y);
+    }
+
+    fn add(self, other) {
+        return Point(self.x + other.x, self.y + other.y);
+    }
+
+    fn __get_item__(self, index) {
+        if index == 0 {
+            return self.x;
+        } else if index == 1 {
+            return self.y;
+        } else {
+            return nil;
+        }
+    }
+
+    fn __set_item__(self, index, value) {
+        if index == 0 {
+            self.x = value;
+        } else if index == 1 {
+            self.y = value;
+        }
+    }
+
+    fn __add__(self, other) {
+        return Point(self.x + other.x, self.y + other.y);
+    }
+
+    fn __sub__(self, other) {
+        return Point(self.x - other.x, self.y - other.y);
+    }
+
+    fn __mul__(self, other) {
+        return Point(self.x * other.x, self.y * other.y);
+    }
+
+    fn __div__(self, other) {
+        return Point(self.x / other.x, self.y / other.y);
+    }
+
+    fn hello(self) {
+        println("hello");
+    }
+}
+
+// structs can be instantiated by calling the struct name as a function
+var point0 = Point(10, 20);
+
+// you can also use static methods to customize the creation of structs
+var point1 = Point.new(10, 20);
+
+// structs have methods that can be called
+point0.hello();
+
+// structs have so called magic methods that can be used to customize the behavior of the struct
+
+var point3 = point0 + point1;
+
+// instances attributes can be accessed with the . operator
+// new attributes can not be added to an instance
+
+println(point3.x);
+println(point3.y);
+
+// instance attributes can be reassigned
+point3.x = 20;
+point3.y = 30;
+println(point3);
+
+// instance methods are first class and can be assigned to variables
+var point_add = point0.add;
+var point4 = point_add(point1);
+println(point4);
+
+// they however can not be modified
+// point0.add = 10; will not work
+
+// variables (ii)
+
+// destructuring, unpacking, structured binding, whatever you want to call it
+// variables can be declared like this
+
+var [a_s, b_s, c_s] = [1, 2, 3];
+println(a);
+
+// this will unpack the array and assign the values to the variables
+
+// this can also be used to swap variables
+[a_s, b_s] = [b_s, a_s];
+
+// modules
+// modules can be used to organize code
+// modules can be imported with the import keyword
+
+// import "<relative path>" as <name>;
+// import "gl/gl" as open_gl;
+
+import "fmt" as fmt;
+
+fmt.println("hello {}", "world");
+
+// import syntax can only be used at the top level
+// modules are loader at runtime and are cached
+// modules are searched for in the standard library first and then in the current directory
+// for example import "gl/gl" will look for
+// <standard library path>/gl/gl.dll - windows
+// <standard library path>/gl/libgl.so - linux
+// <standard library path>/gl/gl.bd
+// <current directory>/gl/gl.dll - windows
+// <current directory>/gl/libgl.so - linux
+// <current directory>/gl/gl.bd
+
+// other binary operators
+// or
+// and
+// !
+// !=
+// ==
+// <
+// >
+// <=
+// >=
+// |
+// &
+// ^
+
+// TODO: add << and >> operators
+
+// TODO: add more examples
