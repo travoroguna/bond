@@ -6,6 +6,7 @@
 #include "raycore/raycore.h"
 #include "raytexture/raytexture.h"
 #include "rayshapes/rayshapes.h"
+#include <magic_enum.hpp>
 
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
@@ -549,6 +550,26 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
 
     };
 
+    std::unordered_map<std::string, uintmax_t> mouse_button;
+    for (auto key: magic_enum::enum_names<MouseButton>()) {
+        mouse_button[std::string(key).substr(12)] = magic_enum::enum_cast<MouseButton>(key).value();
+    }
+
+    auto kbd_map = std::unordered_map<std::string, uintmax_t>();
+    for (auto key: magic_enum::enum_names<KeyboardKey>()) {
+        kbd_map[std::string(key).substr(4)] = magic_enum::enum_cast<KeyboardKey>(key).value();
+    }
+
+    auto gamepad_map = std::unordered_map<std::string, uintmax_t>();
+    for (auto key: magic_enum::enum_names<GamepadButton>()) {
+        gamepad_map[std::string(key).substr(8)] = magic_enum::enum_cast<GamepadButton>(key).value();
+    }
+
+    auto gamepad_axis_map = std::unordered_map<std::string, uintmax_t>();
+    for (auto key: magic_enum::enum_names<GamepadAxis>()) {
+        gamepad_axis_map[std::string(key).substr(8)] = magic_enum::enum_cast<GamepadAxis>(key).value();
+    }
+
 
     std::unordered_map<std::string, bond::GcPtr<bond::Object>> mod = {
             {"Vector2",
@@ -556,9 +577,14 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
             {"Vector3",
              m_gc->make_immortal<bond::NativeStruct<bond::raylib::Vector3>>("Vector3", bond::raylib::c_Vector3)},
             {"Color", m_gc->make_immortal<bond::NativeStruct<bond::raylib::Color>>("Color", bond::raylib::c_Color)},
+            {"Rectangle", m_gc->make_immortal<NativeStruct<raylib::Rectangle>>("Rectangle", raylib::c_Rectangle)},
             {"core", m_gc->make_immortal<Module>(path, ray_core)},
             {"texture", m_gc->make_immortal<Module>(path, ray_texture)},
             {"shapes", m_gc->make_immortal<Module>(path, ray_shapes)},
+            {"KEYS", m_gc->make_immortal<Enum>("KEYS", kbd_map)},
+            {"MOUSE", m_gc->make_immortal<Enum>("MOUSE", mouse_button)},
+            {"GAMEPAD", m_gc->make_immortal<Enum>("GAMEPAD", gamepad_map)},
+            {"GAMEPAD_AXIS", m_gc->make_immortal<Enum>("GAMEPAD_AXIS", gamepad_axis_map)},
 
             make_color(LIGHTGRAY),
             make_color(GRAY),

@@ -11,12 +11,18 @@ CPMAddPackage(
         GIT_SHALLOW ON
 )
 
+CPMAddPackage(
+        NAME magic_enum
+        GITHUB_REPOSITORY Neargye/magic_enum
+        GIT_TAG v0.8.2
+        GIT_SHALLOW ON
+)
 
 add_library(ray-lib SHARED raymodule.cpp raymodule.h ray_impl.cpp
         raycore/raycore.h raycore/raycore.cpp raytexture/raytexture.h raytexture/raytexture_impl.cpp
         rayshapes/rayshapes.h rayshapes/rayshapes_impl.cpp)
 
-target_link_libraries(ray-lib bondlib raylib_static)
+target_link_libraries(ray-lib bondlib raylib_static magic_enum::magic_enum)
 set_target_properties(ray-lib PROPERTIES PUBLIC_HEADER "raylib.bd")
 set_target_properties(ray-lib PROPERTIES OUTPUT_NAME "raylib")
 

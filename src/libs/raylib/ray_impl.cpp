@@ -138,5 +138,16 @@ namespace bond::raylib {
         return NativeErrorOr(GarbageCollector::instance().make<Vector2>(::Vector2{x->get_value(), y->get_value()}));
     }
 
+    NativeErrorOr c_Rectangle(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(x, Float, 0, arguments);
+        DEFINE(y, Float, 1, arguments);
+        DEFINE(width, Float, 2, arguments);
+        DEFINE(height, Float, 3, arguments);
+
+        return NativeErrorOr(GarbageCollector::instance().make<Rectangle>(
+                ::Rectangle{x->get_value(), y->get_value(), width->get_value(), height->get_value()}));
+    }
+
 }
 
