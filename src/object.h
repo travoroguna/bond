@@ -120,7 +120,7 @@ namespace bond {
     public:
         explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
 
-        explicit NativeFunction(NativeFunctionPtr fn, [[maybe_unused]]std::string name) : m_fn{std::move(fn)} {}
+        explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)}, m_name(name) {}
 
         [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
 
