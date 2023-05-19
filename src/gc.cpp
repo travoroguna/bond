@@ -72,7 +72,8 @@ namespace bond {
 //        auto lock = LockGc();
         std::lock_guard<std::recursive_mutex> lock(m_gc->m_mutex);
 
-        for (auto &[_, storage]: m_gc->m_thread_storages) {
+        for (auto &[id_, storage]: m_gc->m_thread_storages) {
+            if (id_ == std::this_thread::get_id()) continue;
             storage->mark_roots();
         }
 
@@ -81,6 +82,7 @@ namespace bond {
         drop->drop_reachable();
 
         for (auto &[_, storage]: m_gc->m_thread_storages) {
+            if (_ == std::this_thread::get_id()) continue;
             storage->unmark_roots();
         }
 
@@ -99,7 +101,18 @@ namespace bond {
     }
 
     void ThreadStorage::drop_reachable() {
-        collect();
+        for (auto &obj: m_objects) {
+
+            if (obj.get() == nullptr) continue;
+            if (!obj.is_marked()) {
+//                fmt::print("[GC]({}) collect: {}\n", thread_string(), obj->str());
+//                free((void *)&obj);
+                obj.get()->~Object();
+                std::free(obj.get());
+                obj.reset();
+            }
+        }
+
         m_objects = {};
     }
 
@@ -123,6 +136,7 @@ namespace bond {
             if (obj.get() == nullptr) continue;
             obj.get()->~Object();
             std::free(obj.get());
+            obj.reset();
         }
     }
 

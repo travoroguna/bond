@@ -47,6 +47,9 @@ void run_repl(const std::string &lib_path, const std::vector<std::string> &args)
 
     auto vm = bond::Vm(&ctx);
     bond::GarbageCollector::instance().add_root(&vm);
+    auto id = ctx.new_module(std::string("<repl>"));
+    bond::Scopes scope = bond::Scopes(&ctx);
+
 
     while (true) {
         auto path = std::string("<repl>");
@@ -62,7 +65,18 @@ void run_repl(const std::string &lib_path, const std::vector<std::string> &args)
 
         if (source == "exit") break;
 
-        execute_source(source, path.c_str(), vm, ctx);
+        auto lexer = bond::Lexer(source, &ctx, id);
+        if (ctx.has_error()) continue;
+        auto parser = bond::Parser(lexer.tokenize(), &ctx);
+        parser.set_scopes(&scope);
+        if (ctx.has_error()) continue;
+
+        auto codegen = bond::CodeGenerator(&ctx, &scope);
+        auto bytecode = codegen.generate_code(parser.parse());
+        if (ctx.has_error()) continue;
+
+        vm.run(bytecode);
+
     }
 }
 

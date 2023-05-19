@@ -6,6 +6,7 @@
 #include "raycore/raycore.h"
 #include "raytexture/raytexture.h"
 #include "rayshapes/rayshapes.h"
+#include "raytext/raytext.h"
 #include <magic_enum.hpp>
 
 
@@ -15,6 +16,7 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     using namespace bond::raycore;
     using namespace bond::raytexture;
     using namespace bond::rayshapes;
+    using namespace bond::raytext;
 
     bond::GarbageCollector *m_gc = ctx->gc();
     bond::Context *m_ctx = ctx;
@@ -550,6 +552,56 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
 
     };
 
+    std::unordered_map<std::string, GcPtr<Object>> ray_font = {
+            {"get_font_default",       m_gc->make<NativeFunction>(get_font_default, "get_font_default")},
+            {"load_font",              m_gc->make<NativeFunction>(load_font, "load_font")},
+            {"load_font_ex",           m_gc->make<NativeFunction>(load_font_ex, "load_font_ex")},
+            {"load_font_from_image",   m_gc->make<NativeFunction>(load_font_from_image, "load_font_from_image")},
+            {"load_font_from_memory",  m_gc->make<NativeFunction>(load_font_from_memory, "load_font_from_memory")},
+            {"is_font_ready",          m_gc->make<NativeFunction>(is_font_ready, "is_font_ready")},
+            {"load_font_data",         m_gc->make<NativeFunction>(load_font_data, "load_font_data")},
+            {"gen_image_font_atlas",   m_gc->make<NativeFunction>(gen_image_font_atlas, "gen_image_font_atlas")},
+            {"unload_font_data",       m_gc->make<NativeFunction>(unload_font_data, "unload_font_data")},
+            {"unload_font",            m_gc->make<NativeFunction>(unload_font, "unload_font")},
+            {"export_font_as_code",    m_gc->make<NativeFunction>(export_font_as_code, "export_font_as_code")},
+            {"draw_fps",               m_gc->make<NativeFunction>(draw_fps, "draw_fps")},
+            {"draw_text",              m_gc->make<NativeFunction>(draw_text, "draw_text")},
+            {"draw_text_ex",           m_gc->make<NativeFunction>(draw_text_ex, "draw_text_ex")},
+            {"draw_text_pro",          m_gc->make<NativeFunction>(draw_text_pro, "draw_text_pro")},
+            {"draw_text_codepoint",    m_gc->make<NativeFunction>(draw_text_codepoint, "draw_text_codepoint")},
+            {"draw_text_codepoints",   m_gc->make<NativeFunction>(draw_text_codepoints, "draw_text_codepoints")},
+            {"measure_text",           m_gc->make<NativeFunction>(measure_text, "measure_text")},
+            {"measure_text_ex",        m_gc->make<NativeFunction>(measure_text_ex, "measure_text_ex")},
+            {"get_glyph_index",        m_gc->make<NativeFunction>(get_glyph_index, "get_glyph_index")},
+            {"get_glyph_info",         m_gc->make<NativeFunction>(get_glyph_info, "get_glyph_info")},
+            {"get_glyph_atlas_rec",    m_gc->make<NativeFunction>(get_glyph_atlas_rec, "get_glyph_atlas_rec")},
+            {"load_utf8",              m_gc->make<NativeFunction>(load_utf8, "load_utf8")},
+            {"unload_utf8",            m_gc->make<NativeFunction>(unload_utf8, "unload_utf8")},
+            {"load_codepoints",        m_gc->make<NativeFunction>(load_codepoints, "load_codepoints")},
+            {"unload_codepoints",      m_gc->make<NativeFunction>(unload_codepoints, "unload_codepoints")},
+            {"get_codepoint_count",    m_gc->make<NativeFunction>(get_codepoint_count, "get_codepoint_count")},
+            {"get_codepoint",          m_gc->make<NativeFunction>(get_codepoint, "get_codepoint")},
+            {"get_codepoint_next",     m_gc->make<NativeFunction>(get_codepoint_next, "get_codepoint_next")},
+            {"get_codepoint_previous", m_gc->make<NativeFunction>(get_codepoint_previous, "get_codepoint_previous")},
+            {"codepoint_to_utf8",      m_gc->make<NativeFunction>(codepoint_to_utf8, "codepoint_to_utf8")},
+            {"text_copy",              m_gc->make<NativeFunction>(text_copy, "text_copy")},
+            {"text_is_equal",          m_gc->make<NativeFunction>(text_is_equal, "text_is_equal")},
+            {"text_length",            m_gc->make<NativeFunction>(text_length, "text_length")},
+            {"text_format",            m_gc->make<NativeFunction>(text_format, "text_format")},
+            {"text_subtext",           m_gc->make<NativeFunction>(text_subtext, "text_subtext")},
+            {"text_replace",           m_gc->make<NativeFunction>(text_replace, "text_replace")},
+            {"text_insert",            m_gc->make<NativeFunction>(text_insert, "text_insert")},
+            {"text_join",              m_gc->make<NativeFunction>(text_join, "text_join")},
+            {"text_split",             m_gc->make<NativeFunction>(text_split, "text_split")},
+            {"text_append",            m_gc->make<NativeFunction>(text_append, "text_append")},
+            {"text_find_index",        m_gc->make<NativeFunction>(text_find_index, "text_find_index")},
+            {"text_to_upper",          m_gc->make<NativeFunction>(text_to_upper, "text_to_upper")},
+            {"text_to_lower",          m_gc->make<NativeFunction>(text_to_lower, "text_to_lower")},
+            {"text_to_pascal",         m_gc->make<NativeFunction>(text_to_pascal, "text_to_pascal")},
+            {"text_to_integer",        m_gc->make<NativeFunction>(text_to_integer, "text_to_integer")}
+    };
+
+
     std::unordered_map<std::string, uintmax_t> mouse_button;
     for (auto key: magic_enum::enum_names<MouseButton>()) {
         mouse_button[std::string(key).substr(12)] = magic_enum::enum_cast<MouseButton>(key).value();
@@ -578,8 +630,10 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
              m_gc->make_immortal<bond::NativeStruct<bond::raylib::Vector3>>("Vector3", bond::raylib::c_Vector3)},
             {"Color", m_gc->make_immortal<bond::NativeStruct<bond::raylib::Color>>("Color", bond::raylib::c_Color)},
             {"Rectangle", m_gc->make_immortal<NativeStruct<raylib::Rectangle>>("Rectangle", raylib::c_Rectangle)},
+            {"Camera2D", m_gc->make_immortal<NativeStruct<raylib::Camera2D>>("Camera2D", raylib::c_Camera2D)},
             {"core", m_gc->make_immortal<Module>(path, ray_core)},
             {"texture", m_gc->make_immortal<Module>(path, ray_texture)},
+            {"text", m_gc->make_immortal<Module>(path, ray_font)},
             {"shapes", m_gc->make_immortal<Module>(path, ray_shapes)},
             {"KEYS", m_gc->make_immortal<Enum>("KEYS", kbd_map)},
             {"MOUSE", m_gc->make_immortal<Enum>("MOUSE", mouse_button)},

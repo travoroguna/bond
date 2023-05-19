@@ -36,7 +36,6 @@ namespace bond {
     }
 
     std::expected<GcPtr<Object>, RuntimeError> Enum::$get_attribute(const GcPtr<Object> &index) {
-        if (!index->is<String>()) return std::unexpected(RuntimeError::AttributeNotFound);
         auto key = index->as<String>()->get_value();
         if (m_attributes.find(key) != m_attributes.end()) return m_attributes[key];
         return std::unexpected(RuntimeError::AttributeNotFound);
@@ -47,24 +46,40 @@ namespace bond {
         m_name = name;
     }
 
-    GcPtr<NativeStruct<BondObject>>
-    BondObject::make_native_struct(const std::string &name, const NativeFunctionPtr &constructor) {
-        return GarbageCollector::instance().make<NativeStruct<BondObject>>(name, constructor);
-    }
 
     std::expected<GcPtr<Object>, RuntimeError> BondObject::$get_attribute(const GcPtr<Object> &index) {
-        if (!index->is<String>()) return std::unexpected(RuntimeError::AttributeNotFound);
         auto key = index->as<String>()->get_value();
-        if (m_attributes.find(key) != m_attributes.end()) return m_attributes[key];
+
+        if (m_attributes.contains(key)) {
+            return m_attributes[key];
+        }
+
+        if (m_methods.contains(key)) {
+            return MAKE_FORM_BIND(m_methods[key]);
+        }
+
         return std::unexpected(RuntimeError::AttributeNotFound);
     }
 
     std::expected<GcPtr<Object>, RuntimeError>
     BondObject::$set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) {
-        if (!index->is<String>()) return std::unexpected(RuntimeError::AttributeNotFound);
         auto key = index->as<String>()->get_value();
-        m_attributes[key] = value;
-        return value;
+
+        if (m_attributes.contains(key)) {
+            auto v = m_attributes[key];
+//            fmt::print("type: {}, {}, {}\n", typeid(v.get()).name(), typeid(value.get()).name());
+            if (typeid(*(v.get())) != typeid(*(value.get()))) {
+                //TODO: somehow add this to error stack
+                fmt::print("\n[NOTE] Type error: expected {}, {}\n", typeid(*v.get()).name(),
+                           typeid(*value.get()).name());
+                return std::unexpected(RuntimeError::TypeError);
+            }
+
+            m_attributes[key] = value;
+            return value;
+        }
+
+        return std::unexpected(RuntimeError::AttributeNotFound);
     }
 
     void BondObject::mark() {

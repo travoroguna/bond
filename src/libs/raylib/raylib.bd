@@ -487,3 +487,53 @@ fn get_pixel_color(srcPtr, format){}
 fn set_pixel_color(dstPtr, color, format){}
 fn get_pixel_data_size(width, height, format){}
 }
+
+
+struct Text{
+fn get_font_default(){}
+fn load_font(fileName){}
+fn load_font_ex(fileName, fontSize, fontChars, glyphCount){}
+fn load_font_from_image(image, key, firstChar){}
+fn load_font_from_memory(fileType, fileData, dataSize, fontSize, fontChars, glyphCount){}
+fn is_font_ready(font){}
+fn load_font_data(fileData, dataSize, fontSize, fontChars, glyphCount, type){}
+fn gen_image_font_atlas(chars, recs, glyphCount, fontSize, padding, packMethod){}
+fn unload_font_data(chars, glyphCount){}
+fn unload_font(font){}
+fn export_font_as_code(font, fileName){}
+fn draw_f_p_s(posX, posY){}
+fn draw_text(text, posX, posY, fontSize, color){}
+fn draw_text_ex(font, text, position, fontSize, spacing, tint){}
+fn draw_text_pro(font, text, position, origin, rotation, fontSize, spacing, tint){}
+fn draw_text_codepoint(font, codepoint, position, fontSize, tint){}
+fn draw_text_codepoints(font, codepoints, count, position, fontSize, spacing, tint){}
+fn measure_text(text, fontSize){}
+fn measure_text_ex(font, text, fontSize, spacing){}
+fn get_glyph_index(font, codepoint){}
+fn get_glyph_info(font, codepoint){}
+fn get_glyph_atlas_rec(font, codepoint){}
+fn load_u_t_f8(codepoints, length){}
+fn unload_u_t_f8(text){}
+fn load_codepoints(text, count){}
+fn unload_codepoints(codepoints){}
+fn get_codepoint_count(text){}
+fn get_codepoint(text, codepointSize){}
+fn get_codepoint_next(text, codepointSize){}
+fn get_codepoint_previous(text, codepointSize){}
+fn codepoint_to_u_t_f8(codepoint, utf8Size){}
+fn text_copy(dst, src){}
+fn text_is_equal(text1, text2){}
+fn text_length(text){}
+fn text_format(text){}
+fn text_subtext(text, position, length){}
+fn text_replace(text, replace, by){}
+fn text_insert(text, insert, position){}
+fn text_join(textList, count, delimiter){}
+fn text_split(text, delimiter, count){}
+fn text_append(text, append, position){}
+fn text_find_index(text, find){}
+fn text_to_upper(text){}
+fn text_to_lower(text){}
+fn text_to_pascal(text){}
+fn text_to_integer(text){}
+}

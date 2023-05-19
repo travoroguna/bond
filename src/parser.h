@@ -75,6 +75,8 @@ namespace bond {
 
         Scopes *get_scopes() { return &m_scopes; }
 
+        void set_scopes(Scopes *scopes) { m_scopes = *scopes; }
+
     private:
 
         Scopes m_scopes;

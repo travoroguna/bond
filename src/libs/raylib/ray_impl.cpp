@@ -112,12 +112,12 @@ namespace bond::raylib {
         DEFINE(b, Integer, 2, arguments);
         DEFINE(a, Integer, 3, arguments);
 
-        return NativeErrorOr(GarbageCollector::instance().make<Color>(
+        return GarbageCollector::instance().make<Color>(
                 ::Color{static_cast<unsigned char>(r->get_value()),
                         static_cast<unsigned char>(g->get_value()),
                         static_cast<unsigned char>(b->get_value()),
                         static_cast<unsigned char>(a->get_value()),
-                }));
+                });
     }
 
     NativeErrorOr c_Vector3(const std::vector<GcPtr<Object>> &arguments) {
@@ -126,8 +126,7 @@ namespace bond::raylib {
         DEFINE(y, Float, 1, arguments);
         DEFINE(z, Float, 2, arguments);
 
-        return NativeErrorOr(
-                GarbageCollector::instance().make<Vector3>(::Vector3{x->get_value(), y->get_value(), z->get_value()}));
+        return GarbageCollector::instance().make<Vector3>(::Vector3{x->get_value(), y->get_value(), z->get_value()});
     }
 
     NativeErrorOr c_Vector2(const std::vector<GcPtr<Object>> &arguments) {
@@ -135,7 +134,7 @@ namespace bond::raylib {
         DEFINE(x, Float, 0, arguments);
         DEFINE(y, Float, 1, arguments);
 
-        return NativeErrorOr(GarbageCollector::instance().make<Vector2>(::Vector2{x->get_value(), y->get_value()}));
+        return GarbageCollector::instance().make<Vector2>(::Vector2{x->get_value(), y->get_value()});
     }
 
     NativeErrorOr c_Rectangle(const std::vector<GcPtr<Object>> &arguments) {
@@ -145,9 +144,19 @@ namespace bond::raylib {
         DEFINE(width, Float, 2, arguments);
         DEFINE(height, Float, 3, arguments);
 
-        return NativeErrorOr(GarbageCollector::instance().make<Rectangle>(
-                ::Rectangle{x->get_value(), y->get_value(), width->get_value(), height->get_value()}));
+        return GarbageCollector::instance().make<Rectangle>(x, y, width, height);
     }
+
+    NativeErrorOr c_Camera2D(const std::vector<GcPtr<Object>> &arguments) {
+        ASSERT_ARG_COUNT(4, arguments);
+        DEFINE(target, bond::raylib::Vector2, 0, arguments);
+        DEFINE(offset, bond::raylib::Vector2, 1, arguments);
+        DEFINE(rotation, Float, 2, arguments);
+        DEFINE(zoom, Float, 3, arguments);
+
+        return GarbageCollector::instance().make<Camera2D>(target, offset, rotation, zoom);
+    }
+
 
 }
 

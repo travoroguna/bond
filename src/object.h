@@ -795,7 +795,7 @@ namespace bond {
         NativeErrorOr get_result(const std::vector<GcPtr<Object>> &args) {
             ASSERT_ARG_COUNT(0, args);
 
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             if (m_value.get() == nullptr) return Err("Future not resolved");
             return m_value;
         }
@@ -803,7 +803,7 @@ namespace bond {
         NativeErrorOr has_result(const std::vector<GcPtr<Object>> &args) {
             ASSERT_ARG_COUNT(0, args);
 
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             return BOOL_(m_value.get() != nullptr);
         }
 
@@ -814,17 +814,17 @@ namespace bond {
         }
 
         bool has_value() {
-            std::lock_guard<std::mutex> lock(m_mutex);
+//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             return m_value.get() != nullptr;
         }
 
         GcPtr<Object> get_value() {
-            std::lock_guard<std::mutex> lock(m_mutex);
+//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             return m_value;
         }
 
         void set_value(const GcPtr<Object> &value) {
-            std::lock_guard<std::mutex> lock(m_mutex);
+//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             m_value = value;
         }
 
@@ -834,7 +834,7 @@ namespace bond {
                 {"has_result", BIND(has_result)},
                 {"get_result", BIND(get_result)},
         };
-        std::mutex m_mutex;
+        std::recursive_mutex m_mutex;
     };
 
     class Coroutine : public Object {

@@ -123,11 +123,32 @@ namespace bond::raylib {
     NativeErrorOr c_Color(const std::vector<GcPtr<Object>> &arguments);
 
 
-    class Camera2D : public Object {
+    class Camera2D : public BondObject {
     public:
-        explicit Camera2D(::Camera2D camera) : m_camera(camera) {}
+        explicit Camera2D(::Camera2D camera) : m_camera(camera) {
+            m_attributes["target"] = GarbageCollector::instance().make<Vector2>(camera.target);
+            m_attributes["offset"] = GarbageCollector::instance().make<Vector2>(camera.offset);
+            m_attributes["rotation"] = GarbageCollector::instance().make<Float>(camera.rotation);
+            m_attributes["zoom"] = GarbageCollector::instance().make<Float>(camera.zoom);
+        }
 
-        ::Camera2D get_value() { return m_camera; }
+        Camera2D(const GcPtr<Vector2> &target, const GcPtr<Vector2> &offset, const GcPtr<Float> &rotation,
+                 const GcPtr<Float> &zoom) : m_camera({0}) {
+            m_attributes["target"] = target;
+            m_attributes["offset"] = offset;
+            m_attributes["rotation"] = rotation;
+            m_attributes["zoom"] = zoom;
+        }
+
+        ::Camera2D get_value() {
+            m_camera = {
+                    m_attributes["target"]->as<Vector2>()->get_value(),
+                    m_attributes["offset"]->as<Vector2>()->get_value(),
+                    m_attributes["rotation"]->as<Float>()->get_value(),
+                    m_attributes["zoom"]->as<Float>()->get_value()
+            };
+            return m_camera;
+        }
 
         std::string str() override { return ::fmt::format("Camera2D({})", (void *) &m_camera); }
 
@@ -335,13 +356,41 @@ namespace bond::raylib {
     NativeErrorOr c_Texture2D(const std::vector<GcPtr<Object>> &arguments);
 
 
-    class Rectangle : public Object {
+    class Rectangle : public BondObject {
     public:
-        explicit Rectangle(::Rectangle rectangle) : m_rectangle(rectangle) {}
+        explicit Rectangle(::Rectangle rectangle) : m_rectangle(rectangle) {
+            m_attributes["x"] = GarbageCollector::instance().make<Float>(rectangle.x);
+            m_attributes["y"] = GarbageCollector::instance().make<Float>(rectangle.y);
+            m_attributes["width"] = GarbageCollector::instance().make<Float>(rectangle.width);
+            m_attributes["height"] = GarbageCollector::instance().make<Float>(rectangle.height);
+        }
 
-        ::Rectangle get_value() { return m_rectangle; }
+        Rectangle(const GcPtr<Float> &x, const GcPtr<Float> &y, const GcPtr<Float> &width, const GcPtr<Float> &height) {
+            m_attributes["x"] = x;
+            m_attributes["y"] = y;
+            m_attributes["width"] = width;
+            m_attributes["height"] = height;
 
-        ::Rectangle *get() { return &m_rectangle; }
+            m_rectangle = {
+                    x->get_value(),
+                    y->get_value(),
+                    width->get_value(),
+                    height->get_value()
+            };
+        }
+
+        ::Rectangle get_value() {
+            m_rectangle.x = m_attributes["x"]->as<Float>()->get_value();
+            m_rectangle.y = m_attributes["y"]->as<Float>()->get_value();
+            m_rectangle.width = m_attributes["width"]->as<Float>()->get_value();
+            m_rectangle.height = m_attributes["height"]->as<Float>()->get_value();
+            return m_rectangle;
+        }
+
+        ::Rectangle *get() {
+            get_value();
+            return &m_rectangle;
+        }
 
         std::string str() override { return ::fmt::format("Rectangle({})", (void *) &m_rectangle); }
 
@@ -350,7 +399,7 @@ namespace bond::raylib {
         size_t hash() override { return reinterpret_cast<size_t>(this); }
 
     private:
-        ::Rectangle m_rectangle;
+        ::Rectangle m_rectangle{};
 
     };
 

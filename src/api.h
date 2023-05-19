@@ -5,6 +5,7 @@
 #ifndef BOND_SRC_API_H_
 #define BOND_SRC_API_H_
 
+#include <typeinfo>
 #include "gc.h"
 #include "object.h"
 
@@ -57,12 +58,8 @@ namespace bond {
 
         BondObject();
 
-        static GcPtr<NativeStruct<BondObject>>
-        make_native_struct(const std::string &name, const NativeFunctionPtr &constructor);
-
-        virtual void init() = 0;
-
-        std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override;
+        std::expected<GcPtr<Object>, RuntimeError>
+        $get_attribute(const GcPtr<bond::Object> &index) override;
 
         std::expected<GcPtr<Object>, RuntimeError>
         $set_attribute(const GcPtr<bond::Object> &index, const GcPtr<bond::Object> &value) override;
@@ -78,8 +75,22 @@ namespace bond {
 
     protected:
         std::string m_name = "Object";
-
         std::unordered_map<std::string, GcPtr<Object>> m_attributes;
+        std::unordered_map<std::string, NativeFunctionPtr> m_methods;
+    };
+
+
+    class BondTest : public BondObject {
+    public:
+        BondTest() {
+            m_methods["test"] = BIND(test);
+        }
+
+        void init() {};
+
+        NativeErrorOr test(const std::vector<GcPtr<Object>> &arguments) {
+            return GarbageCollector::instance().make<bond::Integer>(1);
+        }
     };
 
 }

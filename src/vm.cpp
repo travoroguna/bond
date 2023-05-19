@@ -245,8 +245,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 err = fmt::format("Unimplemented: {}", error);
                 break;
             case RuntimeError::DivisionByZero:
-                err = fmt::format("Division by zero, {}", error);\
+                err = fmt::format("Division by zero, {}", error);
                 break;
+            case RuntimeError::AttributeNotFound:
+                err = fmt::format("Attribute not found, {}", error);
             default:
                 err = error;
                 break;
@@ -755,7 +757,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
 
                     auto result = obj->$set_attribute(attr, value);
                     if (!result.has_value()) {
-                        runtime_error(fmt::format("unable to set attribute {} as {}", attr->str(), obj->str()),
+                        runtime_error(fmt::format("unable to set attribute {} of {}", attr->str(), obj->str()),
                                       result.error(),
                                       m_current_frame->get_span());
                         continue;

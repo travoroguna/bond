@@ -114,7 +114,6 @@ ppointer isolate_thread(ppointer arg) {
     }
 
     assert(future->has_value());
-
     m_ctx->gc()->resume_gc();
 
     m_ctx->gc()->remove_thread_storage(std::this_thread::get_id());
@@ -210,6 +209,8 @@ NativeErrorOr wait_until_completed(const std::vector<GcPtr<Object>> &arguments) 
 
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
+    p_libsys_init();
+
     m_ctx = ctx;
     GarbageCollector::instance().set_gc(ctx->gc());
     auto gc = ctx->gc();

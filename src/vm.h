@@ -168,6 +168,8 @@ namespace bond {
 
         GcPtr<Map> get_globals() { return m_globals; }
 
+        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
+
         void call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args);
 
         void exec();
