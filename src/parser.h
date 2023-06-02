@@ -77,6 +77,12 @@ namespace bond {
 
         void set_scopes(Scopes *scopes) { m_scopes = *scopes; }
 
+        void disable_reporting() { m_report = false; }
+        std::vector<std::pair<std::string, SharedSpan>> &get_diagnostics() { return m_diagnostics; }
+
+        static std::shared_ptr<Span>
+        span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end);
+
     private:
 
         Scopes m_scopes;
@@ -124,9 +130,6 @@ namespace bond {
         std::optional<std::shared_ptr<Node>> declaration();
 
         std::shared_ptr<Node> variable_declaration();
-
-        static std::shared_ptr<Span>
-        span_from_spans(const std::shared_ptr<Span> &start, const std::shared_ptr<Span> &end);
 
         std::shared_ptr<Node> assignment();
 
@@ -177,6 +180,10 @@ namespace bond {
         std::shared_ptr<Node> bit_xor();
 
         std::shared_ptr<Node> bit_and();
+
+        bool m_report = true;
+
+        std::vector<std::pair<std::string, SharedSpan>> m_diagnostics;
     };
 
 } // bond

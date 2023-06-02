@@ -21,4 +21,14 @@ namespace bond {
     Coroutine::Coroutine(const GcPtr<Function> &function) {
         m_function = function;
     }
+
+    std::string NativeFunction::str() {
+        return fmt::format("<native function at {}>", (void *) this);
+    }
+
+    bool NativeFunction::equal(const GcPtr<Object> &other) {
+        return this == other.get();
+    }
+
+
 }

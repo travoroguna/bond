@@ -6,7 +6,6 @@
 #include "code.h"
 #include "vm.h"
 #include "gc.h"
-#include "lsp/lsp.h"
 #include <plibsys.h>
 
 
@@ -107,12 +106,6 @@ int main(int32_t argc, char **argv) {
         fmt::print("bond 0.0.0 \n");
         run_repl(lib_path, args);
     } else {
-        if (std::string(argv[1]) == "--lsp") {
-            auto lsp = bond::Lsp();
-            lsp.init();
-            lsp.run();
-        }
-
         if (!std::filesystem::exists(argv[1])) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;

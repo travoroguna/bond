@@ -47,9 +47,7 @@ namespace bond {
 
         [[nodiscard]] GcPtr<Object> get_module(std::string const &path) const { return m_compiled_modules.at(path); }
 
-        void add_module(std::string const &path, const GcPtr<Object> &
-
-        module) { m_compiled_modules[path] = module; }
+        void add_module(std::string const &path, const GcPtr<Object> &module) { m_compiled_modules[path] = module; }
 
         void mark() {
             for (auto const &module : m_compiled_modules) {

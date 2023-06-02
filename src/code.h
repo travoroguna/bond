@@ -108,6 +108,8 @@ namespace bond {
         void finish_loop(uint32_t loop_end, uint32_t loop_start);
 
         void func_def(FuncDef *stmnt, bool is_async);
+
+        std::expected<std::string, std::string> path_resolver(const std::string &path);
     };
 
 } // bond

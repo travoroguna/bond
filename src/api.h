@@ -46,6 +46,8 @@ namespace bond {
             }
         }
 
+        std::unordered_map<std::string, GcPtr<Object>>& get_attributes() { return m_attributes; }
+
     private:
         std::string m_name;
         std::unordered_map<std::string, GcPtr<Object>> m_attributes;
@@ -55,7 +57,6 @@ namespace bond {
     class BondObject : public Object {
     public:
         explicit BondObject(const std::string &name);
-
         BondObject();
 
         std::expected<GcPtr<Object>, RuntimeError>

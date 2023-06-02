@@ -2,6 +2,9 @@
   "name": "bond",
   "displayName": "bond",
   "description": "vscode bond support",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/travoroguna/bond"},
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.77.0"

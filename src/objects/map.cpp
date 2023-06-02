@@ -63,4 +63,13 @@ namespace bond {
         set(index, value);
         return Globs::BondNil;
     }
+
+    std::string Map::str() {
+        std::string result = "{";
+        for (auto &[key, value]: m_internal_map) {
+            result += fmt::format("{}: {}, ", key->str(), value->str());
+        }
+        result += "}";
+        return result;
+    }
 }

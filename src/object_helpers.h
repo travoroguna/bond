@@ -17,6 +17,7 @@ namespace bond {
 
     using NativeErrorOr = std::expected<GcPtr<Object>, FunctionError>;
     using NativeFunctionPtr = std::function<NativeErrorOr(const std::vector<GcPtr<Object>> &args)>;
+    using NativeMethodPtr = std::function<NativeErrorOr(const GcPtr<Object> &self, const std::vector<GcPtr<Object>> &args)>;
 
     NativeErrorOr Ok(const GcPtr<Object> &ok);
 

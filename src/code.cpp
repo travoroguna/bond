@@ -5,6 +5,7 @@
 #include "code.h"
 #include "object.h"
 #include "parser.h"
+#include "bfmt.h"
 
 namespace bond {
 
@@ -133,6 +134,7 @@ namespace bond {
                     ss << method->as<Function>()->get_code()->dissasemble();
                 }
             }
+
         }
 
         return ss.str();
@@ -158,6 +160,31 @@ namespace bond {
         return Globs::BondTrue;
     }
 
+    uint32_t Code::add_constant(const GcPtr<Object> &obj) {
+        m_constants.push_back(obj);
+        return m_constants.size() - 1;
+    }
+
+    template<typename T, typename... Args>
+    uint32_t Code::add_constant(Args &&... args) {
+        GarbageCollector::instance().stop_gc();
+        auto tmp = GarbageCollector::instance().make<T>(args...);
+
+        if (m_const_map.contains(tmp)) {
+            GarbageCollector::instance().resume_gc();
+            return m_const_map[tmp];
+        }
+
+        auto t = GarbageCollector::instance().make_immortal<T>(
+                std::forward<Args>(args)...);
+        m_constants.push_back(t);
+        m_const_map[tmp] = m_constants.size() - 1;
+
+        GarbageCollector::instance().resume_gc();
+
+        return m_constants.size() - 1;
+    }
+
 
     void CodeGenerator::finish_generation() {
         if (m_code->get_opcodes().empty()) {
@@ -178,6 +205,15 @@ namespace bond {
             }
 
             finish_generation();
+
+            std::filesystem::create_directory("build");
+
+            write_code_file("build/main.bdc", m_code);
+            auto code = read_code_file("build/main.bdc");
+            if (!code) {
+                fmt::print("error reading code file, {}\n", code.error());
+            }
+            fmt::print("{}\n", code.value()->dissasemble());
             return m_code;
         }
         catch (ParserError &err) {
@@ -573,9 +609,42 @@ namespace bond {
 
     }
 
+
+    std::expected<std::string, std::string> CodeGenerator::path_resolver(const std::string &path) {
+#ifdef _WIN32
+        auto test_compiled_native = m_ctx->get_lib_path() + path + ".dll";
+        auto test_compiled_c_path = path + ".dll";
+#else
+        auto lib_p = std::string("lib") + path + ".so";
+        auto test_compiled_native = m_ctx->get_lib_path() + lib_p + ".so";
+        auto test_compiled_c_path = lib_p + ".so";
+#endif
+
+        auto test_native = m_ctx->get_lib_path() + path + ".bd";
+        auto test_user = path + ".bd";
+
+
+        std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
+
+        for (auto &p: paths) {
+            if (std::filesystem::exists(p)) {
+                return p;
+            }
+        }
+//
+        return std::unexpected(fmt::format("failed to resolve path {}", path));
+    }
+
     void CodeGenerator::visit_import(ImportDef *stmnt) {
         auto name = m_code->add_constant<String>(stmnt->get_name());
         auto alias = m_code->add_constant<String>(stmnt->get_alias());
+
+        auto path = path_resolver(stmnt->get_alias());
+
+        if (!path.has_value()) {
+            m_ctx->error(stmnt->get_span(), path.error());
+            return;
+        }
 
         m_code->add_code(Opcode::LOAD_CONST, name, stmnt->get_span());
         m_code->add_code(Opcode::IMPORT, alias, stmnt->get_span());

@@ -102,14 +102,7 @@ namespace bond {
         std::expected<GcPtr<Object>, RuntimeError>
         $set_item(const GcPtr<bond::Object> &index, const GcPtr<bond::Object> &value) override;
 
-        std::string str() override {
-            std::string result = "{";
-            for (auto &[key, value]: m_internal_map) {
-                result += fmt::format("{}: {}, ", key->str(), value->str());
-            }
-            result += "}";
-            return result;
-        }
+        std::string str() override;
 
     private:
         std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe>
@@ -124,15 +117,11 @@ namespace bond {
 
         [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
 
-        std::string str() override {
-            return fmt::format("<native function at {}>", (void *) this);
-        }
+        std::string str() override;
 
         [[nodiscard]] std::string get_name() const { return m_name; }
 
-        bool equal(const GcPtr<Object> &other) override {
-            return this == other.get();
-        }
+        bool equal(const GcPtr<Object> &other) override;
 
         size_t hash() override { return 0; }
 
@@ -194,6 +183,9 @@ namespace bond {
         Code(std::vector<uint32_t> code, std::vector<GcPtr<Object>> constants)
                 : m_code{std::move(code)}, m_constants{std::move(constants)} {}
 
+        Code(std::vector<uint32_t> code, std::vector<GcPtr<Object>> constants, std::vector<SharedSpan> spans)
+                : m_code{std::move(code)}, m_constants{std::move(constants)}, m_spans{std::move(spans)} {}
+
         [[nodiscard]] std::vector<uint32_t> get_opcodes() const { return m_code; }
 
         [[nodiscard]] std::vector<GcPtr<Object>> get_constants() const {
@@ -201,29 +193,9 @@ namespace bond {
         }
 
         template<typename T, typename... Args>
-        uint32_t add_constant(Args &&...args) {
-            GarbageCollector::instance().stop_gc();
-            auto tmp = GarbageCollector::instance().make<T>(args...);
+        uint32_t add_constant(Args &&...args);
 
-            if (m_const_map.contains(tmp)) {
-                GarbageCollector::instance().resume_gc();
-                return m_const_map[tmp];
-            }
-
-            auto t = GarbageCollector::instance().make_immortal<T>(
-                    std::forward<Args>(args)...);
-            m_constants.push_back(t);
-            m_const_map[tmp] = m_constants.size() - 1;
-
-            GarbageCollector::instance().resume_gc();
-
-            return m_constants.size() - 1;
-        }
-
-        uint32_t add_constant(const GcPtr<Object> &obj) {
-            m_constants.push_back(obj);
-            return m_constants.size() - 1;
-        }
+        uint32_t add_constant(const GcPtr<Object> &obj);
 
         void add_code(Opcode code, const SharedSpan &span);
 
@@ -253,6 +225,10 @@ namespace bond {
         size_t hash() override { return 0; }
 
         OBJ_RESULT $_bool() override;
+
+        std::vector<uint32_t> &get_instructions() { return m_code; }
+
+        std::vector<SharedSpan> &get_spans() { return m_spans; }
 
     private:
         std::vector<uint32_t> m_code{};
@@ -459,51 +435,87 @@ namespace bond {
     };
 
 
+    class NativeBoundMethod : public Object {
+    public:
+        NativeBoundMethod(const GcPtr<Object> &self, const NativeMethodPtr &method) {
+            m_self = self;
+            m_method = method;
+        }
+
+        OBJ_RESULT $call(const std::vector<GcPtr<Object>> &args) override;
+
+        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+
+        OBJ_RESULT $_bool() override;
+
+        std::string str() override;
+
+        bool equal(const GcPtr<Object> &other) override;
+
+        size_t hash() override;
+
+        static const char *type_name() { return "bound method"; }
+
+    private:
+        GcPtr<Object> m_self;
+        NativeMethodPtr m_method;
+    };
+
     template<typename T>
     class NativeStruct : public Object {
     public:
-        explicit NativeStruct(std::string name, const NativeFunctionPtr &constructor) {
-            m_name = std::move(name);
-            m_constructor = constructor;
-        }
+        NativeStruct(std::string name, const NativeFunctionPtr &constructor);
+
+        NativeStruct(std::string name, const NativeFunctionPtr &constructor,
+                     const std::unordered_map<std::string, NativeMethodPtr> &attributes);
 
         [[nodiscard]] NativeFunctionPtr get_constructor() const { return m_constructor; }
 
-        bool equal(const GcPtr<Object> &other) override {
-            return this == other.get();
-        }
+        bool equal(const GcPtr<Object> &other) override;
 
         size_t hash() override { return 0; }
 
-        std::string str() override {
-            return fmt::format("<native struct {} at {}>", m_name, (void *) this);
-        }
+        std::string str() override;
 
         static const char *type_name() { return "native_struct"; }
 
         [[nodiscard]] std::string get_name() const { return m_name; }
 
-        NativeErrorOr call(const std::vector<GcPtr<Object>> &args) {
-            return m_constructor(args);
-        }
+        NativeErrorOr call(const std::vector<GcPtr<Object>> &args);
 
-        std::expected<bool, std::string> is_instance(const GcPtr<Object> &obj) override {
-            return instanceof<T>(obj.get());
-        }
+        std::expected<bool, std::string> is_instance(const GcPtr<Object> &obj) override;
 
-        std::expected<GcPtr<Object>, std::string> call__(std::vector<GcPtr<Object>> &arguments) override {
-            auto result = m_constructor(arguments);
+        std::expected<GcPtr<Object>, std::string> call__(std::vector<GcPtr<Object>> &arguments) override;
 
-            if (result.has_value()) {
-                return result.value();
-            } else {
-                return std::unexpected(result.error().message);
-            }
-        }
+        std::expected<NativeMethodPtr, std::string> get_struct_attribute(const std::string &name);
 
     private:
         std::string m_name;
         NativeFunctionPtr m_constructor;
+        std::unordered_map<std::string, NativeMethodPtr> m_attributes;
+    };
+
+
+    class NativeInstance : public Object {
+    public:
+        explicit NativeInstance(const GcPtr<NativeStruct<NativeInstance>> &parent);
+
+        [[nodiscard]] GcPtr<NativeStruct<NativeInstance>> get_parent() const { return m_parent; }
+
+        std::string str() override;
+
+        bool equal(const GcPtr<bond::Object> &other) override;
+
+        size_t hash() override;
+
+        std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override;
+
+        std::expected<GcPtr<Object>, std::string> call_method(const std::string &name, const std::vector<GcPtr<Object>> &args);
+
+    protected:
+        GcPtr<NativeStruct<NativeInstance>> m_parent;
     };
 
     class Function : public Object {

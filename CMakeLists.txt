@@ -41,7 +41,7 @@ else ()
     message("Linux")
 endif ()
 
-target_link_libraries(bond bondlib plibsysstatic bondlsp)
+target_link_libraries(bond bondlib plibsysstatic)
 
 
 add_executable(libtool src/libtool/libtool.cpp)

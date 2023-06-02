@@ -408,6 +408,11 @@ namespace bond::raylib {
     class Font : public Object {
     public:
         explicit Font(::Font font) : m_font(font) {}
+        ~Font() override {
+            if (m_font.texture.id != 0) {
+                UnloadFont(m_font);
+            }
+        }
 
         ::Font get_value() { return m_font; }
 
@@ -446,4 +451,55 @@ namespace bond::raylib {
     NativeErrorOr c_TextureCubemap(const std::vector<GcPtr<Object>> &arguments);
 
 
+    struct Wave : public BondObject {
+    public:
+        Wave(::Wave wave) { m_wave= wave; }
+        ~Wave() { ::UnloadWave(m_wave); }
+        ::Wave get_value() { return m_wave; }
+        ::Wave *get() { return &m_wave; }
+
+    private:
+        ::Wave m_wave;
+    };
+
+    struct AudioStream : public BondObject {
+    public:
+        AudioStream(::AudioStream audioStream) { m_audioStream= audioStream; }
+        ~AudioStream() { ::UnloadAudioStream(m_audioStream); }
+        ::AudioStream get_value() { return m_audioStream; }
+        ::AudioStream *get() { return &m_audioStream; }
+
+    private:
+        ::AudioStream m_audioStream;
+    };
+
+    struct Sound : public BondObject {
+    public:
+        Sound(::Sound sound) { m_sound= sound; }
+        ~Sound() { ::UnloadSound(m_sound); }
+        ::Sound get_value() { return m_sound; }
+        ::Sound *get() { return &m_sound; }
+
+    private:
+        ::Sound m_sound;
+    };
+
+    struct Music : public BondObject {
+    public:
+        Music(::Music music) { m_music = music; m_methods["set_loop"] = BIND(set_loop);}
+        ~Music() { ::UnloadMusicStream(m_music); }
+        ::Music get_value() { return m_music; }
+        ::Music *get() { return &m_music; }
+
+
+        NativeErrorOr set_loop(const std::vector<GcPtr<Object>>& arguments) {
+            ASSERT_ARG_COUNT(1, arguments);
+            DEFINE(cond, Bool, 0, arguments);
+
+            m_music.looping = cond->get_value();
+            return Globs::BondNil;
+        }
+    private:
+        ::Music m_music;
+    };
 }

@@ -20,7 +20,8 @@ CPMAddPackage(
 
 add_library(ray-lib SHARED raymodule.cpp raymodule.h ray_impl.cpp
         raycore/raycore.h raycore/raycore.cpp raytexture/raytexture.h raytexture/raytexture_impl.cpp
-        rayshapes/rayshapes.h rayshapes/rayshapes_impl.cpp raytext/raytext.h raytext/raytext_impl.cpp raytext/raytext.cpp)
+        rayshapes/rayshapes.h rayshapes/rayshapes_impl.cpp raytext/raytext.h raytext/raytext_impl.cpp raytext/raytext.cpp
+        rayaudio/rayaudio.h rayaudio/rayaudio_impl.cpp rayaudio/rayaudio.cpp )
 
 target_link_libraries(ray-lib bondlib raylib_static magic_enum::magic_enum)
 set_target_properties(ray-lib PROPERTIES PUBLIC_HEADER "raylib.bd")

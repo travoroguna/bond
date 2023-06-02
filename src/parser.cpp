@@ -8,6 +8,7 @@
 #include <optional>
 #include <ranges>
 #include "gc.h"
+#include <iostream>
 
 namespace bond {
 
@@ -24,6 +25,7 @@ namespace bond {
         m_scopes.declare("Err", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("is_instance", std::make_shared<Span>(0, 0, 0, 1), false);
         m_scopes.declare("map", std::make_shared<Span>(0, 0, 0, 1), false);
+
 
         while (!is_at_end()) {
             auto res = declaration();
@@ -65,7 +67,8 @@ namespace bond {
             else return statement();
         }
         catch (ParserError &e) {
-            ctx->error(e.span, e.error);
+            if (m_report) ctx->error(e.span, e.error);
+            m_diagnostics.emplace_back(e.error, e.span);
             synchronize();
             return std::nullopt;
         }
