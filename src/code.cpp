@@ -70,9 +70,8 @@ namespace bond {
                 CONSTANT_INSTRUCTION(SET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(IMPORT);
                 CONSTANT_INSTRUCTION(MAKE_ASYNC);
+
                 CONSTANT_INSTRUCTION(UNPACK_SEQ);
-
-
                 OPRAND_INSTRUCTION(BUILD_LIST);
                 OPRAND_INSTRUCTION(JUMP_IF_FALSE);
                 OPRAND_INSTRUCTION(JUMP);
@@ -616,8 +615,8 @@ namespace bond {
         auto test_compiled_c_path = path + ".dll";
 #else
         auto lib_p = std::string("lib") + path + ".so";
-        auto test_compiled_native = m_ctx->get_lib_path() + lib_p + ".so";
-        auto test_compiled_c_path = lib_p + ".so";
+        auto test_compiled_native = m_ctx->get_lib_path() + lib_p;
+        const auto& test_compiled_c_path = lib_p;
 #endif
 
         auto test_native = m_ctx->get_lib_path() + path + ".bd";
@@ -627,6 +626,7 @@ namespace bond {
         std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
 
         for (auto &p: paths) {
+            fmt::print("[import] test {} {}\n", p, std::filesystem::exists(p));
             if (std::filesystem::exists(p)) {
                 return p;
             }
@@ -639,7 +639,7 @@ namespace bond {
         auto name = m_code->add_constant<String>(stmnt->get_name());
         auto alias = m_code->add_constant<String>(stmnt->get_alias());
 
-        auto path = path_resolver(stmnt->get_alias());
+        auto path = path_resolver(stmnt->get_name());
 
         if (!path.has_value()) {
             m_ctx->error(stmnt->get_span(), path.error());

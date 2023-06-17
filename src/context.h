@@ -6,11 +6,11 @@
 
 #include <unordered_map>
 #include <string>
-#include <fmt/core.h>
 #include <memory>
 #include <fstream>
 #include <filesystem>
 #include <utility>
+#include <fmt/core.h>
 #include "span.h"
 #include "gc.h"
 

@@ -52,7 +52,7 @@ cpm_licenses_create_disclaimer_target(
 )
 
 install(TARGETS libtool)
-install(TARGETS bond DESTINATION .)
+install(TARGETS bond)
 #INSTALL(TARGETS plibsys RUNTIME DESTINATION .)
 
 

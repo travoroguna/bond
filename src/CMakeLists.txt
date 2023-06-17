@@ -4,7 +4,7 @@ project(bondlib)
 set(CMAKE_CXX_STANDARD 23)
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
-set(FMT_INSTALL OFF CACHE INTERNAL "")
+#set(FMT_INSTALL OFF CACHE INTERNAL "")
 
 
 CPMAddPackage(
@@ -34,15 +34,17 @@ add_library(bondlib lexer.cpp lexer.h context.cpp context.h span.h ast.cpp ast.h
         parser.cpp parser.h code.cpp code.h vm.cpp vm.h gc.cpp gc.h nodevisitor.cpp
         nodevisitor.h object.h object.cpp api.h api.cpp builtins.cpp bond.h result.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
-        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp globs.cpp globs.h bfmt.cpp bfmt.h md5.cpp md5.h objects/nativestruct.cpp objects/nativestruct.h)
+        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp globs.cpp globs.h bfmt.cpp bfmt.h md5.cpp md5.h objects/nativestruct.cpp)
 
 target_link_libraries(bondlib fmt::fmt-header-only nlohmann_json plibsysstatic)
 
-set_target_properties(bondlib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;")
+set_target_properties(bondlib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")
 
 INSTALL(TARGETS bondlib
         LIBRARY DESTINATION lib
         PUBLIC_HEADER DESTINATION include/bondlib
         )
+
+#INSTALL(TARGETS fmt)
 
 #INSTALL(FILES bondlibConfig.cmake DESTINATION lib/cmake/bondlib)

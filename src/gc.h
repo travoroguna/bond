@@ -10,7 +10,6 @@
 #include <expected>
 #include <optional>
 #include <mutex>
-#include <fmt/core.h>
 #include <ranges>
 #include <cassert>
 #include <thread>
@@ -316,11 +315,7 @@ namespace bond {
 
         GcPtr<Object> peek() { return m_stack.back(); }
 
-        void print_stack() {
-            for (auto &o: m_stack) {
-                fmt::print("{}\n", o->str());
-            }
-        }
+        void print_stack();
 
     protected:
         std::vector<GcPtr<Object>> m_stack;

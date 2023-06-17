@@ -110,8 +110,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         auto test_compiled_c_path = path + ".dll";
 #else
         auto lib_p = std::string("lib") + path + ".so";
-        auto test_compiled_native = m_ctx->get_lib_path() + lib_p + ".so";
-        auto test_compiled_c_path = lib_p + ".so";
+        auto test_compiled_native = m_ctx->get_lib_path() + lib_p;
+        const auto& test_compiled_c_path = lib_p;
 #endif
 
         auto test_native = m_ctx->get_lib_path() + path + ".bd";
@@ -121,8 +121,11 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
 
         for (auto &p: paths) {
+            fmt::print("[import] test {} {}\n", p, std::filesystem::exists(p));
+
             if (std::filesystem::exists(p)) {
-                return p;
+                fmt::print("[vm] loading {}\n", std::filesystem::canonical(p).c_str());
+                return std::filesystem::canonical(p);
             }
         }
 //

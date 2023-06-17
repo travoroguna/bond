@@ -3,12 +3,10 @@ project(libs)
 
 set(CMAKE_CXX_STANDARD 23)
 option(BUILD_LIBS "Build shared libraries" ON)
-option(BUILD_GL "Build OpenGL" ON)
-option(BUILD_RAYLIB "Build Raylib" ON)
+option(BUILD_GL "Build OpenGL" OFF)
+option(BUILD_RAYLIB "Build Raylib" OFF)
 
 if (BUILD_LIBS MATCHES ON)
-
-
     if (BUILD_GL MATCHES ON)
         message("Building OpenGL")
         add_subdirectory(gl)

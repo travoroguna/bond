@@ -95,7 +95,13 @@ int main(int32_t argc, char **argv) {
     bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
     bond::GarbageCollector::instance().make_thread_storage();
 
+#ifdef _WIN32
     auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/libraries/";
+#else
+    auto lib_path = "/usr/local/libraries/";
+#endif
+
+
     fmt::print("lib path: {} [{}]\n", lib_path, std::filesystem::exists(lib_path));
     p_libsys_init();
 
@@ -110,11 +116,14 @@ int main(int32_t argc, char **argv) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;
         }
-
         auto full_path = std::filesystem::absolute(argv[1]);
+
+#ifdef _WIN32
         auto path = std::filesystem::path(argv[1]);
         std::filesystem::current_path(path.parent_path());
-
+#else
+        std::filesystem::current_path(".");
+#endif
         run_file(full_path.string(), lib_path, args);
     }
 

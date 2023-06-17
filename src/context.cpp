@@ -5,6 +5,8 @@
 #include <sstream>
 #include <algorithm>
 #include "context.h"
+#include <fmt/core.h>
+
 
 namespace bond {
 std::string Context::read_file(std::string const &path) {

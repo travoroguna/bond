@@ -45,6 +45,12 @@ namespace bond {
         }
     }
 
+    void Root::print_stack() {
+        for (auto &o: m_stack) {
+            fmt::print("{}\n", o->str());
+        }
+    }
+
     GarbageCollector::~GarbageCollector() {
         for (auto &obj: m_immortal) {
             delete obj.get();
