@@ -1,0 +1,10 @@
+import "core";
+
+fn assert(condition, message) ! {
+    if !condition { err "assertion failled: " + core.to_string(message); }
+    ok nil;
+}
+
+fn assert_eq(a, b, message) ! {
+    if a != b { err "assertion failed: expected " + core.to_string(b) + " got " + core.to_string(a); }
+}

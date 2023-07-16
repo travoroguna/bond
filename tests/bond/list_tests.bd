@@ -1,0 +1,60 @@
+import "core";
+import "assert";
+
+fn list_test_create() ! {
+    var list = [];
+    try assert.assert_eq(list.size(), 0, "test list size 0");
+
+    var list_2 = [1, 2, 3];
+    try assert.assert_eq(list_2.size(), 3, "test list size 3");
+
+    var list_3 = [1, "2", 3.0, true, false, list_test_create];
+    try assert.assert_eq(list_3.size(), 6, "test list size 6");
+}
+
+fn list_test_get() ! {
+    var list = [1, 2, 3];
+    try assert.assert_eq(list[0], 1, "test list get 0");
+    try assert.assert_eq(list[1], 2, "test list get 1");
+    try assert.assert_eq(list[2], 3, "test list get 2");
+}
+
+fn list_test_set() ! {
+    var list = [1, 2, 3];
+    list[0] = 4;
+    list[1] = 5;
+    list[2] = 6;
+    try assert.assert_eq(list[0], 4, "test list set 0");
+    try assert.assert_eq(list[1], 5, "test list set 1");
+    try assert.assert_eq(list[2], 6, "test list set 2");
+}
+
+fn list_test_append() ! {
+    var list = [];
+    list.append(1);
+    list.append(2);
+    list.append(3);
+    try assert.assert_eq(list[0], 1, "test list append 0");
+    try assert.assert_eq(list[1], 2, "test list append 1");
+    try assert.assert_eq(list[2], 3, "test list append 2");
+}
+
+fn list_test_insert() ! {
+    var list = [1, 2, 3];
+    list.insert(0, 4);
+    list.insert(1, 5);
+    list.insert(2, 6);
+    try assert.assert_eq(list[0], 4, "test list insert 0");
+    try assert.assert_eq(list[1], 5, "test list insert 1");
+    try assert.assert_eq(list[2], 6, "test list insert 2");
+    try assert.assert_eq(list[3], 1, "test list insert 3");
+    try assert.assert_eq(list[4], 2, "test list insert 4");
+    try assert.assert_eq(list[5], 3, "test list insert 5");
+}
+
+fn list_test_pop() ! {
+    var list = [1, 2, 3];
+    try assert.assert_eq(list.pop(), 3, "test list pop 0");
+    try assert.assert_eq(list.pop(), 2, "test list pop 1");
+    try assert.assert_eq(list.pop(), 1, "test list pop 2");
+}

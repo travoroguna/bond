@@ -1,0 +1,13 @@
+import "core";
+import "assert";
+
+fn bool_test_eq() ! {
+    try assert.assert_eq(true, true, "test true == true failed");
+    try assert.assert_eq(true, true == true, "test true == true failed");
+    try assert.assert_eq(false, true == false, "test true == true failed");
+}
+
+fn bool_test_ne() ! {
+    try assert.assert_eq(true, true != false, "test true != false failed");
+    try assert.assert_eq(false, true != true, "test true != true failed");
+}

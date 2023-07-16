@@ -1,0 +1,76 @@
+import "core";
+import "assert";
+
+
+fn float_test_add() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = a + b;
+    try assert.assert_eq(c , 106.39, "test_add failed");
+}
+
+fn float_test_sub() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = a - b;
+    try assert.assert_eq(c , -95.39, "test_sub failed");
+}
+
+fn float_test_mul() ! {
+    var a = 5.5;
+    var b = 100.5;
+    var c = a * b;
+    try assert.assert_eq(c , 552.75, "test_mul failed");
+}
+
+fn float_test_div() ! {
+    var a = 5.0;
+    var b = 100.0;
+    var c = b / a;
+    try assert.assert_eq(c, 20.0, "test_div failed");
+}
+
+
+fn float_test_eq() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b == a;
+    try assert.assert_eq(c , false, "test_eq failed");
+}
+
+fn float_test_ne() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b != a;
+    try assert.assert_eq(c , true, "test_ne failed");
+}
+
+fn float_test_lt() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b < a;
+    try assert.assert_eq(c , false, "test_lt failed");
+}
+
+fn float_test_gt() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b > a;
+    try assert.assert_eq(c , true, "test_gt failed");
+}
+
+fn float_test_le() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b <= a;
+    try assert.assert_eq(c , false, "test_le failed");
+}
+
+fn float_test_ge() ! {
+    var a = 5.5;
+    var b = 100.890;
+    var c = b >= a;
+    try assert.assert_eq(c , true, "test_ge failed");
+}
+
+

@@ -1,0 +1,59 @@
+import "core";
+import "assert";
+
+import "integer_tests";
+import "bool_tests";
+import "float_tests";
+import "string_tests";
+import "result";
+import "list_tests";
+
+
+var all_tests = [
+    result,
+    bool_tests,
+    integer_tests,
+    float_tests,
+    string_tests,
+    list_tests
+];
+
+
+var str = core.to_string;
+
+fn test_all() {
+    var passed = 0;
+    var failed = 0;
+
+    var collection = [];
+
+    println("collecting tests ...");
+
+    for mod in all_tests {
+        for export in mod.get_exports() {
+            if core.is_function(export) {
+                collection.append(export);
+            }
+        }
+    }
+
+    println("running " + core.to_string(collection.size()) + " tests ...");
+
+    var count = 1;
+    for test in collection {
+        print("[" + str(count) + "/" + str(collection.size()) + "] " + test.__name__ + " ... ");
+        var res = test();
+        if res.is_ok() {
+            passed = passed + 1;
+        } else {
+            failed = failed + 1;
+            println("Test failed: " + res.error());
+        }
+        count = count + 1;
+    }
+
+    println("Passed: " + core.to_string(passed));
+    println("Failed: " + core.to_string(failed));
+}
+
+test_all();
