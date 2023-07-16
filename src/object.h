@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ast.h"
+#include "compiler/ast.h"
 #include "gc.h"
 #include <optional>
 #include <utility>
@@ -66,801 +66,711 @@ namespace bond {
         BIT_XOR,
         MAKE_ASYNC,
         AWAIT,
-        UNPACK_SEQ
+        UNPACK_SEQ,
+        CALL_METHOD,
+        MAKE_ERROR,
+        MAKE_OK,
+
+        CREATE_CLOSURE
+    };
+
+    enum Slot : uint32_t {
+        NE = 0,
+        EQ,
+        LE,
+        GT,
+        GE,
+        LT,
+
+        BIN_ADD,
+        BIN_SUB,
+        BIN_MUL,
+        BIN_DIV,
+        BIN_MOD,
+        UNARY_SUB,
+
+        GET_ATTR,
+        SET_ATTR,
+        GET_ITEM,
+        SET_ITEM,
+
+        ITER,
+        NEXT,
+        HAS_NEXT,
+
+        SIZE
     };
 
 
-    class Map : public Object {
+    class Object;
+
+    using obj_result = std::expected<GcPtr<Object>, std::string>;
+
+
+    class Object : public GcObject {
     public:
-        Map() = default;
+        Object() = default;
 
-        // TODO: implement equal and hash correctly
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
+        ~Object() override = default;
 
-        size_t hash() override { return 0; }
+        [[nodiscard]] virtual std::string str() const {
+            return fmt::format("<Object at {}>", (void *) this);
+        }
 
-        std::optional<GcPtr<Object>> get(const GcPtr<Object> &key);
-
-        GcPtr<Object> get_unchecked(const GcPtr<Object> &key);
-
-        void set(const GcPtr<Object> &key, const GcPtr<Object> &value);
-
-        bool has(const GcPtr<Object> &key);
-
-        OBJ_RESULT $_bool() override;
-
-        void mark() override;
-
-        void unmark() override;
-
-        static const char *type_name() { return "map"; }
-
-        std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe> get_map() { return m_internal_map; }
-
-        std::expected<GcPtr<Object>, RuntimeError> $get_item(const GcPtr<bond::Object> &index) override;
-
-        std::expected<GcPtr<Object>, RuntimeError>
-        $set_item(const GcPtr<bond::Object> &index, const GcPtr<bond::Object> &value) override;
-
-        std::string str() override;
-
-    private:
-        std::unordered_map<GcPtr<Object>, GcPtr<Object>, Object::HashMe>
-                m_internal_map;
     };
 
-    class NativeFunction : public Object {
+    using t_vector = std::vector<GcPtr<Object>, gc_allocator<GcPtr<Object>>>;
+    using t_map = std::unordered_map<std::string, GcPtr<Object>, std::hash<std::string>, std::equal_to<>,
+            gc_allocator<std::pair<const std::string, GcPtr<Object>>>>;
+
+    using NativeMethodPtr = std::function<obj_result(const GcPtr<Object> &self, const t_vector &)>;
+    using NativeFunctionPtr = std::function<obj_result(const t_vector &)>;
+
+    class NativeInstance;
+
+    using slot_array = std::array<NativeMethodPtr, Slot::SIZE>;
+    using getter = std::function<obj_result(const GcPtr<Object> &)>;
+    using setter = std::function<obj_result(const GcPtr<Object> &, const GcPtr<Object> &)>;
+
+
+    class NativeStruct : public Object {
     public:
-        explicit NativeFunction(NativeFunctionPtr fn) : m_fn{std::move(fn)} {}
+        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor)
+                : m_name(std::move(name)), m_doc(std::move(doc)), m_constructor(std::move(constructor)) { set_slots(); }
 
-        explicit NativeFunction(NativeFunctionPtr fn, std::string name) : m_fn{std::move(fn)}, m_name(name) {}
+        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor,
+                     const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods)
+                : m_name(std::move(name)), m_doc(std::move(doc)), m_methods(methods),
+                  m_constructor(std::move(constructor)) { set_slots(); }
 
-        [[nodiscard]] NativeFunctionPtr get_fn() const { return m_fn; }
+        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor,
+                     const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods,
+                     std::unordered_map<std::string, std::pair<getter, setter>> &properties)
+                : m_name(std::move(name)), m_doc(std::move(doc)), m_methods(methods),
+                  m_constructor(std::move(constructor)), m_attributes(properties) { set_slots(); }
 
-        std::string str() override;
+        void add_methods(const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods);
+
+        [[nodiscard]] std::optional<NativeMethodPtr> get_method(const std::string &name) const;
 
         [[nodiscard]] std::string get_name() const { return m_name; }
 
-        bool equal(const GcPtr<Object> &other) override;
-
-        size_t hash() override { return 0; }
-
-        static const char *type_name() { return "native_function"; }
-
-    private:
-        NativeFunctionPtr m_fn;
-        std::string m_name = "native_function";
-    };
-
-    class ListObj : public Object {
-    public:
-        ListObj() = default;
-
-        explicit ListObj(std::vector<GcPtr<Object>> list) : m_internal_list(std::move(list)) {}
-
-        OBJ_RESULT $set_item(const GcPtr<Object> &index,
-                             const GcPtr<Object> &value) override;
-
-        OBJ_RESULT $get_item(const GcPtr<Object> &index) override;
-
-        GcPtr<Object> get_unchecked(size_t index) { return m_internal_list[index]; }
-
-        size_t length() { return m_internal_list.size(); }
-
-        OBJ_RESULT $_bool() override;
-
-        void prepend(const GcPtr<Object> &value);
-
-        void append(const GcPtr<Object> &value);
-
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        OBJ_RESULT $iter() override;
-
-        OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override;
-
-        size_t hash() override { return 0; }
-
-        void mark() override;
-
-        void unmark() override;
-
-        std::string str() override;
-
-        static const char *type_name() { return "list"; }
-
-        std::vector<GcPtr<Object>> get_list() { return m_internal_list; }
-
-    private:
-        std::vector<GcPtr<Object>> m_internal_list;
-    };
-
-    class Code : public Object {
-
-    public:
-        Code() = default;
-
-        Code(std::vector<uint32_t> code, std::vector<GcPtr<Object>> constants)
-                : m_code{std::move(code)}, m_constants{std::move(constants)} {}
-
-        Code(std::vector<uint32_t> code, std::vector<GcPtr<Object>> constants, std::vector<SharedSpan> spans)
-                : m_code{std::move(code)}, m_constants{std::move(constants)}, m_spans{std::move(spans)} {}
-
-        [[nodiscard]] std::vector<uint32_t> get_opcodes() const { return m_code; }
-
-        [[nodiscard]] std::vector<GcPtr<Object>> get_constants() const {
-            return m_constants;
-        }
-
-        template<typename T, typename... Args>
-        uint32_t add_constant(Args &&...args);
-
-        uint32_t add_constant(const GcPtr<Object> &obj);
-
-        void add_code(Opcode code, const SharedSpan &span);
-
-        void patch_code(uint32_t offset, uint32_t oprand) { m_code[offset] = oprand; }
-
-        uint32_t current_index() { return m_code.size(); }
-
-        void add_code(Opcode code, uint32_t oprand, const SharedSpan &span);
-
-        GcPtr<Object> get_constant(size_t index) { return m_constants[index]; }
-
-        uint32_t get_code(size_t index) { return m_code[index]; }
-
-        uint32_t get_code_size() { return m_code.size(); }
-
-        SharedSpan get_span(size_t index) { return m_spans[index]; }
-
-        SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
-
-        std::string dissasemble();
-
-        static const char *type_name() { return "code"; }
-
-        // TODO: implement equal and hash correctly
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        size_t hash() override { return 0; }
-
-        OBJ_RESULT $_bool() override;
-
-        std::vector<uint32_t> &get_instructions() { return m_code; }
-
-        std::vector<SharedSpan> &get_spans() { return m_spans; }
-
-    private:
-        std::vector<uint32_t> m_code{};
-        std::vector<GcPtr<Object>> m_constants{};
-        std::unordered_map<GcPtr<Object>, uint32_t, Object::HashMe> m_const_map{};
-        std::vector<SharedSpan> m_spans{};
-
-        static size_t simple_instruction(std::stringstream &ss, const char *name,
-                                         size_t offset);
-
-        size_t constant_instruction(std::stringstream &ss, const char *name,
-                                    size_t offset);
-
-        size_t oprand_instruction(std::stringstream &ss, const char *name,
-                                  size_t offset);
-    };
-
-    class Integer : public Object {
-    public:
-        explicit Integer(intmax_t value) { m_value = value; }
-
-        [[nodiscard]] intmax_t get_value() const { return m_value; }
-
-        OBJ_RESULT $add(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $sub(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $mul(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $div(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $le(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $mod(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $_bool() override;
-
-        std::string str() override;
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        size_t hash() override;
-
-        static const char *type_name() { return "integer"; }
-
-    private:
-        intmax_t m_value{0};
-    };
-
-
-    class Float : public Object {
-    public:
-        explicit Float(float value) { m_value = value; }
-
-        [[nodiscard]] float get_value() const { return m_value; }
-
-        OBJ_RESULT $add(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $sub(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $mul(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $div(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $mod(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $le(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $_bool() override;
-
-        std::string str() override;
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        size_t hash() override;
-
-        static const char *type_name() { return "float"; }
-
-    private:
-        float m_value{0};
-    };
-
-    class String : public Object {
-    public:
-        explicit String(std::string value) { m_value = std::move(value); }
-
-        [[nodiscard]] std::string get_value() const { return m_value; }
-
-        OBJ_RESULT $add(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        std::expected<GcPtr<Object>, RuntimeError> $iter() override;
-
-        OBJ_RESULT $_bool() override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        std::string str() override;
-
-        size_t hash() override;
-
-        static const char *type_name() { return "string"; }
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        NativeErrorOr join(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr split(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr find(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr replace(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr starts_with(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr ends_with(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr to_upper(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr to_lower(const std::vector<GcPtr<Object>> &args);
-
-        NativeErrorOr strip(const std::vector<GcPtr<Object>> &args);
-
-
-        std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override;
-
-    private:
-        std::string m_value;
-        std::unordered_map<std::string, NativeFunctionPtr> m_attributes = {
-                {"join",        BIND(join)},
-                {"split",       BIND(split)},
-                {"find",        BIND(find)},
-                {"replace",     BIND(replace)},
-                {"starts_with", BIND(starts_with)},
-                {"ends_with",   BIND(ends_with)},
-                {"to_upper",    BIND(to_upper)},
-                {"to_lower",    BIND(to_lower)},
-                {"strip",       BIND(strip)},
-        };
-    };
-
-    class Bool : public Object {
-    public:
-        explicit Bool(bool value) { m_value = value; }
-
-        [[nodiscard]] bool get_value() const { return m_value; }
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        std::string str() override;
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        size_t hash() override;
-
-        OBJ_RESULT $_bool() override;
-
-        static const char *type_name() { return "bool"; }
-
-    private:
-        bool m_value;
-    };
-
-    class Nil : public Object {
-    public:
-        Nil() = default;
-
-        std::string str() override;
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $_bool() override;
-
-        static const char *type_name() { return "nil"; }
-
-        size_t hash() override;
-    };
-
-
-    class NativeBoundMethod : public Object {
-    public:
-        NativeBoundMethod(const GcPtr<Object> &self, const NativeMethodPtr &method) {
-            m_self = self;
-            m_method = method;
-        }
-
-        OBJ_RESULT $call(const std::vector<GcPtr<Object>> &args) override;
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $_bool() override;
-
-        std::string str() override;
-
-        bool equal(const GcPtr<Object> &other) override;
-
-        size_t hash() override;
-
-        static const char *type_name() { return "bound method"; }
-
-    private:
-        GcPtr<Object> m_self;
-        NativeMethodPtr m_method;
-    };
-
-    template<typename T>
-    class NativeStruct : public Object {
-    public:
-        NativeStruct(std::string name, const NativeFunctionPtr &constructor);
-
-        NativeStruct(std::string name, const NativeFunctionPtr &constructor,
-                     const std::unordered_map<std::string, NativeMethodPtr> &attributes);
+        [[nodiscard]] std::string get_doc() const { return m_doc; }
 
         [[nodiscard]] NativeFunctionPtr get_constructor() const { return m_constructor; }
 
-        bool equal(const GcPtr<Object> &other) override;
+        void set_constructor(NativeFunctionPtr constructor) { m_constructor = std::move(constructor); }
 
-        size_t hash() override { return 0; }
+        [[nodiscard]] obj_result create(const t_vector &args) const;
 
-        std::string str() override;
+        template<typename T, typename = std::enable_if<std::is_base_of_v<NativeInstance, T>>, typename ...Args>
+        GcPtr<T> create_instance(Args &&...args) const {
+            auto ins = make<T>(std::forward<Args>(args)...);
+            ins->set_native_struct(const_cast<NativeStruct *>(this));
+            return ins;
+        }
 
-        static const char *type_name() { return "native_struct"; }
+        template<typename T, typename = std::enable_if<std::is_base_of_v<NativeInstance, T>>, typename ...Args>
+        GcPtr<T> create_immortal(Args &&...args) const {
+            auto ins = make<T>(std::forward<Args>(args)...);
+            ins->set_native_struct(const_cast<NativeStruct *>(this));
+            return ins;
+        }
 
-        [[nodiscard]] std::string get_name() const { return m_name; }
+        [[nodiscard]] const slot_array &get_slots() const { return m_slots; }
 
-        NativeErrorOr call(const std::vector<GcPtr<Object>> &args);
+        void set_slots();
 
-        std::expected<bool, std::string> is_instance(const GcPtr<Object> &obj) override;
+        NativeMethodPtr get_slot(Slot slot);
 
-        std::expected<GcPtr<Object>, std::string> call__(std::vector<GcPtr<Object>> &arguments) override;
+        bool has_method(const std::string &name) const;
 
-        std::expected<NativeMethodPtr, std::string> get_struct_attribute(const std::string &name);
+        [[nodiscard]]
+        std::string str() const override { return m_name; }
 
-    private:
+        std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &get_methods() { return m_methods; }
+
+        std::optional<getter> get_getter(const std::string &name) const;
+
+        std::optional<setter> get_setter(const std::string &name) const;
+
+
+    protected:
         std::string m_name;
+        std::string m_doc;
+        std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> m_methods;
         NativeFunctionPtr m_constructor;
-        std::unordered_map<std::string, NativeMethodPtr> m_attributes;
+        slot_array m_slots;
+
+        //getter and setter
+        std::unordered_map<std::string, std::pair<getter, setter>> m_attributes;
+
     };
 
 
     class NativeInstance : public Object {
     public:
-        explicit NativeInstance(const GcPtr<NativeStruct<NativeInstance>> &parent);
+        explicit NativeInstance(NativeStruct *native_struct) : m_native_struct(native_struct) {}
 
-        [[nodiscard]] GcPtr<NativeStruct<NativeInstance>> get_parent() const { return m_parent; }
+        NativeInstance() = default;
 
-        std::string str() override;
+        [[nodiscard]] NativeStruct *get_native_struct() const { return m_native_struct; }
 
-        bool equal(const GcPtr<bond::Object> &other) override;
+        [[nodiscard]] obj_result call_method(const std::string &name, const t_vector &args);
 
-        size_t hash() override;
+        bool has_method(const std::string &name);
 
-        std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override;
+        void set_native_struct(NativeStruct *native_struct) { m_native_struct = native_struct; }
 
-        std::expected<GcPtr<Object>, std::string> call_method(const std::string &name, const std::vector<GcPtr<Object>> &args);
+        obj_result call_slot(Slot slot, const t_vector &args);
+
+        virtual bool has_slot(Slot slot);
+
+        void mark() override;
+
+        void unmark() override;
+
+        [[nodiscard]] std::string str() const override {
+            return fmt::format("<instance of {} at {}>", m_native_struct->get_name(), (void *) this);
+        }
+
+        std::optional<obj_result> get_attr(const std::string &name);
+
+        std::optional<obj_result> set_attr(const std::string &name, const GcPtr<Object> &value);
+
 
     protected:
-        GcPtr<NativeStruct<NativeInstance>> m_parent;
+        NativeStruct *m_native_struct = nullptr;
     };
 
-    class Function : public Object {
+    obj_result OK(const GcPtr<Object> &object);
+
+    obj_result OK();
+
+    obj_result ERR(std::string error);
+
+    using method_map = std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>>;
+
+
+
+
+// builtin types
+
+    class Float : public NativeInstance {
     public:
-        Function(GcPtr<Code> code, std::vector<std::pair<std::string, SharedSpan>> params, std::string name)
-                : m_code{std::move(code)}, m_params{std::move(params)}, m_name(std::move(name)) {}
+        explicit Float(double value) : m_value(value) {}
 
-        [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
+        [[nodiscard]] double get_value() const { return m_value; }
 
-        [[nodiscard]] std::vector<std::pair<std::string, SharedSpan>> get_params() const { return m_params; }
+        [[nodiscard]] std::string str() const override { return fmt::format("{}", m_value); }
+
+    private:
+        double m_value;
+    };
+
+    class Int : public NativeInstance {
+    public:
+        explicit Int(int64_t value) : m_value(value) {}
+
+        [[nodiscard]] int64_t get_value() const { return m_value; }
+
+        std::string str() const override { return fmt::format("{}", m_value); }
+
+    private:
+        int64_t m_value;
+    };
+
+    class Bool : public NativeInstance {
+    public:
+        explicit Bool(bool value) : m_value(value) {}
+
+        [[nodiscard]] bool get_value() const { return m_value; }
+
+        [[nodiscard]] std::string str() const override { return fmt::format("{}", m_value); }
+
+    private:
+        bool m_value;
+    };
+
+    class String : public NativeInstance {
+    public:
+        explicit String(std::string value) : m_value(std::move(value)) {}
+
+        [[nodiscard]] std::string get_value() const { return m_value; }
+
+        [[nodiscard]] std::string str() const override { return m_value; }
+
+    private:
+        std::string m_value;
+    };
+
+    class StringIterator : public NativeInstance {
+    public:
+        explicit StringIterator(std::string value) : m_value(std::move(value)) {}
+
+        [[nodiscard]] std::string get_value() const { return m_value; }
+
+        [[nodiscard]] std::string str() const override { return fmt::format("<string iterator at {}>", (void *) this); }
+
+        std::string m_value;
+        size_t m_index = 0;
+
+
+    };
+
+    class None : public NativeInstance {
+    public:
+        None() = default;
+
+        [[nodiscard]] std::string str() const override { return "Nil"; }
+    };
+
+    class Map : public NativeInstance {
+    public:
+        Map() = default;
+
+        Map(const t_map &map) : m_value(map) {}
+
+        [[nodiscard]] t_map get_value() const { return m_value; }
+
+        void set_value(t_map value) { m_value = std::move(value); }
+
+        void set(const std::string &key, const GcPtr<Object> &obj);
+
+        std::optional<GcPtr<Object>> get(const std::string &key);
+
+        GcPtr<Object> get_unchecked(const std::string &key);
+
+        bool has(const std::string &key) { return m_value.contains(key); }
+
+        void mark() override;
+
+        void unmark() override;
+
+    private:
+        t_map m_value;
+    };
+
+
+    class Code : public NativeInstance {
+    public:
+        Code() = default;
+
+        Code(std::vector<uint32_t> instructions, std::vector<std::shared_ptr<Span>> spans,
+             t_vector constants)
+                : m_instructions(std::move(instructions)), m_spans(std::move(spans)),
+                  m_constants(std::move(constants)) {}
+
+        [[nodiscard]] std::vector<uint32_t> get_instructions() const { return m_instructions; }
+
+        [[nodiscard]] std::vector<std::shared_ptr<Span>> get_spans() const { return m_spans; }
+
+        [[nodiscard]] t_vector get_constants() const { return m_constants; }
+
+        void add_ins(Opcode code, const std::shared_ptr<Span> &span);
+
+        void add_ins(Opcode code, uint32_t oprand, const std::shared_ptr<Span> &span);
+
+        uint32_t add_constant(const GcPtr<Object> &obj);
+
+        void patch_code(uint32_t offset, uint32_t oprand) { m_instructions[offset] = oprand; }
+
+        uint32_t current_index() { return m_instructions.size(); }
+
+        [[nodiscard]] std::string disassemble() const;
+
+        GcPtr<Object> get_constant(size_t index) { return m_constants[index]; }
+
+        uint32_t get_code(size_t index) { return m_instructions[index]; }
+
+        uint32_t get_code_size() { return m_instructions.size(); }
+
+        SharedSpan get_span(size_t index) { return m_spans[index]; }
+
+        SharedSpan last_span() { return m_spans[m_spans.size() - 1]; }
+
+        std::vector<uint32_t> &get_instructions() { return m_instructions; }
+
+        std::vector<uint32_t> &get_opcodes() { return m_instructions; }
+
+
+        std::vector<SharedSpan> &get_spans() { return m_spans; }
+
+
+    private:
+        std::vector<uint32_t> m_instructions;
+        std::vector<std::shared_ptr<Span>> m_spans;
+        t_vector m_constants{};
+
+        size_t simple_instruction(std::stringstream &ss, const char *name, size_t offset) const;
+
+        size_t constant_instruction(std::stringstream &ss, const char *name, size_t offset) const;
+
+        size_t oprand_instruction(std::stringstream &ss, const char *name, size_t offset) const;
+
+        std::unordered_map<uint64_t, uint32_t> m_int_map;
+        std::unordered_map<double, uint32_t> m_float_map;
+        std::unordered_map<std::string, uint32_t> m_string_map;
+    };
+
+    class Function : public NativeInstance {
+    public:
+        Function(std::string name, std::vector<std::pair<std::string, SharedSpan>> arguments, const GcPtr<Code> &code)
+                : m_name(
+                std::move(name)), m_arguments(std::move(arguments)), m_code(code) {}
 
         [[nodiscard]] std::string get_name() const { return m_name; }
 
+        [[nodiscard]] std::vector<std::pair<std::string, SharedSpan>> &get_arguments() { return m_arguments; }
+
+        [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
+
         void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
 
-        GcPtr<Map> get_globals() { return m_globals; }
+        [[nodiscard]] GcPtr<Map> get_globals() const { return m_globals; }
 
-        std::string str() override {
-            return fmt::format("<function {} at {}>", m_name, (void *) this);
-        }
+        void mark() override;
 
-        bool equal(const GcPtr<Object> &other) override {
-            return this == other.get();
-        }
+        void unmark() override;
 
-        size_t hash() override { return 0; }
 
-        OBJ_RESULT $_bool() override {
-            return GarbageCollector::instance().make<Bool>(true);
-        }
+    private:
+        std::string m_name;
+        std::vector<std::pair<std::string, SharedSpan>> m_arguments;
+        GcPtr<Code> m_code;
+        GcPtr<Map> m_globals;
+    };
 
-        static const char *type_name() { return "function"; }
+    class Instance;
+
+    class Struct : public NativeInstance {
+    public:
+        Struct(std::string name, const std::vector<std::string> &fields) : m_name(std::move(name)), m_fields(fields) {}
+
+        [[nodiscard]] std::string get_name() const { return m_name; }
+
+        [[nodiscard]] std::vector<std::string> get_fields() const { return m_fields; }
+
+        [[nodiscard]] GcPtr<Instance> create_instance(const t_map &fields);
+
+        void add_method(const std::string &name, const GcPtr<Function> &func) { m_methods[name] = func; }
+
+        [[nodiscard]] std::optional<GcPtr<Function>> get_method(const std::string &name) const;
+
+        bool has_method(const std::string &name) const { return m_methods.contains(name); }
+
+        void set_globals(const GcPtr<Map> &globals);
+
+        [[nodiscard]] GcPtr<Map> get_globals() const { return m_globals; }
+
+        std::unordered_map<std::string, GcPtr<Function>> &get_methods() { return m_methods; }
+
+        std::string str() const override { return fmt::format("<struct {}>", m_name); }
+
+
+    private:
+        std::string m_name;
+        std::vector<std::string> m_fields;
+        std::unordered_map<std::string, GcPtr<Function>> m_methods;
+        GcPtr<Map> m_globals;
+    };
+
+
+    class Instance : public NativeInstance {
+    public:
+        Instance(Struct *type, t_map fields)
+                : m_type(type), m_fields(std::move(fields)) {}
+
+        [[nodiscard]] GcPtr<Struct> get_type() const { return m_type; }
+
+        [[nodiscard]] t_map get_fields() const { return m_fields; }
+
+        void set_fields(t_map fields) { m_fields = std::move(fields); }
+
+        obj_result bind_method(const std::string &name);
+
+        obj_result get_method(const std::string &name);
+
+        void mark() override;
+
+        void unmark() override;
+
+        obj_result get_field(const std::string &name);
+
+        obj_result set_field(const std::string &name, const GcPtr<Object> &value);
+
+        obj_result get_type();
+
+        [[nodiscard]] std::string str() const override;
+
+        Struct *get_struct() const { return m_type; }
+
+        bool has_slot(Slot slot) override;
+
+
+    private:
+        Struct *m_type;
+        t_map m_fields;
+
+    };
+
+    class NativeFunction : public NativeInstance {
+    public:
+        NativeFunction(std::string name, std::string doc, NativeFunctionPtr function)
+                : m_name(std::move(name)), m_doc(std::move(doc)), m_function(std::move(function)) {}
+
+        [[nodiscard]] std::string get_name() const { return m_name; }
+
+        [[nodiscard]] std::string get_doc() const { return m_doc; }
+
+        [[nodiscard]] NativeFunctionPtr get_function() const { return m_function; }
+
+    private:
+        std::string m_name;
+        std::string m_doc;
+        NativeFunctionPtr m_function;
+    };
+
+    class Module : public NativeInstance {
+    public:
+        explicit Module(std::string path, const GcPtr<Map> &globals) : m_globals(globals), m_path(std::move(path)) {}
+
+        Module(std::string path, const t_map &objects);
 
         void mark() override {
-            if (m_marked) return;
-            m_marked = true;
-            m_code->mark();
+            NativeInstance::mark();
             m_globals->mark();
         }
 
         void unmark() override {
-            if (!m_marked) return;
-
-            m_marked = false;
-            m_code->unmark();
+            NativeInstance::unmark();
             m_globals->unmark();
         }
 
+        GcPtr<Map> get_globals() { return m_globals; }
+
+        obj_result get_attr(const std::string &name);
+
+        std::string get_path() { return m_path; }
+
     private:
-        GcPtr<Code> m_code;
-        std::string m_name;
         GcPtr<Map> m_globals;
-        std::vector<std::pair<std::string, SharedSpan>> m_params;
+        std::string m_path;
     };
 
-    class ListIterator : public Object {
+
+    class BoundMethod : public NativeInstance {
     public:
-        explicit ListIterator(const GcPtr<Object> &list) : m_list{list} {}
+        BoundMethod(GcPtr<Instance> instance, GcPtr<Function> method) : m_instance(std::move(instance)),
+                                                                        m_method(std::move(method)) {}
 
-        OBJ_RESULT $next() override { return m_list->as<ListObj>()->get_unchecked(m_index++); }
+        [[nodiscard]] GcPtr<Object> get_instance() const { return m_instance; }
 
-        OBJ_RESULT $has_next() override;
-
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        size_t hash() override { return 0; }
-
-        static const char *type_name() { return "list_iterator"; }
-
-        void mark() override {
-            m_marked = true;
-            m_list->mark();
-        }
-
-        void unmark() override {
-            m_marked = false;
-            m_list->unmark();
-        }
+        [[nodiscard]] GcPtr<Function> get_method() const { return m_method; }
 
     private:
-        GcPtr<Object> m_list;
-        size_t m_index = 0;
+        GcPtr<Instance> m_instance;
+        GcPtr<Function> m_method;
     };
 
-    class Closure : public Object {
+
+    class List : public NativeInstance {
     public:
-        explicit Closure(GcPtr<Function> function)
-                : m_function{std::move(function)} {}
+        List() = default;
+
+        List(const t_vector &elements);
+
+        void mark() override;
+
+        void unmark() override;
+
+        obj_result get_item(int64_t index);
+
+        obj_result set_item(int64_t index, const GcPtr<Object> &item);
+
+        obj_result size() const;
+
+        void prepend(const GcPtr<Object> &item);
+
+        void append(const GcPtr<Object> &item);
+
+        void insert(int64_t index, const GcPtr<Object> &item);
+
+        GcPtr<Object> pop();
+
+        std::string str() const override;
+
+        friend class ListIterator;
+
+        size_t get_size() const;
+
+        t_vector &get_elements() { return m_elements; }
+
+    private:
+        t_vector m_elements;
+
+    };
+
+    class ListIterator : public NativeInstance {
+    public:
+        explicit ListIterator(const GcPtr<List> &list) : m_list(list) {}
+
+        GcPtr<List> m_list;
+        int64_t m_index;
+    };
+
+
+    class Result : public NativeInstance {
+    public:
+        Result(GcPtr<Object> value, bool is_error) : m_value(std::move(value)), m_error(is_error) {}
+
+        [[nodiscard]] GcPtr<Object> get_value() const { return m_value; }
+
+        [[nodiscard]] bool has_value() const { return !m_error; }
+
+        [[nodiscard]] bool has_error() const { return m_error; }
+
+        std::string str() const override { return fmt::format("{}({})", m_error ? "Error" : "Ok", m_value->str()); }
+
+    private:
+        GcPtr<Object> m_value;
+        bool m_error;
+    };
+
+    class Closure : public NativeInstance {
+    public:
+        Closure(GcPtr<Function> function, GcPtr<Map> up_values) : m_function(std::move(function)),
+                                                                  m_up_values(std::move(up_values)) {}
 
         [[nodiscard]] GcPtr<Function> get_function() const { return m_function; }
 
-        std::string str() override {
-            return fmt::format("<closure {} at {}>", m_function->get_name(), (void *) this);
-        }
-
-        bool equal(const GcPtr<Object> &other) override {
-            return this == other.get();
-        }
-
-        size_t hash() override { return 0; }
-
-        OBJ_RESULT $_bool() override {
-            return GarbageCollector::instance().make<Bool>(true);
-        }
-
-        static const char *type_name() { return "closure"; }
+        [[nodiscard]] GcPtr<Map> get_up_values() const { return m_up_values; }
 
     private:
         GcPtr<Function> m_function;
+        GcPtr<Map> m_up_values;
     };
 
 
-    class Struct : public Object {
-    public:
-        Struct(const GcPtr<String> &name, const std::vector<GcPtr<String>> &instance_variables);
-
-        // TODO: implement hash correctly
-        bool equal(const GcPtr<Object> &other) override { return this == other.get(); }
-
-        size_t hash() override { return 0; }
-
-
-        OBJ_RESULT $_bool() override { return GarbageCollector::instance().make<Bool>(true); }
-
-        OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override;
-
-        void add_method(const GcPtr<Object> &name, const GcPtr<Object> &function) { m_methods->set(name, function); }
-
-        std::optional<GcPtr<Object>> get_method(const GcPtr<Object> &name) {
-            return m_methods->get(name);
-        }
-
-        void mark() override;
-
-        void unmark() override;
-
-        static const char *type_name() { return "struct"; }
-
-        std::vector<GcPtr<String>> get_instance_variables() { return m_instance_variables; }
-
-        std::expected<bool, std::string> is_instance(GcPtr<Object> const &other) override;
-
-        GcPtr<Map> get_globals() { return m_globals; }
-
-        void set_globals(const GcPtr<Map> &globals);
-
-        std::string get_name() { return m_name->get_value(); }
-
-        std::string str() override {
-            return fmt::format("<structure {} at {}>", get_name(), (void *) this);
-        }
-
-        GcPtr<Map> get_methods() { return m_methods; }
-
-    private:
-        GcPtr<Map> m_methods;
-        GcPtr<Map> m_globals;
-        GcPtr<String> m_name;
-        std::vector<GcPtr<String>> m_instance_variables;
-    };
-
-    class StructInstance : public Object {
-    public:
-        explicit StructInstance(const GcPtr<Struct> &struct_type);
-
-        OBJ_RESULT $set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) override;
-
-        OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override;
-
-        void set_attr(const GcPtr<Object> &index, const GcPtr<Object> &value) { m_attributes->set(index, value); }
-
-        std::optional<GcPtr<Object>> get_attr(const GcPtr<Object> &index) { return m_attributes->get(index); }
-
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        size_t hash() override { return 0; }
-
-        OBJ_RESULT $_bool() override { return GarbageCollector::instance().make<Bool>(true); }
-
-        OBJ_RESULT $eq(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ne(const GcPtr<Object> &other) override;
+    extern GcPtr<NativeStruct> CLOSURE_STRUCT;
+    extern GcPtr<NativeStruct> RESULT_STRUCT;
+    extern GcPtr<NativeStruct> FLOAT_STRUCT;
+    extern GcPtr<NativeStruct> INT_STRUCT;
+    extern GcPtr<NativeStruct> BOOL_STRUCT;
+    extern GcPtr<NativeStruct> STRING_STRUCT;
+    extern GcPtr<NativeStruct> NONE_STRUCT;
+    extern GcPtr<NativeStruct> MAP_STRUCT;
+    extern GcPtr<NativeStruct> STRUCT_STRUCT;
+    extern GcPtr<NativeStruct> INSTANCE_STRUCT;
+    extern GcPtr<NativeStruct> FUNCTION_STRUCT;
+    extern GcPtr<NativeStruct> NATIVE_FUNCTION_STRUCT;
+    extern GcPtr<NativeStruct> CODE_STRUCT;
+    extern GcPtr<NativeStruct> MODULE_STRUCT;
+    extern GcPtr<NativeStruct> LIST_STRUCT;
+    extern GcPtr<NativeStruct> BOUND_METHOD_STRUCT;
 
 
-        void mark() override;
-
-        void unmark() override;
-
-        static const char *type_name() { return "struct_instance"; }
-
-        OBJ_RESULT $set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) override;
-
-        OBJ_RESULT $get_item(const GcPtr<Object> &index) override;
-
-        OBJ_RESULT user_method(const std::string &name);
-
-        OBJ_RESULT $add(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $sub(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $mul(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $div(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $lt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $le(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $gt(const GcPtr<Object> &other) override;
-
-        OBJ_RESULT $ge(const GcPtr<Object> &other) override;
-
-        std::string format_args();
-
-        std::string str() override {
-//            return fmt::format("<instance {} at {}>", m_struct_type->get_name(), (void *) this);
-            return fmt::format("{}({})", m_struct_type->get_name(), format_args());
-        }
-
-        GcPtr<Struct> get_struct_type() { return m_struct_type; }
-
-    private:
-        GcPtr<Struct> m_struct_type;
-        GcPtr<Map> m_attributes;
-
-    };
-
-    class BoundMethod : public Object {
-    public:
-        BoundMethod(const GcPtr<Object> &receiver, const GcPtr<Object> &method)
-                : m_receiver{receiver}, m_method{method} {}
-
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        size_t hash() override { return 0; }
-
-        OBJ_RESULT $_bool() override { return GarbageCollector::instance().make<Bool>(true); }
-
-        void mark() override;
-
-        void unmark() override;
-
-        static const char *type_name() { return "bound_method"; }
-
-        std::string str() override {
-            return fmt::format("<bound method {} at {}>", m_receiver->str(), (void *) this);
-        }
-
-        GcPtr<Object> get_receiver() { return m_receiver; }
-
-        GcPtr<Object> get_method() { return m_method; }
-
-    private:
-        GcPtr<Object> m_receiver;
-        GcPtr<Object> m_method;
-    };
+    extern GcPtr<Bool> C_TRUE;
+    extern GcPtr<Bool> C_FALSE;
+    extern GcPtr<None> C_NONE;
 
 
-    namespace Globs {
-        extern GcPtr<Bool> BondTrue;
-        extern GcPtr<Bool> BondFalse;
-        extern GcPtr<Nil> BondNil;
+#define TRY(expr) if (auto result = (expr); !result) return result
+#define AS_BOOL(cond) (cond ? C_TRUE : C_FALSE)
+
+    template<typename T>
+    obj_result c_Default(const t_vector args) {
+        T *value;
+        auto res = parse_args(args, value);
+        TRY(res);
+        return OK(args[0]);
+    }
+
+    static t_vector immortals;
+
+
+    template<typename T, typename... Args>
+    inline GcPtr<T> make(Args &&...args) {
+        return GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
+    }
+
+    template<typename T, typename... Args>
+    inline GcPtr<T> make_immortal(Args &&...args) {
+        auto imm = GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
+        immortals.push_back(imm);
+        return imm;
+    }
+
+    template<typename T, typename... Args>
+    inline obj_result OK(Args &&...args) {
+        return std::make_shared<T>(std::forward<Args>(args)...);
     }
 
 
-#define BOOL_(x) (x) ? Globs::BondTrue : Globs::BondFalse
+    std::string get_type_name(const GcPtr<Object> &obj);
 
 
-    class Future : public Object {
-    public:
-        Future() = default;
-
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
-
-        size_t hash() override { return 0; }
-
-        OBJ_RESULT $_bool() override { return GarbageCollector::instance().make<Bool>(true); }
-
-        void mark() override;
-
-        void unmark() override;
-
-        static const char *type_name() { return "future"; }
-
-        std::string str() override {
-            return fmt::format("<future instance at {}>", (void *) this);
+    template<typename... Values>
+    obj_result parse_args(const t_vector &args, Values &... values) {
+        if (args.size() != sizeof...(Values)) {
+            return ERR(fmt::format("Expected {} arguments, but {} were given", sizeof...(Values), args.size()));
         }
 
-        NativeErrorOr get_result(const std::vector<GcPtr<Object>> &args) {
-            ASSERT_ARG_COUNT(0, args);
+        return assign_args<0>(args, values...);  // Assign arguments to values
+    }
 
-            std::lock_guard<std::recursive_mutex> lock(m_mutex);
-            if (m_value.get() == nullptr) return Err("Future not resolved");
-            return m_value;
+    template<typename T>
+    T *get_value(const GcPtr<Object> &obj) {
+        return dynamic_cast<T *>(obj.get());
+    }
+
+    template<size_t I, typename... Values>
+    obj_result assign_args(const t_vector &args, Values &... values) {
+        constexpr size_t N = sizeof...(Values);
+        if constexpr (I < N) {
+            using ValueType = std::remove_pointer<typename std::tuple_element<I, std::tuple<Values...>>::type>::type;
+            auto &value = std::get<I>(std::tie(values...));
+
+            if (auto *val = get_value<ValueType>(args[I])) {
+                value = val;
+            } else {
+                //TODO: find a way to get the type name of ValueType
+                return ERR(fmt::format("Expected argument {} to be of type {}, but got {}", I, typeid(ValueType).name(),
+                                       get_type_name(args[I])));
+            }
+
+            return assign_args < I + 1 >(args, values...);  // Recursive call to assign the next argument
         }
 
-        NativeErrorOr has_result(const std::vector<GcPtr<Object>> &args) {
-            ASSERT_ARG_COUNT(0, args);
+        return OK();
+    }
 
-            std::lock_guard<std::recursive_mutex> lock(m_mutex);
-            return BOOL_(m_value.get() != nullptr);
-        }
 
-        OBJ_RESULT $get_attribute([[maybe_unused]] const GcPtr<Object> &index) override {
-            auto idx = index->as<String>()->get_value();
-            if (!m_methods.contains(idx)) return std::unexpected(RuntimeError::AttributeNotFound);
-            return GarbageCollector::instance().make<NativeFunction>(m_methods[idx]);
-        }
+    extern GcPtr<Int> int_cache[256];
 
-        bool has_value() {
-//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
-            return m_value.get() != nullptr;
-        }
+    void init_caches();
 
-        GcPtr<Object> get_value() {
-//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
-            return m_value;
-        }
+    GcPtr<Float> make_float(double value);
 
-        void set_value(const GcPtr<Object> &value) {
-//            std::lock_guard<std::recursive_mutex> lock(m_mutex);
-            m_value = value;
-        }
+    GcPtr<Result> make_result(const GcPtr<Object> &value, bool is_error);
 
-    private:
-        GcPtr<Object> m_value = nullptr;
-        std::unordered_map<std::string, NativeFunctionPtr> m_methods = {
-                {"has_result", BIND(has_result)},
-                {"get_result", BIND(get_result)},
-        };
-        std::recursive_mutex m_mutex;
-    };
+    inline GcPtr<Result> make_ok(const GcPtr<Object> &value){
+        return make_result(value, false);
+    }
 
-    class Coroutine : public Object {
-    public:
-        explicit Coroutine(const GcPtr<Function> &function);
+    inline GcPtr<Result> make_error(const GcPtr<Object> &value) {
+        return make_result(value, true);
+    }
 
-        GcPtr<Function> get_function() { return m_function; }
+    GcPtr<Int> make_int(int64_t value);
 
-        bool equal([[maybe_unused]] const GcPtr<Object> &other) override { return false; }
+    GcPtr<String> make_string(std::string value);
 
-        size_t hash() override { return 0; }
+    GcPtr<NativeFunction> make_native_function(std::string name, std::string doc, const NativeFunctionPtr &function);
 
-    private:
-        GcPtr<Function> m_function;
-    };
+    GcPtr<Module> make_module(std::string path, const GcPtr<Map> &globals);
+
+    GcPtr<NativeStruct>
+    make_native_struct(std::string name, std::string doc, NativeFunctionPtr constructor, const method_map &methods);
 
 } // namespace bond

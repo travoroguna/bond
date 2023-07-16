@@ -5,6 +5,6 @@ project(bondlsp)
 set(BUILD_EXAMPLE OFF CACHE INTERNAL "")
 
 add_executable(bondlsp common.hpp json.hpp json.hpp lsp.cpp lsp.hpp rpc.cpp rpc.hpp main.cpp)
-target_link_libraries(bondlsp bondlib)
+target_link_libraries(bondlsp bond-lib)
 
 install(TARGETS bondlsp)

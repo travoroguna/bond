@@ -1,112 +1,169 @@
 #include "../object.h"
 
 namespace bond {
+    obj_result Int_construct(const t_vector &args) {
+        Int *num;
 
-    OBJ_RESULT Integer::$add(const GcPtr<Object> &other) {
-        if (!other->is<Integer>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+        auto opt = parse_args(args, num);
+        TRY(opt);
 
-        return GarbageCollector::instance().make<Integer>(m_value + other->as<Integer>()->get_value());
+        return GcPtr<Object>(num);
     }
 
-    OBJ_RESULT Integer::$sub(const GcPtr<Object> &other) {
-        if (!other->is<Integer>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+    obj_result Int_add(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
 
-        return GarbageCollector::instance().make<Integer>(m_value - other->as<Integer>()->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_int(self_num->get_value() + other->get_value());
     }
 
-    OBJ_RESULT Integer::$mul(const GcPtr<Object> &other) {
-        if (!other->is<Integer>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+    obj_result Int_sub(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
 
-        return GarbageCollector::instance().make<Integer>(m_value * other->as<Integer>()->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_int(self_num->get_value() - other->get_value());
     }
 
-    OBJ_RESULT Integer::$div(const GcPtr<Object> &other) {
-        auto res = const_cast<GcPtr<Object> &>(other)
-                .use_if<Integer, std::optional<GcPtr<Integer>>>(
-                        [&](Integer &other_number) -> std::optional<GcPtr<Integer>> {
-                            if (other_number.get_value() == 0) {
-                                return std::nullopt;
-                            }
-                            return GarbageCollector::instance().make<Integer>(m_value / other_number.get_value());
 
-                        });
+    obj_result Int_mul(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
 
-        if (res.has_value()) {
-            if (res.value().has_value()) {
-                return res.value().value();
-            }
-            return std::unexpected(RuntimeError::DivisionByZero);
-        }
-        return std::unexpected(RuntimeError::TypeError);
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_int(self_num->get_value() * other->get_value());
     }
 
-    std::string Integer::str() {
-        return fmt::format("{}", m_value);
+
+    obj_result Int_div(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (other->get_value() == 0)
+            return ERR("Division by zero");
+
+        return make_int(self_num->get_value() / other->get_value());
     }
 
-    bool Integer::equal(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return false;
-        return m_value == as<Integer>(other)->get_value();
+    obj_result Int_mod(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (other->get_value() == 0)
+            return ERR("Division by zero");
+
+        return make_int(self_num->get_value() % other->get_value());
     }
 
-    size_t Integer::hash() {
-        return std::hash<intmax_t>{}(m_value);
+    obj_result Int_lt(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Int *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return AS_BOOL(self_num->get_value() < other->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result Int_eq(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Object *other;
 
-    Integer::$eq(const GcPtr<Object> &other) {
-        return BOOL_(this->equal(other));
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Int>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() == other->as<Int>()->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result Int_ne(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Object *other;
 
-    Integer::$ne(const GcPtr<Object> &other) {
-        return BOOL_(!this->equal(other));
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Int>())
+            return AS_BOOL(true);
+
+        return AS_BOOL(self_num->get_value() != other->as<Int>()->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result Int_gt(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Object *other;
 
-    Integer::$lt(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value < as<Integer>(other)->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Int>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() > other->as<Int>()->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result Int_le(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Object *other;
 
-    Integer::$le(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value <= as<Integer>(other)->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Int>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() <= other->as<Int>()->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result Int_ge(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Int>();
+        Object *other;
 
-    Integer::$gt(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value > as<Integer>(other)->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Int>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() >= other->as<Int>()->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
 
-    Integer::$ge(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value >= as<Integer>(other)->get_value());
-    }
+    GcPtr<NativeStruct> INT_STRUCT = make_immortal<NativeStruct>("Int", "Int(value)", Int_construct, method_map {
+            {"__add__", {Int_add, "add(other)"}},
+            {"__sub__", {Int_sub, "sub(other)"}},
+            {"__mul__", {Int_mul, "mul(other)"}},
+            {"__div__", {Int_div, "div(other)"}},
+            {"__mod__", {Int_mod, "mod(other)"}},
+            {"__lt__", {Int_lt, "__lt__(other)"}},
+            {"__eq__", {Int_eq, "__eq__(other)"}},
+            {"__ne__", {Int_ne, "__ne__(other)"}},
+            {"__gt__", {Int_gt, "__gt__(other)"}},
+            {"__le__", {Int_le, "__le__(other)"}},
+            {"__ge__", {Int_ge, "__ge__(other)"}},
+    });
 
-    std::expected<GcPtr<Object>, RuntimeError>
 
-    Integer::$_bool() {
-        return BOOL_(m_value != 0);
-    }
 
-    std::expected<GcPtr<Object>, RuntimeError> Integer::$mod(const GcPtr<Object> &other) {
-        if (!is<Integer>(other)) return std::unexpected(RuntimeError::TypeError);
-        return GarbageCollector::instance().make<Integer>(m_value % as<Integer>(other)->get_value());
+    GcPtr<Int> make_int(int64_t value) {
+        if (value > -1 and value < 256)
+            return int_cache[value];
+
+        return INT_STRUCT->create_instance<Int>(value);
     }
 }

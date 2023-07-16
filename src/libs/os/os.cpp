@@ -6,33 +6,33 @@ using namespace bond;
 GarbageCollector *m_gc;
 Context *m_ctx;
 
-auto path_exists(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_exists(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(1, arguments);
     DEFINE(path, String, 0, arguments);
 
     return m_gc->make<Bool>(std::filesystem::exists(path->get_value()));
 }
 
-auto path_is_file(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_is_file(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(1, arguments);
     DEFINE(path, String, 0, arguments);
 
     return m_gc->make<Bool>(std::filesystem::is_regular_file(path->get_value()));
 }
 
-auto path_is_directory(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_is_directory(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(1, arguments);
     DEFINE(path, String, 0, arguments);
 
     return m_gc->make<Bool>(std::filesystem::is_directory(path->get_value()));
 }
 
-auto path_current_working_directory(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_current_working_directory(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(0, arguments);
     return m_gc->make<String>(std::filesystem::current_path().string());
 }
 
-auto path_absolute(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_absolute(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(1, arguments);
     DEFINE(path, String, 0, arguments);
 
@@ -41,7 +41,7 @@ auto path_absolute(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr
     return Ok(m_gc->make<String>(std::filesystem::current_path().string()));
 }
 
-auto path_os_name(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+auto path_os_name(const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
     ASSERT_ARG_COUNT(0, arguments);
 
 #ifdef _WIN32
@@ -52,38 +52,38 @@ auto path_os_name(const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr 
 }
 
 
-class Path : public Object {
+class Path : public GcObject {
 public:
     std::string str() override {
         return "Path";
     }
 
-    OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override {
+    OBJ_RESULT $get_attribute(const GcPtr<GcObject> &index) override {
         auto name = index->as<String>()->get_value();
         if (m_map.contains(name)) return m_map[name];
         return std::unexpected(RuntimeError::AttributeNotFound);
     }
 
-    bool equal(const GcPtr<Object> &other) override { return false; }
+    bool equal(const GcPtr<GcObject> &other) override { return false; }
 
     size_t hash() override { return 0; }
 
     void mark() override {
-        Object::mark();
+        GcObject::mark();
         for (auto &[_, attr]: m_map) {
             attr->mark();
         }
     }
 
     void unmark() override {
-        Object::unmark();
+        GcObject::unmark();
         for (auto &[_, attr]: m_map) {
             attr->unmark();
         }
     }
 
 private:
-    std::unordered_map<std::string, GcPtr<Object>> m_map = {
+    std::unordered_map<std::string, GcPtr<GcObject>> m_map = {
             {"exists",                    m_gc->make<NativeFunction>(path_exists, "exists")},
             {"is_file",                   m_gc->make<NativeFunction>(path_is_file, "is_file")},
             {"is_directory",              m_gc->make<NativeFunction>(path_is_directory, "is_directory")},
@@ -100,12 +100,12 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     m_ctx = ctx;
     GarbageCollector::instance().set_gc(ctx->gc());
 
-    std::vector<GcPtr<Object>> args;
+    std::vector<GcPtr<GcObject>> args;
     for (auto &arg: ctx->get_args()) {
         args.emplace_back(ctx->gc()->make<String>(arg));
     }
 
-    std::unordered_map<std::string, GcPtr<Object>> io_module = {
+    std::unordered_map<std::string, GcPtr<GcObject>> io_module = {
             {"Path", m_gc->make<Path>()},
             {"args", m_gc->make<ListObj>(args)},
     };

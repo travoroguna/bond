@@ -1,75 +1,45 @@
 #include "../object.h"
-#include "../result.h"
 
 
 namespace bond {
-    void Map::set(const GcPtr<Object> &key, const GcPtr<Object> &value) {
-        m_internal_map[key] = value;
+    void Map::set(const std::string& key, const GcPtr<Object>& obj) {
+        m_value[key] = obj;
     }
-
-    bool Map::has(const GcPtr<Object> &key) {
-        return m_internal_map.contains(key);
-    }
-
-    std::optional<GcPtr<Object>> Map::get(const GcPtr<Object> &key) {
-        if (has(key)) {
-            return m_internal_map[key];
-        }
-
+    std::optional<GcPtr<Object>> Map::get(const std::string& key) {
+        if (m_value.contains(key)) return m_value[key];
         return std::nullopt;
     }
-
-    GcPtr<Object> Map::get_unchecked(const GcPtr<Object> &key) {
-        return m_internal_map[key];
+    GcPtr<Object> Map::get_unchecked(const std::string& key) {
+        return m_value[key];
     }
 
     void Map::mark() {
-        if (m_marked) return;
+        if (m_marked)
+            return;
 
-        Object::mark();
+        bond::NativeInstance::mark();
 
-        for (auto &pair: m_internal_map) {
-            pair.first->mark();
-            pair.second->mark();
+        for (auto const &[_, value]: m_value) {
+            value->mark();
         }
     }
-
     void Map::unmark() {
-        if (!m_marked) return;
-        Object::unmark();
+        if (!m_marked)
+            return;
 
-        for (auto &pair: m_internal_map) {
-            pair.first->unmark();
-            pair.second->unmark();
+        bond::NativeInstance::unmark();
+
+        for (auto const &[_, value]: m_value) {
+            value->unmark();
         }
     }
 
-    OBJ_RESULT Map::$_bool() {
-        return BOOL_(!m_internal_map.empty());
+    obj_result c_Map(const t_vector &args) {
+        Map* map;
+        auto res = parse_args(args, map);
+        TRY(res);
+        return OK(args[0]);
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> Map::$get_item(const GcPtr<bond::Object> &index) {
-        if (has(index)) {
-            return GarbageCollector::instance().make<BondResult>(false, get_unchecked(index));
-        }
-
-        auto err = GarbageCollector::instance().make<String>(
-                fmt::format("Key error: key {} not found in map", index->str()));
-        return GarbageCollector::instance().make<BondResult>(true, err);
-    }
-
-    std::expected<GcPtr<Object>, RuntimeError>
-    Map::$set_item(const GcPtr<bond::Object> &index, const GcPtr<bond::Object> &value) {
-        set(index, value);
-        return Globs::BondNil;
-    }
-
-    std::string Map::str() {
-        std::string result = "{";
-        for (auto &[key, value]: m_internal_map) {
-            result += fmt::format("{}: {}, ", key->str(), value->str());
-        }
-        result += "}";
-        return result;
-    }
+    GcPtr<NativeStruct> MAP_STRUCT = make_immortal<NativeStruct>("Map", "Map(value: Map)", c_Map);
 }

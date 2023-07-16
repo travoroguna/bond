@@ -1,11 +1,12 @@
 #include <fstream>
 #include <filesystem>
-#include "lexer.h"
-#include "parser.h"
-#include "context.h"
-#include "code.h"
+#include "compiler/lexer.h"
+#include "compiler/parser.h"
+#include "compiler/context.h"
+#include "compiler/codegen.h"
 #include "vm.h"
 #include "gc.h"
+#include "core/core.h"
 #include <plibsys.h>
 
 
@@ -26,7 +27,7 @@ void execute_source(std::string &source, const char *path, bond::Vm &vm, bond::C
     if (ctx.has_error()) return;
 
     auto file = std::ofstream("out.bond");
-    file << bytecode->dissasemble();
+    file << bytecode->disassemble();
     file.close();
 
 //    try {
@@ -45,7 +46,6 @@ void run_repl(const std::string &lib_path, const std::vector<std::string> &args)
     ctx.set_args(args);
 
     auto vm = bond::Vm(&ctx);
-    bond::GarbageCollector::instance().add_root(&vm);
     auto id = ctx.new_module(std::string("<repl>"));
     bond::Scopes scope = bond::Scopes(&ctx);
 
@@ -85,18 +85,24 @@ void run_file(const std::string &path, const std::string &lib_path, const std::v
     ctx.set_args(args);
 
     auto vm = bond::Vm(&ctx);
-    bond::GarbageCollector::instance().add_root(&vm);
 
     execute_source(src, path.c_str(), vm, ctx);
 }
 
 
 int main(int32_t argc, char **argv) {
-    bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
-    bond::GarbageCollector::instance().make_thread_storage();
+    GC_INIT();
+    GC_enable_incremental();
+    GC_set_warn_proc([](char *msg, GC_word arg) {
+//        fmt::print("GC warning: {}\n", msg);
+    });
+
+    bond::init_caches();
+    bond::build_core_module();
+
 
 #ifdef _WIN32
-    auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/libraries/";
+    auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
 #else
     auto lib_path = "/usr/local/libraries/";
 #endif
@@ -132,12 +138,12 @@ int main(int32_t argc, char **argv) {
 
 #ifdef _WIN32
 
-#include <Windows.h>
+#include <windows.h>
 
 int APIENTRY WinMain([[maybe_unused]] HINSTANCE hInstance,
                      [[maybe_unused]] HINSTANCE hPrevInstance,
                      [[maybe_unused]] LPSTR lpCmdLine, [[maybe_unused]] int nCmdShow) {
-    return main(__argc, __argv);
+        return main(__argc, __argv);
 }
 
 #endif

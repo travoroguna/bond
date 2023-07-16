@@ -3,10 +3,10 @@
 //
 
 #include "vm.h"
-#include "lexer.h"
-#include "parser.h"
-#include "code.h"
-#include "result.h"
+#include "import.h"
+#include "compiler/lexer.h"
+#include "compiler/parser.h"
+#include "compiler/codegen.h"
 
 #include <filesystem>
 #include <array>
@@ -21,32 +21,25 @@
 
 namespace bond {
 
-#define CALL_USER_IMPLEMENTATION(OBJ, ROUTER, NAME, ...) \
-    auto result = (OBJ)->as<StructInstance>()->$##ROUTER(__VA_ARGS__);\
-    if (!result.has_value()) {\
-    runtime_error((#NAME " is not defined"),\
-            result.error(),\
-            m_current_frame->get_span());\
-    continue;\
-}\
-std::vector<GcPtr<Object>> args{__VA_ARGS__};\
-call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
+#define TODO() runtime_error("not implemented", RuntimeError::GenericError, m_current_frame->get_span())
+#define TO_BOOL(X) BOOL_STRUCT->create({(X)}).value()->as<Bool>();
 
     void Vm::run(const GcPtr<Code> &code) {
         m_stop = false;
-        auto func =
-                GarbageCollector::instance().make<Function>(code, std::vector<std::pair<std::string, SharedSpan>>(),
-                                                            "__main__");
+
+        auto func = FUNCTION_STRUCT->create_immortal<Function>("__main__",
+                                                               std::vector<std::pair<std::string, SharedSpan>>(), code);
 
         func->set_globals(m_globals);
         push(func);
-        call_function(func, std::vector<GcPtr<Object>>());
+        call_function(func, t_vector());
+        fmt::print("func\n{}\n", func->get_code()->disassemble());
         exec();
     }
 
 
-    void Vm::call_function(const GcPtr<Function> &function, const std::vector<GcPtr<Object>> &args) {
-        auto lock = LockGc();
+    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<Map> &locals) {
+
         auto frame = &m_frames[m_frame_pointer];
         m_frame_pointer++;
 
@@ -59,7 +52,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             }
             return;
         }
-        auto params = function->get_params();
+        auto params = function->get_arguments();
 
         if (args.size() != params.size()) {
             if (m_current_frame != nullptr) {
@@ -74,10 +67,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             return;
         }
 
-        auto local_args = GarbageCollector::instance().make<Map>();
+        auto local_args = MAP_STRUCT->create_instance<Map>();
 
         for (size_t i = 0; i < args.size(); i++) {
-            local_args->set(GarbageCollector::instance().make<String>(params[i].first), args[i]);
+            local_args->set(params[i].first, args[i]);
+        }
+
+        if (locals) {
+            for (auto &[name, obj]: locals->get_value()) {
+                local_args->set(name, obj);
+            }
         }
 
         frame->set_function(function);
@@ -87,10 +86,8 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         m_current_frame = frame;
     }
 
-    void Vm::call_bound_method(const GcPtr<BoundMethod> &bound_method, std::vector<GcPtr<Object>> &args) {
-        auto method = bound_method->get_method()->as<Function>();
-
-        auto params = method->get_params();
+    void Vm::setup_bound_call(const GcPtr<Object> &instance, const GcPtr<Function> &function, t_vector &args) {
+        auto params = function->get_arguments();
         if (params.size() - 1 != args.size()) {
             runtime_error(fmt::format("expected {} arguments, got {}", params.size() - 1,
                                       args.size()),
@@ -99,129 +96,18 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             return;
         }
 
-        args.insert(args.begin(), bound_method->get_receiver());
-        call_function(method, args);
+        args.insert(args.begin(), instance);
+        call_function(function, args);
+    }
+
+    void Vm::call_bound_method(const GcPtr<BoundMethod> &bound_method, t_vector &args) {
+        auto method = bound_method->get_method()->as<Function>();
+        setup_bound_call(bound_method->get_instance(), method, args);
     }
 
 
-    std::expected<std::string, std::string> Vm::path_resolver(const std::string &path) {
-#ifdef _WIN32
-        auto test_compiled_native = m_ctx->get_lib_path() + path + ".dll";
-        auto test_compiled_c_path = path + ".dll";
-#else
-        auto lib_p = std::string("lib") + path + ".so";
-        auto test_compiled_native = m_ctx->get_lib_path() + lib_p;
-        const auto& test_compiled_c_path = lib_p;
-#endif
-
-        auto test_native = m_ctx->get_lib_path() + path + ".bd";
-        auto test_user = path + ".bd";
-
-
-        std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
-
-        for (auto &p: paths) {
-            fmt::print("[import] test {} {}\n", p, std::filesystem::exists(p));
-
-            if (std::filesystem::exists(p)) {
-                fmt::print("[vm] loading {}\n", std::filesystem::canonical(p).c_str());
-                return std::filesystem::canonical(p);
-            }
-        }
-//
-        return std::unexpected(fmt::format("failed to resolve path {}", path));
-    }
-
-    std::expected<GcPtr<Module>, std::string> Vm::load_dynamic_lib(const std::string &path, std::string &alias) {
-#ifdef _WIN32
-        auto handle = LoadLibrary(path.c_str());
-        if (!handle) {
-            return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, GetLastError()));
-        }
-
-        // void bond_module_init(bond::Context *ctx, const char *path)
-        auto init = (void (*)(bond::Context *, const std::string &)) GetProcAddress(handle, "bond_module_init");
-
-        if (!init) {
-            return std::unexpected(
-                    fmt::format("failed to load dynamic library {}: {}, missing init function 'bond_module_init'", path,
-                                GetLastError()));
-        }
-
-
-#else
-        auto handle = dlopen(path.c_str(), RTLD_LAZY);
-        if (!handle) {
-            return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, dlerror()));
-        }
-
-
-        auto init = (void (*)(bond::Context *, const std::string &))  dlsym(handle, "bond_module_init");
-        if (!init) {
-            return std::unexpected(fmt::format("failed to load dynamic library {}: {}, missing init function 'bond_module_init'", path, dlerror()));
-        }
-
-#endif
-        init(m_ctx, path);
-
-        auto mod = m_ctx->get_module(path);
-
-        fmt::print("Module: {}\n", path);
-
-        for (auto &[k, v]: mod->as<Module>()->get_globals()->get_map()) {
-            fmt::print("\t{}: {}\n", k->str(), v->str());
-        }
-        return mod->as<Module>();
-    }
-
-    std::expected<GcPtr<Module>, std::string> Vm::create_module(const std::string &path, std::string &alias) {
-        auto res = path_resolver(path);
-
-        if (!res) {
-            return std::unexpected(res.error());
-        }
-
-        auto resolved_path = res.value();
-
-        if (m_ctx->has_module(resolved_path)) {
-            return m_ctx->get_module(resolved_path)->as<Module>();
-        }
-
-        if (resolved_path.ends_with(".dll") || resolved_path.ends_with(".so")) {
-            return load_dynamic_lib(resolved_path, alias);
-        }
-
-        auto id = m_ctx->new_module(resolved_path);
-        auto source = bond::Context::read_file(resolved_path);
-
-        auto lexer = Lexer(source, m_ctx, id);
-        auto parser = Parser(lexer.tokenize(), m_ctx);
-
-        auto nodes = parser.parse();
-        auto code_gen = CodeGenerator(m_ctx, parser.get_scopes());
-
-        auto code = code_gen.generate_code(nodes);
-
-        auto vm = Vm(m_ctx);
-        vm.run(code);
-
-        GarbageCollector::instance().add_root(&vm);
-
-        if (vm.had_error()) {
-            return std::unexpected(fmt::format("unable to import module {}", resolved_path));
-        }
-
-        GarbageCollector::instance().remove_root(&vm);
-
-        auto mod = GarbageCollector::instance().make<Module>(resolved_path, vm.get_globals());
-
-        m_ctx->add_module(resolved_path, mod);
-
-        return mod;
-    }
-
-    void Vm::create_instance(const GcPtr<Struct> &_struct, const std::vector<GcPtr<Object>> &args) {
-        auto variables = _struct->get_instance_variables();
+    void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args) {
+        auto variables = _struct->get_fields();
         if (variables.size() != args.size()) {
             runtime_error(fmt::format("expected {} arguments, got {}", variables.size(), args.size()),
                           RuntimeError::GenericError,
@@ -229,12 +115,13 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
             return;
         }
 
-        auto instance = GarbageCollector::instance().make<StructInstance>(_struct);
+        t_map fields;
+
         for (size_t i = 0; i < args.size(); i++) {
-            instance->set_attr(variables[i], args[i]);
+            fields[variables[i]] = args[i];
         }
 
-        push(instance);
+        push(_struct->create_instance(fields));
     }
 
     void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
@@ -261,13 +148,19 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         m_has_error = true;
 
 
-        push(GarbageCollector::instance().make<String>(err));
+        push(make_string(err));
 
-        for (size_t i = m_frame_pointer - 1; i > 0; i--) {
+        for (size_t i = 0; i < m_frame_pointer; i++) {
+            if (m_frames[i].get_function().get() == nullptr) continue;
             m_ctx->error(m_frames[i].get_span(), "");
         }
 
-        m_ctx->error(span, err);
+//        m_ctx->error(span, err);
+        fmt::print(" {}\n", err);
+    }
+
+    void Vm::runtime_error(const std::string &error) {
+        runtime_error(error, RuntimeError::GenericError);
     }
 
     void Vm::runtime_error(const std::string &error, RuntimeError e) {
@@ -278,42 +171,135 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
         m_stop = true;
         m_has_error = true;
 
-        push(GarbageCollector::instance().make<String>(error));
+        push(make_string(error));
+    }
+
+    void Vm::bin_op(Slot slot, const std::string &op_name) {
+        if (peek(1)->is<NativeInstance>() and peek()->is<NativeInstance>()) {
+
+            auto right = pop()->as<NativeInstance>();
+            auto left = pop()->as<NativeInstance>();
+            auto result = call_slot(slot, left, {right}, "unable to {} values of type {} and {}", op_name,
+                                    get_type_name(left), get_type_name(right));
+            push(result);
+            return;
+        }
+
+        //TODO: better error reporting
+        runtime_error(fmt::format("unable to {} values of type {} and {}", op_name, peek(1).type_name(),
+                                  peek().type_name()), RuntimeError::TypeError);
+    }
+
+    void Vm::compare_op(Slot slot, const std::string &op_name) {
+        if (!peek(1)->is<NativeInstance>() or !peek()->is<NativeInstance>()) {
+            runtime_error(fmt::format("unable to {} values of type {} and {}", op_name, peek(1).type_name(),
+                                      peek().type_name()), RuntimeError::TypeError);
+            return;
+        }
+
+        auto right = pop()->as<NativeInstance>();
+        auto left = pop()->as<NativeInstance>();
+        if (left->has_slot(slot)) {
+            auto result = call_slot(slot, left, {right}, "unable to {} values of type {} and {}", op_name,
+                                    get_type_name(left), get_type_name(right));
+            push(result);
+            return;
+        }
+        auto result = call_slot(slot, right, {left}, "unable to {} values of type {} and {}", op_name,
+                                get_type_name(left), get_type_name(right));
+        push(result);
+    }
+
+    template<typename ...T>
+    [[nodiscard]] GcPtr<Object>
+    Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args, fmt::format_string<T...> fmt,
+                  T &&... fmt_args) {
+        if (!instance->is<NativeInstance>()) {
+            runtime_error(vformat(fmt, fmt::make_format_args(fmt_args...)));
+            m_stop = true;
+            return nullptr;
+        }
+
+        if (instance->is<Instance>() and slot != Slot::GET_ATTR and slot != Slot::SET_ATTR) {
+            auto result = instance->as<Instance>()->call_slot(slot, {});
+
+            if (!result.has_value()) {
+                auto error = vformat(fmt, fmt::make_format_args(fmt_args...));
+                runtime_error(fmt::format("{}  \nError {}", error, result.error()));
+                m_stop = true;
+                return nullptr;
+            }
+
+            auto args_ = const_cast<t_vector &>(args);
+            setup_bound_call(instance, result.value()->as<Function>(), args_);
+            exec(m_frame_pointer);
+
+            if (m_stop) {
+                auto err = vformat(fmt, fmt::make_format_args(fmt_args...));
+                runtime_error(err);
+                return nullptr;
+            }
+
+            return pop();
+        }
+
+        auto result = instance->as<NativeInstance>()->call_slot(slot, args);
+
+        if (!result.has_value()) {
+            auto error = vformat(fmt, fmt::make_format_args(fmt_args...));
+            runtime_error(fmt::format("{}  \nError {} {}", error,
+                                      instance->as<NativeInstance>()->get_native_struct()->get_name(), result.error()));
+            return nullptr;
+        }
+
+        return *result;
+    }
+
+    void Vm::call_object(const GcPtr<Object> &func, t_vector &args) {
+        if (func->is<NativeFunction>()) {
+            auto f = func->as<NativeFunction>();
+
+            auto result = f->get_function()(args);
+
+            if (result.has_value()) {
+                push(result.value());
+                return;
+            }
+            runtime_error(result.error());
+            return;
+
+        } else if (func->is<Function>()) {
+            auto f = func->as<Function>();
+            call_function(f, args);
+            return;
+        } else if (func->is<Struct>()) {
+            auto st = func->as<Struct>();
+            create_instance(st, args);
+            return;
+        } else if (func->is<BoundMethod>()) {
+            auto bm = func->as<BoundMethod>();
+            call_bound_method(bm, args);
+            return;
+        } else if (func->is<NativeStruct>()) {
+            auto st = func->as<NativeStruct>();
+            auto res = st->get_constructor()(args);
+
+            if (res.has_value()) {
+                push(res.value());
+                return;
+            }
+            runtime_error(res.error());
+            return;
+        } else if (func->is<Closure>()) {
+            auto cl = func->as<Closure>();
+            call_function(cl->get_function(), args, cl->get_up_values());
+            return;
+        }
+        runtime_error(fmt::format("{} is not callable", func->str()));
     }
 
 
-#define BINARY_OP(X) { \
-    auto lock = LockGc();\
-    auto right = pop(); \
-    auto left = pop(); \
-    if (left->is<StructInstance>()) { \
-        CALL_USER_IMPLEMENTATION(left, X, __##X##__, right);\
-        break; \
-    }                   \
-    auto result = left->$##X(right); \
-    if (!result.has_value()) { \
-        runtime_error(fmt::format("unable to " #X " values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
-        continue;\
-    }\
-    push(result.value());                                    \
-    break;\
-    }
-
-#define COMPARE_OP(X) { \
-    auto lock = LockGc();\
-    auto right = pop(); \
-    auto left = pop(); \
-    auto result = left->$##X(right); \
-    if (!result.has_value()) { \
-        runtime_error(fmt::format("unable to " #X " values of type {} and {}", left.type_name(), right.type_name()), result.error(), m_current_frame->get_span());\
-        continue;\
-    }\
-    push(result.value());                                    \
-    break;\
-    }
-
-
-    void Vm::exec() {
+    void Vm::exec(uint32_t stop_frame) {
         if (m_frame_pointer == 0) return;
         while (!m_stop) {
 
@@ -329,39 +315,67 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     push(func);
                     break;
                 }
-
                 case Opcode::IMPORT: {
-                    auto lock = LockGc();
+
                     auto path = pop()->as<String>()->get_value();
                     auto constant = m_current_frame->get_constant();
                     auto alias = constant->as<String>()->get_value();
 
-                    auto module = create_module(path, alias);
+
+                    auto module = Import::instance().import_module(m_ctx, path, alias);
+
                     if (!module.has_value()) {
                         runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
-                    m_current_frame->set_global(constant, module.value());
+
+                    if (m_ctx->has_error()) m_stop = true;
+                    m_current_frame->set_global(alias, module.value());
                     break;
                 }
-                case Opcode::BIN_ADD: BINARY_OP(add)
-                case Opcode::BIN_SUB: BINARY_OP(sub)
-                case Opcode::BIN_MUL: BINARY_OP(mul)
-                case Opcode::BIN_DIV: BINARY_OP(div)
-                case Opcode::BIN_MOD: BINARY_OP(mod)
-                case Opcode::NE: COMPARE_OP(ne)
-                case Opcode::EQ: COMPARE_OP(eq)
-                case Opcode::LT: BINARY_OP(lt)
-                case Opcode::LE: BINARY_OP(le)
-                case Opcode::GT: BINARY_OP(gt)
-                case Opcode::GE: BINARY_OP(ge)
-                case Opcode::TRY: {
-                    auto lock = LockGc();
+                case Opcode::BIN_ADD:
+                    bin_op(Slot::BIN_ADD, "add");
+                    break;
 
-                    if (peek()->is<BondResult>()) {
-                        auto result = pop()->as<BondResult>();
+                case Opcode::BIN_SUB:
+                    bin_op(Slot::BIN_SUB, "subtract");
+                    break;
+
+                case Opcode::BIN_MUL:
+                    bin_op(Slot::BIN_MUL, "multiply");
+                    break;
+
+                case Opcode::BIN_DIV:
+                    bin_op(Slot::BIN_DIV, "divide");
+                    break;
+
+                case Opcode::BIN_MOD:
+                    bin_op(Slot::BIN_MOD, "modulo");
+                    break;
+
+                case Opcode::NE:
+                    compare_op(Slot::NE, "compare (!=)");
+                    break;
+                case Opcode::EQ:
+                    compare_op(Slot::EQ, "compare (==)");
+                    break;
+                case Opcode::LT:
+                    bin_op(Slot::LT, "compare (<)");
+                    break;
+                case Opcode::LE:
+                    bin_op(Slot::LE, "compare (<=)");
+                    break;
+                case Opcode::GT:
+                    bin_op(Slot::GT, "compare (>)");
+                    break;
+                case Opcode::GE:
+                    bin_op(Slot::GE, "compare (>=)");
+                    break;
+                case Opcode::TRY: {
+                    if (peek()->is<Result>()) {
+                        auto result = pop()->as<Result>();
                         auto jmp = m_current_frame->get_oprand();
-                        if (result->is_error()) {
+                        if (result->has_error()) {
                             if (m_frame_pointer == 1) {
                                 runtime_error(result->str(), RuntimeError::GenericError, m_current_frame->get_span());
                                 break;
@@ -369,16 +383,22 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                             push(result);
                             break;
                         } else {
-                            push(result->get());
+                            push(result->get_value());
                             m_current_frame->jump_absolute(jmp);
                             break;
                         }
                     }
-                    runtime_error("try statement expects a BondResult", RuntimeError::GenericError,
+                    runtime_error("try statement expects a Result", RuntimeError::GenericError,
                                   m_current_frame->get_span());
                     break;
                 }
                 case Opcode::RETURN: {
+                    if (m_frame_pointer == stop_frame) {
+                        m_frame_pointer--;
+                        m_current_frame = &m_frames[m_frame_pointer - 1];
+                        return;
+                    }
+
                     if (m_frame_pointer == 1) {
                         m_stop = true;
                         break;
@@ -397,10 +417,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     push(m_Nil);
                     break;
                 case Opcode::LOAD_GLOBAL: {
-                    auto name = m_current_frame->get_constant();
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
                     if (!m_current_frame->has_global(name)) {
                         auto err = fmt::format("Global variable {} is not defined at this point",
-                                               name->as<String>()->get_value());
+                                               name);
                         runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
@@ -409,15 +429,13 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
                 case Opcode::CREATE_GLOBAL: {
-                    auto lock = LockGc();
-
-                    auto name = m_current_frame->get_constant();
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
                     auto expr = pop();
                     m_current_frame->set_global(name, expr);
                     break;
                 }
                 case Opcode::STORE_GLOBAL: {
-                    auto name = m_current_frame->get_constant();
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
                     auto expr = peek();
 
                     m_current_frame->set_global(name, expr);
@@ -425,9 +443,9 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::CREATE_LOCAL: {
-                    auto lock = LockGc();
 
-                    auto name = m_current_frame->get_constant();
+
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();;
                     auto expr = pop();
 
                     m_current_frame->set_local(name, expr);
@@ -435,7 +453,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::STORE_FAST: {
-                    auto name = m_current_frame->get_constant();
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();;
                     auto expr = peek();
 
                     m_current_frame->set_local(name, expr);
@@ -443,7 +461,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::LOAD_FAST: {
-                    auto name = m_current_frame->get_constant();
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
 //        if (!m_current_frame->has_local(name)) {
 //          auto err = fmt::format("Local variable {} does not exist", name->as<String>()->get_value());
 //          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
@@ -454,7 +472,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::POP_TOP: {
-                    if (peek()->is<BondResult>()) {
+                    if (peek()->is<Result>()) {
                         runtime_error(fmt::format("result must be handled: {}", pop()->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
@@ -465,10 +483,10 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
 
                 case Opcode::BUILD_LIST: {
-                    auto lock = LockGc();
+
 
                     auto size = m_current_frame->get_oprand();
-                    auto list = GarbageCollector::instance().make<ListObj>();
+                    auto list = LIST_STRUCT->create_instance<List>();
 
                     for (int i = 0; i < size; i++) {
                         list->prepend(pop());
@@ -478,65 +496,29 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::GET_ITEM: {
-                    auto lock = LockGc();
-
                     auto index = pop();
                     auto list = pop();
 
-                    if (list->is<StructInstance>()) {
-                        CALL_USER_IMPLEMENTATION(list, get_item, __get_item__, index);
-                        break;
-                    }
-
-                    auto result = list->$get_item(index);
-                    if (!result.has_value()) {
-                        runtime_error(fmt::format("unable to get item {} from {}", index->str(), list->str()),
-                                      result.error(), m_current_frame->get_span());
-                        continue;
-                    }
-                    push(result.value());
+                    push(call_slot(Slot::GET_ITEM, list, {index}, "unable to get item"));
                     break;
                 }
 
                 case Opcode::SET_ITEM: {
-                    auto lock = LockGc();
-
                     auto value = pop();
                     auto index = pop();
                     auto list = pop();
 
-                    if (list->is<StructInstance>()) {
-                        CALL_USER_IMPLEMENTATION(list, set_item, __set_item__, index, value);
-                        break;
-                    }
-
-                    auto result = list->$set_item(index, value);
-                    if (!result.has_value()) {
-                        runtime_error(fmt::format("unable to set item {} to {} in {}", index->str(), value->str(),
-                                                  list->str()), result.error(), m_current_frame->get_span());
-                        continue;
-                    }
-
-                    push(result.value());
+                    push(call_slot(Slot::SET_ITEM, list, {index, value}, "unable to set item"));
                     break;
                 }
 
                 case Opcode::JUMP_IF_FALSE: {
-                    auto lock = LockGc();
-
                     auto position = m_current_frame->get_oprand();
                     auto cond = pop();
 
-                    auto res = cond->$_bool();
+                    auto res = BOOL_STRUCT->create({cond}).value()->as<Bool>();
 
-                    if (!res.has_value()) {
-                        runtime_error(fmt::format("unable to convert {} to bool", cond->str()),
-                                      res.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    if (!res.value()->as<Bool>()->get_value()) {
+                    if (!res->get_value()) {
                         m_current_frame->jump_absolute(position);
                     }
                     break;
@@ -549,21 +531,14 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::OR: {
-                    auto lock = LockGc();
+
 
                     auto right = pop();
                     auto left = pop();
 
-                    auto res = left->$_bool();
+                    auto res = BOOL_STRUCT->create({left}).value()->as<Bool>();
 
-                    if (!res.has_value()) {
-                        runtime_error(fmt::format("unable to convert {} to bool", left->str()),
-                                      res.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    if (res.value()->as<Bool>()->get_value()) {
+                    if (res->get_value()) {
                         push(left);
                     } else {
                         push(right);
@@ -572,30 +547,16 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::AND: {
-                    auto lock = LockGc();
+
 
                     auto right = pop();
                     auto left = pop();
 
-                    auto l_bool = left->$_bool();
-                    auto r_bool = right->$_bool();
+                    auto l_bool = BOOL_STRUCT->create({left}).value()->as<Bool>();
+                    auto r_bool = BOOL_STRUCT->create({right}).value()->as<Bool>();
 
-                    if (!l_bool) {
-                        runtime_error(fmt::format("unable to convert {} to bool", left->str()),
-                                      l_bool.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    if (!r_bool) {
-                        runtime_error(fmt::format("unable to convert {} to bool", right->str()),
-                                      r_bool.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto l = l_bool.value()->as<Bool>()->get_value();
-                    auto r = r_bool.value()->as<Bool>()->get_value();
+                    auto l = l_bool->get_value();
+                    auto r = r_bool->get_value();
 
                     if (l && r) {
                         push(right);
@@ -606,71 +567,70 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 }
 
                 case Opcode::ITER: {
-                    auto lock = LockGc();
-
                     auto expr = pop();
-                    auto iter = expr->$iter();
 
-                    if (!iter.has_value()) {
-                        runtime_error(fmt::format("unable to iterate over {}", expr->str()),
-                                      iter.error(),
+                    auto iter = call_slot(Slot::ITER, expr, {},
+                                          "unable to iterate over expression\n  __iter__ is not defined");
+
+                    if (iter.get() == nullptr) {
+                        continue;
+                    }
+
+                    auto iterator = iter->as<NativeInstance>();
+                    if (iterator.get() == nullptr) {
+                        runtime_error(fmt::format("unable to iterate over {}\n  iterator is not an instance",
+                                                  iterator->str()));
+                        continue;
+                    }
+
+                    if (!iterator->has_slot(Slot::NEXT)) {
+                        runtime_error(
+                                fmt::format("unable to iterate over {}, __next__ is not implemented", iterator->str()),
+                                RuntimeError::GenericError,
+                                m_current_frame->get_span());
+                        continue;
+                    }
+
+                    if (!iterator->has_slot(Slot::HAS_NEXT)) {
+                        runtime_error(fmt::format("unable to iterate over {}, __has_next__ is not implemented",
+                                                  iterator->str()),
+                                      RuntimeError::GenericError,
                                       m_current_frame->get_span());
                         continue;
                     }
 
-                    push(iter.value());
+                    push(iterator);
                     break;
                 }
 
                 case Opcode::ITER_NEXT: {
-                    auto lock = LockGc();
-
-                    auto next = peek()->$next();
-
-                    if (!next.has_value()) {
-                        runtime_error(fmt::format("unable to get next item from {}", peek()->str()),
-                                      next.error(),
-                                      m_current_frame->get_span());
+                    auto next = call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
+                    if (next.get() == nullptr) {
                         continue;
                     }
-
-                    auto local = m_current_frame->get_constant();
-                    m_current_frame->set_local(local, next.value());
+                    auto local = m_current_frame->get_constant()->as<String>()->get_value();
+                    m_current_frame->set_local(local, next);
                     break;
                 }
 
                 case Opcode::ITER_END: {
-                    auto lock = LockGc();
-
-                    auto next = peek()->$has_next();
+                    auto next = call_slot(Slot::HAS_NEXT, peek(), {}, "unable to get next item on {}",
+                                          get_type_name(peek()));
+                    if (next.get() == nullptr) {
+                        continue;
+                    }
                     auto jump_pos = m_current_frame->get_oprand();
+                    auto jump_condition = TO_BOOL(next);
 
-                    if (!next.has_value()) {
-                        runtime_error(fmt::format("unable to get next item from {}", peek()->str()),
-                                      next.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto jump_condition = next.value()->$_bool();
-
-                    if (!jump_condition.has_value()) {
-                        runtime_error(fmt::format("unable to convert {} to bool", next.value()->str()),
-                                      jump_condition.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    if (!jump_condition.value()->as<Bool>()->get_value()) {
+                    if (!jump_condition->get_value()) {
                         m_current_frame->jump_absolute(jump_pos);
                     }
+
                     break;
 
                 }
 
                 case Opcode::CALL: {
-                    GarbageCollector::instance().stop_gc();
-
                     auto arg_count = m_current_frame->get_oprand();
                     m_args.clear();
 
@@ -678,51 +638,7 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                         m_args.insert(m_args.begin(), pop());
                     }
 
-                    auto func = pop();
-
-                    if (func->is<NativeFunction>()) {
-                        auto f = func->as<NativeFunction>();
-
-                        auto result = f->get_fn()(m_args);
-
-                        if (result.has_value()) {
-                            push(result.value());
-                            GarbageCollector::instance().resume_gc();
-                            GarbageCollector::instance().collect_if_needed();
-                            continue;
-                        }
-                        GarbageCollector::instance().resume_gc();
-                        runtime_error(result.error().message, result.error().error, m_current_frame->get_span());
-                        continue;
-
-                    } else if (func->is<Function>()) {
-                        auto f = func->as<Function>();
-                        call_function(f, m_args);
-                        GarbageCollector::instance().resume_gc();
-                        break;
-                    } else if (func->is<Struct>()) {
-                        auto st = func->as<Struct>();
-                        create_instance(st, m_args);
-                        GarbageCollector::instance().resume_gc();
-                        break;
-                    } else if (func->is<BoundMethod>()) {
-                        auto bm = func->as<BoundMethod>();
-                        call_bound_method(bm, m_args);
-                        GarbageCollector::instance().resume_gc();
-                        break;
-                    }
-
-                    auto res = func->call__(m_args);
-                    if (res.has_value()) {
-                        push(res.value());
-                        GarbageCollector::instance().resume_gc();
-
-                        continue;
-                    }
-
-                    runtime_error(fmt::format("{}", res.error()), RuntimeError::GenericError,
-                                  m_current_frame->get_span());
-                    GarbageCollector::instance().resume_gc();
+                    call_object(pop(), m_args);
                     continue;
 
                 }
@@ -733,39 +649,51 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     break;
                 }
                 case Opcode::GET_ATTRIBUTE: {
-                    auto lock = LockGc();
-
                     auto attr = m_current_frame->get_constant();
                     auto obj = pop();
 
-                    auto result = obj->$get_attribute(attr);
-
-                    if (!result.has_value()) {
-                        runtime_error(fmt::format("unable to get attribute {} from {}", attr->str(), obj->str()),
-                                      result.error(),
-                                      m_current_frame->get_span());
-                        continue;
+                    if (obj->is<NativeInstance>()) {
+                        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value());
+                        if (result.has_value()) {
+                            auto res = result.value();
+                            if (res.has_value()) {
+                                push(res.value());
+                                break;
+                            } else {
+                                runtime_error(
+                                        fmt::format("unable to get attribute {} of {}\n  {}", attr->str(), obj->str(),
+                                                    res.error()));
+                                continue;
+                            }
+                        }
                     }
-
-                    push(result.value());
+                    push(call_slot(Slot::GET_ATTR, obj, {attr}, "unable to get attribute {} of {}", attr->str(),
+                                   obj->str()));
                     break;
                 }
                 case Opcode::SET_ATTRIBUTE: {
-                    auto lock = LockGc();
-
                     auto attr = m_current_frame->get_constant();
 
                     auto value = pop();
                     auto obj = pop();
 
-                    auto result = obj->$set_attribute(attr, value);
-                    if (!result.has_value()) {
-                        runtime_error(fmt::format("unable to set attribute {} of {}", attr->str(), obj->str()),
-                                      result.error(),
-                                      m_current_frame->get_span());
-                        continue;
+                    if (obj->is<NativeInstance>()) {
+                        auto result = obj->as<NativeInstance>()->set_attr(attr->as<String>()->get_value(), value);
+                        if (result.has_value()) {
+                            auto res = result.value();
+                            if (res.has_value()) {
+                                push(res.value());
+                                break;
+                            } else {
+                                runtime_error(
+                                        fmt::format("unable to set attribute {} of {}\n  {}", attr->str(), obj->str(),
+                                                    res.error()));
+                                continue;
+                            }
+                        }
                     }
-                    push(result.value());
+                    push(call_slot(Slot::SET_ATTR, obj, {attr, value}, "unable to set attribute {} of {}", attr->str(),
+                                   obj->str()));
                     break;
                 }
 
@@ -773,15 +701,21 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                 case Opcode::CONTINUE:
                     m_current_frame->jump_absolute(m_current_frame->get_oprand());
                     break;
+                case Opcode::MAKE_OK: {
+                    push(make_result(pop(), false));
+                    break;
+                }
+                case Opcode::MAKE_ERROR: {
+                    push(make_result(pop(), true));
+                    break;
+                }
                 case Opcode::UNARY_SUB: {
-                    auto lock = LockGc();
-
                     auto obj = pop();
-                    if (obj->is<Integer>()) {
-                        push(GarbageCollector::instance().make<Integer>(-obj->as<Integer>()->get_value()));
+                    if (obj->is<Int>()) {
+                        push(make_int(-obj->as<Int>()->get_value()));
                         break;
                     } else if (obj->is<Float>()) {
-                        push(GarbageCollector::instance().make<Float>(-obj->as<Float>()->get_value()));
+                        push(make_float(-obj->as<Float>()->get_value()));
                         break;
                     }
 
@@ -791,173 +725,213 @@ call_bound_method(dynamic_cast<BoundMethod*>(result.value().get()), args)
                     continue;
                 }
                 case Opcode::NOT: {
-                    auto lock = LockGc();
-
                     auto obj = pop();
-                    auto res = obj->$_bool();
-
-                    if (!res.has_value()) {
-                        runtime_error(fmt::format("unable to convert {} to bool", obj->str()),
-                                      res.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-                    push(GarbageCollector::instance().make<Bool>(!res.value()->as<Bool>()->get_value()));
+                    auto res = BOOL_STRUCT->create({obj}).value()->as<Bool>();
+                    push(AS_BOOL(!res->get_value()));
                     break;
                 }
 
                 case Opcode::BIT_OR: {
-                    auto lock = LockGc();
-
                     auto right = pop();
                     auto left = pop();
 
-                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                    if (!right->is<Int>() or !left->is<Int>()) {
                         runtime_error(fmt::format("unable to apply | to {} and {}", left->str(), right->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
                         continue;
                     }
 
-                    auto res = left->as<Integer>()->get_value() | right->as<Integer>()->get_value();
-                    push(GarbageCollector::instance().make<Integer>(res));
+                    auto res = left->as<Int>()->get_value() | right->as<Int>()->get_value();
+                    push(make_int(res));
                     break;
                 }
 
                 case Opcode::BIT_AND: {
-                    auto lock = LockGc();
-
                     auto right = pop();
                     auto left = pop();
 
-                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                    if (!right->is<Int>() or !left->is<Int>()) {
                         runtime_error(fmt::format("unable to apply & to {} and {}", left->str(), right->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
                         continue;
                     }
 
-                    auto res = left->as<Integer>()->get_value() & right->as<Integer>()->get_value();
-                    push(GarbageCollector::instance().make<Integer>(res));
+                    auto res = left->as<Int>()->get_value() & right->as<Int>()->get_value();
+                    push(make_int(res));
                     break;
                 }
 
                 case Opcode::BIT_XOR: {
-                    auto lock = LockGc();
-
                     auto right = pop();
                     auto left = pop();
 
-                    if (!right->is<Integer>() or !left->is<Integer>()) {
+                    if (!right->is<Int>() or !left->is<Int>()) {
                         runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(), right->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
                         continue;
                     }
 
-                    auto res = left->as<Integer>()->get_value() ^ right->as<Integer>()->get_value();
-                    push(GarbageCollector::instance().make<Integer>(res));
+                    auto res = left->as<Int>()->get_value() ^ right->as<Int>()->get_value();
+                    push(make_int(res));
+                    break;
+                }
+
+                case Opcode::CALL_METHOD: {
+                    auto arg_size = m_current_frame->get_oprand();
+
+                    t_vector args;
+                    for (size_t i = 0; i < arg_size; i++) {
+                        args.insert(args.begin(), pop());
+                    }
+
+                    auto name = pop()->as<String>()->get_value();
+                    auto obj = pop();
+
+                    if (!obj->is<NativeInstance>()) {
+                        runtime_error(fmt::format("method {} of {} does not exist", name, obj->str()),
+                                      RuntimeError::GenericError,
+                                      m_current_frame->get_span());
+                    }
+                    else {
+                        auto o = obj->as<NativeInstance>();
+                        if (o->has_method(name)) {
+                            auto res = o->call_method(name, args);
+
+                            if (!res.has_value()) {
+                                runtime_error(fmt::format("unable to call method\n  {}", name, res.error()),
+                                              RuntimeError::GenericError,
+                                              m_current_frame->get_span());
+                                break;
+                            }
+                            push(res.value());
+                            break;
+                        }
+                    }
+
+
+                    if (obj->is<Instance>()) {
+                        auto o = obj->as<Instance>();
+                        auto meth = o->get_method(name);
+
+                        if (!meth.has_value()) {
+                            runtime_error(fmt::format("attribute {} is not callable \n  {}", name, meth.error()));
+                            break;
+                        }
+
+                        setup_bound_call(o, meth.value()->as<Function>(), args);
+                        break;
+                    } else if (obj->is<Struct>()) {
+                        auto o = obj->as<Struct>();
+                        auto meth = o->get_method(name);
+
+                        if (!meth.has_value()) {
+                            runtime_error(
+                                    fmt::format("static method {} does not exist in struct {}", name, o->get_name()));
+                            break;
+                        }
+                        call_function(meth.value(), args);
+                        break;
+                    } else if (obj->is<Module>()) {
+                        auto o = obj->as<Module>();
+                        auto meth = o->get_attr(name);
+
+                        if (!meth.has_value()) {
+                            runtime_error(fmt::format("method {} does not exist in module {}", name, o->get_path()));
+                            break;
+                        }
+                        call_object(meth.value(), args);
+                        break;
+                    }
+
+                    runtime_error(fmt::format("method {} of type {} does not exist", name, get_type_name(obj)),
+                                  RuntimeError::AttributeNotFound,
+                                  m_current_frame->get_span());
                     break;
                 }
 
                 case Opcode::UNPACK_SEQ: {
-                    auto lock = LockGc();
                     auto obj = pop();
-
                     auto count = m_current_frame->get_oprand();
 
-                    // check iter
-                    auto iterator = obj->$iter();
-                    if (!iterator.has_value()) {
+                    //check if instance
+                    if (!obj->is<NativeInstance>()) {
                         runtime_error(fmt::format("unable to unpack {}", obj->str()),
-                                      iterator.error(),
-                                      m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto iter = iterator.value();
-
-                    size_t i = 0;
-                    while (true) {
-                        auto n = iter->$has_next();
-                        if (!n.has_value()) {
-                            runtime_error(fmt::format("unable to unpack {}", obj->str()),
-                                          n.error(),
-                                          m_current_frame->get_span());
-                            continue;
-                        }
-
-                        // FIXME: this is a hack, it assumes n will always be a bool
-                        assert(n.value()->is<Bool>());
-                        if (!n.value()->as<Bool>()->get_value()) {
-                            break;
-                        }
-
-                        auto next = iter->$next();
-
-                        if (!next.has_value()) {
-                            runtime_error(fmt::format("unable to unpack {}", obj->str()),
-                                          next.error(),
-                                          m_current_frame->get_span());
-                            continue;
-                        }
-
-
-                        push(next.value());
-                        i++;
-                    }
-
-                    if (i != count) {
-                        runtime_error(fmt::format("unable to unpack {} into {} values", obj->str(), count),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
                         continue;
                     }
 
+                    auto o = obj->as<NativeInstance>();
+
+                    // check iter
+                    if (!o->has_slot(Slot::ITER)) {
+                        runtime_error(fmt::format("object of type {} is not iterable", get_type_name(o)));
+                        continue;
+                    }
+
+                    auto iter = call_slot(Slot::ITER, o, {}, "unable to unpack object of type {}", get_type_name(obj));
+
+                    if (iter.get() == nullptr) {
+                        runtime_error(fmt::format("object of type {} is not iterable", get_type_name(obj)));
+                        return;
+                    }
+
+                    auto the_iterator = iter->as<NativeInstance>();
+
+                    //check next and has_next
+                    if (!the_iterator->has_slot(Slot::NEXT) or !the_iterator->has_slot(Slot::HAS_NEXT)) {
+                        runtime_error(fmt::format(
+                                "object of type {} is not iterable, __next__ or __has_next__ is not defined",
+                                get_type_name(obj)));
+                        continue;
+                    }
+
+                    // unpack
+                    size_t i = 0;
+                    while (true) {
+                        auto has_next = call_slot(Slot::HAS_NEXT, the_iterator, {},
+                                                  "unable to unpack object of type {}",
+                                                  get_type_name(obj));
+                        if (has_next.get() == nullptr) {
+                            break;
+                        }
+
+                        auto cond = TO_BOOL(has_next);
+                        if (!cond->get_value()) {
+                            break;
+                        }
+
+                        auto next = call_slot(Slot::NEXT, the_iterator, {}, "unable to unpack object of type {}",
+                                              get_type_name(obj));
+                        if (next.get() == nullptr) {
+                            break;
+                        }
+
+                        push(next);
+                        i++;
+                    }
+
+                    if (i != count) {
+                        runtime_error(fmt::format("unable to unpack object of type {}, expected {} elements, got {}",
+                                                  get_type_name(obj), count, i));
+                    }
                     break;
+                }
+                case Opcode::CREATE_CLOSURE: {
+                    auto func = m_current_frame->get_constant()->as<Function>();
+                    func->set_globals(m_current_frame->get_globals());
+                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
+                                                                            m_current_frame->get_locals());
+                    m_current_frame->set_local(func->get_name(), closure);
                 }
 
             }
 
-//            GarbageCollector::instance().collect_if_needed();
+//            collect_if_needed();
         }
-    }
-
-    void Vm::mark() {
-        Root::mark();
-
-        for (auto &arg: m_args) {
-            arg.mark();
-        }
-
-        for (size_t i = 0; i < m_frame_pointer; i++) {
-            m_frames[i].mark();
-        }
-
-        m_globals.mark();
-
-        if (m_current_frame)
-            m_current_frame->mark();
-
-        m_ctx->mark();
-    }
-
-    void Vm::unmark() {
-        Root::unmark();
-
-        for (auto &arg: m_args) {
-            arg.unmark();
-        }
-
-        for (size_t i = 0; i < m_frame_pointer; i++) { ;
-            m_frames[i].unmark();
-        }
-
-        m_globals.unmark();
-
-        if (m_current_frame)
-            m_current_frame->unmark();
-        m_ctx->unmark();
     }
 
 }; // bond

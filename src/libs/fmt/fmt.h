@@ -7,15 +7,7 @@
 #include "../../bond.h"
 
 namespace bond::fmt {
-    NativeErrorOr print(const std::vector<GcPtr < Object>>
-
-    &objects);
-
-    NativeErrorOr println(const std::vector<GcPtr < Object>>
-
-    &objects);
-
-    NativeErrorOr format(const std::vector<GcPtr < Object>>
-
-    &objects);
+    obj_result print(const t_vector &objects);
+    obj_result println(const t_vector &objects);
+    obj_result format(const t_vector &objects);
 } // bond

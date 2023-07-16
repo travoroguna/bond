@@ -1,99 +1,148 @@
 #include "../object.h"
 
+
 namespace bond {
+    obj_result Float_construct(const t_vector &args) {
+        Float *num;
 
-    OBJ_RESULT Float::$add(const GcPtr<Object> &other) {
-        if (!other->is<Float>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+        auto opt = parse_args(args, num);
+        TRY(opt);
 
-        return GarbageCollector::instance().make<Float>(m_value + other->as<Float>()->get_value());
+        return OK(GcPtr<Object>(num));
     }
 
-    OBJ_RESULT Float::$sub(const GcPtr<Object> &other) {
-        if (!other->is<Float>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+    obj_result Float_add(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Float *other;
 
-        return GarbageCollector::instance().make<Float>(m_value - other->as<Float>()->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_float(self_num->get_value() + other->get_value());
     }
 
-    OBJ_RESULT Float::$mul(const GcPtr<Object> &other) {
-        if (!other->is<Float>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
+    obj_result Float_sub(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Float *other;
 
-        return GarbageCollector::instance().make<Float>(m_value * other->as<Float>()->get_value());
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_float(self_num->get_value() - other->get_value());
     }
 
-    OBJ_RESULT Float::$div(const GcPtr<Object> &other) {
-        if (!other->is<Float>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
 
-        auto other_float = other->as<Float>();
+    obj_result Float_mul(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Float *other;
 
-        if (other_float->get_value() == 0) {
-            return std::unexpected(RuntimeError::DivisionByZero);
-        }
+        auto opt = parse_args(args, other);
+        TRY(opt);
 
-        return GarbageCollector::instance().make<Float>(m_value / other_float->get_value());
+        return make_float(self_num->get_value() * other->get_value());
     }
 
-    std::string Float::str() {
-        return fmt::format("{:.30g}", m_value);
+
+    obj_result Float_div(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Float *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (other->get_value() == 0)
+            return ERR("Division by zero error");
+
+        return make_float(self_num->get_value() / other->get_value());
     }
 
-    bool Float::equal(const GcPtr<Object> &other) {
-        if (!is<Float>(other)) return false;
-        return m_value == as<Float>(other)->get_value();
+    obj_result Float_lt(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Float *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return AS_BOOL(self_num->get_value() < other->get_value());
     }
 
-    size_t Float::hash() {
-        return std::hash<float>{}(m_value);
+    obj_result Float_eq(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Float>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() == other->as<Float>()->get_value());
     }
 
-    OBJ_RESULT Float::$eq(const GcPtr<Object> &other) {
-        return BOOL_(this->equal(other));
+    obj_result Float_ne(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Float>())
+            return AS_BOOL(true);
+
+        return AS_BOOL(self_num->get_value() != other->as<Float>()->get_value());
     }
 
-    OBJ_RESULT Float::$ne(const GcPtr<Object> &other) {
-        return BOOL_(!this->equal(other));
+    obj_result Float_gt(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Float>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() > other->as<Float>()->get_value());
     }
 
-    OBJ_RESULT Float::$lt(const GcPtr<Object> &other) {
-        if (!is<Float>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value < as<Float>(other)->get_value());
+    obj_result Float_le(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Float>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() <= other->as<Float>()->get_value());
     }
 
-    OBJ_RESULT Float::$le(const GcPtr<Object> &other) {
-        if (!is<Float>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value <= as<Float>(other)->get_value());
+    obj_result Float_ge(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<Float>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        if (!other->is<Float>())
+            return AS_BOOL(false);
+
+        return AS_BOOL(self_num->get_value() >= other->as<Float>()->get_value());
     }
 
-    OBJ_RESULT Float::$gt(const GcPtr<Object> &other) {
-        if (!is<Float>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value > as<Float>(other)->get_value());
-    }
 
-    OBJ_RESULT Float::$ge(const GcPtr<Object> &other) {
-        if (!is<Float>(other)) return std::unexpected(RuntimeError::TypeError);
-        return BOOL_(m_value >= as<Float>(other)->get_value());
-    }
+    GcPtr<NativeStruct> FLOAT_STRUCT = make_immortal<NativeStruct>("Float", "Float(value)", Float_construct, method_map{
+            {"__add__", {Float_add, "add(other)"}},
+            {"__sub__", {Float_sub, "sub(other)"}},
+            {"__mul__", {Float_mul, "mul(other)"}},
+            {"__div__", {Float_div, "div(other)"}},
+            {"__eq__", {Float_eq, "__eq__"}},
+            {"__ne__", {Float_ne, "__ne__"}},
+            {"__gt__", {Float_gt, "__gt__"}},
+            {"__lt__", {Float_lt, "__lt__"}},
+            {"__le__", {Float_le, "__le__"}},
+            {"__ge__", {Float_ge, "__ge__"}},
+    });
 
-    OBJ_RESULT Float::$_bool() {
-        return BOOL_(m_value != 0);
-    }
-
-    std::expected<GcPtr<Object>, RuntimeError> Float::$mod(const GcPtr<Object> &other) {
-        if (!other->is<Float>()) {
-            return std::unexpected(RuntimeError::TypeError);
-        }
-
-        auto other_number = other->as<Float>();
-        if (other_number->get_value() == 0) {
-            return std::unexpected(RuntimeError::DivisionByZero);
-        }
-        return GarbageCollector::instance().make<Float>(std::fmod(m_value, other_number->get_value()));
-    }
-};
+}

@@ -12,7 +12,7 @@ using namespace bond;
 GarbageCollector *m_gc;
 
 
-NativeErrorOr print_ln(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr print_ln(const std::vector<GcPtr<GcObject>> &arguments) {
     for (auto const &arg: arguments) {
         fmt::print("{} ", arg->str());
     }
@@ -20,7 +20,7 @@ NativeErrorOr print_ln(const std::vector<GcPtr<Object>> &arguments) {
     return m_gc->make<Nil>();
 }
 
-NativeErrorOr print(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr print(const std::vector<GcPtr<GcObject>> &arguments) {
     for (auto const &arg: arguments) {
         fmt::print("{}", arg->str());
     }
@@ -28,7 +28,7 @@ NativeErrorOr print(const std::vector<GcPtr<Object>> &arguments) {
 }
 
 
-NativeErrorOr read_stdin(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr read_stdin(const std::vector<GcPtr<GcObject>> &arguments) {
     ASSERT_ARG_COUNT(0, arguments);
     std::string line;
     std::getline(std::cin, line);
@@ -36,7 +36,7 @@ NativeErrorOr read_stdin(const std::vector<GcPtr<Object>> &arguments) {
 }
 
 
-class File : public Object {
+class File : public GcObject {
 public:
     File(std::string const &path, std::string mode) : m_path(path), m_mode(std::move(mode)) {
         m_file.open(path, std::ios::in | std::ios::out);
@@ -56,7 +56,7 @@ public:
         return fmt::format("File({})", m_path);
     }
 
-    OBJ_RESULT $get_attribute(const GcPtr<Object> &index) override {
+    OBJ_RESULT $get_attribute(const GcPtr<GcObject> &index) override {
         if (!index->is<String>()) return std::unexpected(RuntimeError::AttributeNotFound);
 
         auto name = index->as<String>()->get_value();
@@ -69,20 +69,20 @@ public:
     }
 
     void mark() override {
-        Object::mark();
+        GcObject::mark();
         for (auto const &[name, method]: m_methods) {
             method->mark();
         }
     }
 
     void unmark() override {
-        Object::unmark();
+        GcObject::unmark();
         for (auto const &[name, method]: m_methods) {
             method->unmark();
         }
     }
 
-    bool equal(const GcPtr<Object> &other) override { return false; }
+    bool equal(const GcPtr<GcObject> &other) override { return false; }
 
     size_t hash() override { return 0; }
 
@@ -91,27 +91,27 @@ private:
     std::string m_mode;
     std::fstream m_file;
 
-    std::unordered_map<std::string, GcPtr<Object>> m_methods = {
+    std::unordered_map<std::string, GcPtr<GcObject>> m_methods = {
             {"read_all",  m_gc->make<NativeFunction>(
-                    [this](const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+                    [this](const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
                         ASSERT_ARG_COUNT(0, arguments);
                         return m_gc->make<String>(this->read_all());
                     })},
             {"close",     m_gc->make<NativeFunction>(
-                    [this](const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+                    [this](const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
                         ASSERT_ARG_COUNT(0, arguments);
                         this->close();
                         return m_gc->make<Nil>();
                     })},
             {"write_all", m_gc->make<NativeFunction>(
-                    [this](const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+                    [this](const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
                         ASSERT_ARG_COUNT(1, arguments);
                         DEFINE(content, String, 0, arguments);
                         m_file << content->get_value();
                         return m_gc->make<Nil>();
                     })},
             {"file_size", m_gc->make<NativeFunction>(
-                    [this](const std::vector<GcPtr<Object>> &arguments) -> NativeErrorOr {
+                    [this](const std::vector<GcPtr<GcObject>> &arguments) -> NativeErrorOr {
                         ASSERT_ARG_COUNT(0, arguments);
                         return m_gc->make<Integer>(std::filesystem::file_size(m_path));
                     })},
@@ -120,7 +120,7 @@ private:
 };
 
 
-NativeErrorOr open_file(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr open_file(const std::vector<GcPtr<GcObject>> &arguments) {
     ASSERT_ARG_COUNT(2, arguments);
     DEFINE(path, String, 0, arguments);
     DEFINE(mode, String, 1, arguments);
