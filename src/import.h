@@ -6,11 +6,6 @@
 #include "object.h"
 
 namespace bond {
-    // import parser
-    // import "core:io" as io; -> core inbuilt module
-    // import "library:io" as io; -> libraries
-    // import "file/io" as io; -> local files
-
     extern GcPtr<Module> core_module;
 
     class Import {

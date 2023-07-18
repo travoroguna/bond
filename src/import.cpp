@@ -38,10 +38,7 @@ namespace bond {
         std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
 
         for (auto &p: paths) {
-            fmt::print("[import] test {} {}\n", p, std::filesystem::exists(p));
-
             if (std::filesystem::exists(p)) {
-                fmt::print("[vm] loading {}\n", std::filesystem::canonical(p).string());
                 return std::filesystem::canonical(p).string();
             }
         }
@@ -52,7 +49,7 @@ namespace bond {
                 return std::filesystem::canonical(path).string();
             }
         }
-//
+
         return std::unexpected(fmt::format("failed to resolve path {}", path));
     }
 
@@ -103,7 +100,7 @@ namespace bond {
             auto ext = entry.path().extension();
             if (ext == ".bd" || ext == ".dll" || ext == ".so") {
                 auto a = entry.path().stem().string();
-                auto res = create_module(m_ctx, std::filesystem::absolute(entry), a);
+                auto res = create_module(m_ctx, std::filesystem::absolute(entry).string(), a);
                 if (!res) {
                     return std::unexpected(res.error());
                 }
@@ -181,8 +178,6 @@ namespace bond {
     // import "file/io" as io; -> local files
 
     std::expected<GcPtr<Object>, std::string> Import::import_module(Context* ctx, const std::string& path, std::string& alias) {
-        fmt::print("[import] {} alias {}\n", path, alias);
-
         if (m_modules.contains(path)) {
             return m_modules[path];
         }
@@ -212,7 +207,6 @@ namespace bond {
         // TODO: add support for library imports
         auto mod = create_module(ctx, path, alias);
         if (!mod) {
-            fmt::print("[import] failed to import module {}\n", mod.error());
             return mod;
         }
         m_modules[path] = mod.value();

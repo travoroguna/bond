@@ -1,0 +1,8 @@
+cmake-build-debug-visual-studio
+cmake-build-release-visual-studio
+build
+node_modules
+_deps
+.idea
+out.bond
+package-lock.json

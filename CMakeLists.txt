@@ -4,19 +4,9 @@ project(bond)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(PLIBSYS_TESTS OFF CACHE BOOL "" FORCE)
-set(PLIBSYS_BUILD_DOC OFF CACHE BOOL "" FORCE)
 
 include(cmake/CPM.cmake)
 
-
-CPMAddPackage(
-        NAME plibsys
-        GITHUB_REPOSITORY saprykin/plibsys
-        GIT_TAG 0.0.4
-        EXCLUDE_FROM_ALL YES
-        GIT_SHALLOW ON
-)
 
 CPMAddPackage(
         NAME CPMLicenses.cmake
@@ -44,20 +34,15 @@ else ()
 endif ()
 
 
-target_link_libraries(bond plibsysstatic bond-lib)
+target_link_libraries(bond bond-lib)
 
-
-#add_executable(libtool src/libtool/libtool.cpp)
-#target_link_libraries(libtool bond-lib plibsysstatic)
 
 cpm_licenses_create_disclaimer_target(
         write-licenses "${CMAKE_CURRENT_BINARY_DIR}/third_party.txt" "${CPM_PACKAGES}"
 )
 
-#install(TARGETS libtool)
 install(TARGETS bond)
 
-#INSTALL(TARGETS plibsys RUNTIME DESTINATION .)
 
 set(CPACK_PACKAGE_NAME "bond")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/third_party.txt")

@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(FMT_INSTALL OFF CACHE INTERNAL "")
 
-
 CPMAddPackage(
         NAME nlohmann_json
         VERSION 3.11.2
@@ -27,16 +26,15 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
-
 if (MSVC)
-CPMAddPackage(
-        NAME libatomic_ops
-        GITHUB_REPOSITORY ivmai/libatomic_ops
-        GIT_TAG v7.8.0
-        OPTIONS "enable_gpl ON"
-        EXCLUDE_FROM_ALL YES
-)
-endif()
+    CPMAddPackage(
+            NAME libatomic_ops
+            GITHUB_REPOSITORY ivmai/libatomic_ops
+            GIT_TAG v7.8.0
+            OPTIONS "enable_gpl ON"
+            EXCLUDE_FROM_ALL YES
+    )
+endif ()
 
 CPMAddPackage(
         NAME bdwgc
@@ -53,20 +51,20 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         compiler/parser.cpp compiler/parser.h compiler/codegen.cpp compiler/codegen.h vm.cpp vm.h gc.cpp gc.h compiler/nodevisitor.cpp
         compiler/nodevisitor.h object.h object.cpp api.h api.cpp builtins.cpp bond.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
-        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h)
+        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h engine.cpp engine.h engine.h)
 
-target_link_libraries(bond-lib gc gccpp fmt::fmt-header-only nlohmann_json plibsysstatic)
+target_link_libraries(bond-lib gc gccpp fmt::fmt-header-only nlohmann_json)
 
 if (MSVC)
-  target_link_libraries(gc atomic_ops)
-endif()
+    target_link_libraries(gc atomic_ops)
+endif ()
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")
 
 INSTALL(TARGETS bond-lib
         LIBRARY DESTINATION lib
         PUBLIC_HEADER DESTINATION include/bondlib
-        )
+)
 
 #INSTALL(TARGETS fmt)
 #INSTALL(FILES bondlibConfig.cmake DESTINATION lib/cmake/bondlib)

@@ -565,6 +565,8 @@ namespace bond {
 
         std::string get_path() { return m_path; }
 
+        void add_module(const std::string &name, const GcPtr<Module> &mod);
+
         std::string str() const override { return fmt::format("<module {}>", m_path); }
     private:
         GcPtr<Map> m_globals;
