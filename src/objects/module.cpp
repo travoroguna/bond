@@ -17,18 +17,16 @@ namespace bond {
     }
 
     obj_result Module::get_attribute(const std::string &name) {
-//        auto meth = m_native_struct->get_method(name);
-
-//        if (meth.has_value()) {
-//            return OK(meth.value());
-//        }
-//
         auto res = m_globals->get(name);
         if (res.has_value()) {
             return OK(res.value());
         } else {
             return ERR(fmt::format("AttributeError: module '{}' has no attribute '{}'", get_path(), name));
         }
+    }
+
+    void Module::add_module(const std::string &name, const GcPtr<Module> &mod) {
+        m_globals->set(name, mod);
     }
 
     obj_result get_attribute(const GcPtr<Object> &Self, const t_vector &args) {
