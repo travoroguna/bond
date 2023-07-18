@@ -1,0 +1,21 @@
+import "assert";
+
+
+fn test_result() ! {
+    fn divide(a, b) ! {
+        if b == 0 {
+            err "division by zero";
+        }
+        ok a / b;
+    }
+
+    var result = divide(10, 2);
+    try assert.assert_eq(result.is_ok(), true, "result should be ok");
+    try assert.assert_eq(result.value(), 5, "result should be 5");
+
+    var bad_result = divide(10, 0);
+    try assert.assert_eq(bad_result.is_error(), true, "result should be err");
+    try assert.assert_eq(bad_result.error(), "division by zero", "result should be division by zero");
+}
+
+

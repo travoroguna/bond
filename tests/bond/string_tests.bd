@@ -1,0 +1,76 @@
+import "core";
+import "assert";
+
+
+
+fn string_test_add() ! {
+    var a = "hello";
+    var b = " world";
+    var c = a + b;
+    try assert.assert_eq(c, "hello world", "test_add failed");
+}
+
+fn string_test_join() ! {
+    var a = "hello";
+    var b = "world";
+    var c = " ".join(a, b);
+    try assert.assert_eq(c, "hello world", "test_join failed");
+}
+
+fn string_test_size() ! {
+    var hello = "hello world";
+    try assert.assert_eq(hello.size(), 11, "test_size failed");
+}
+
+fn string_test_substring() ! {
+    var hello = "hello world";
+    var sub = hello.sub_string(0, 5);
+    try assert.assert_eq(sub, "hello", "test_substring failed");
+}
+
+fn string_test_equality() ! {
+    var a = "hello";
+    var b = "hello";
+    try assert.assert(a == b, "test_equality failed");
+    try assert.assert(a != "world", "test_equality failed");
+}
+
+fn string_test_iter() ! {
+    var iterator = "hello".__iter__();
+    try assert.assert(iterator.__next__() == "h", "test_iter failed");
+    try assert.assert(iterator.__next__() == "e", "test_iter failed");
+    try assert.assert(iterator.__next__() == "l", "test_iter failed");
+    try assert.assert(iterator.__next__() == "l", "test_iter failed");
+    try assert.assert(iterator.__next__() == "o", "test_iter failed");
+}
+
+fn string_test_iter2() ! {
+    var iterator = "hello".__iter__();
+    var result = "";
+
+    while (iterator.__has_next__()) {
+        var next = iterator.__next__();
+        result = result + next;
+    }
+    try assert.assert(result == "hello", "test_iter2 failed");
+}
+
+fn string_test_iter3() ! {
+    var result = "";
+
+    for next in "hello" {
+        result = result + next;
+    }
+
+    try assert.assert(result == "hello", "test_iter3 failed");
+}
+
+fn string_test_get_item() ! {
+    var str = "hello";
+
+    try assert.assert(str[0] == "h", "test_get_item failed");
+    try assert.assert(str[1] == "e", "test_get_item failed");
+    try assert.assert(str[2] == "l", "test_get_item failed");
+    try assert.assert(str[3] == "l", "test_get_item failed");
+    try assert.assert(str[4] == "o", "test_get_item failed");
+}

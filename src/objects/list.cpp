@@ -1,164 +1,164 @@
 #include "../object.h"
-
+#include <ranges>
 
 namespace bond {
-    OBJ_RESULT ListObj::$set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) {
-        if (!is<Integer>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
-        auto index_value = as<Integer>(index)->get_value();
-
-        if (std::floor(index_value) != index_value) {
-            return std::unexpected(RuntimeError::ExpectedNumberIndex);
-        }
-
-        auto i = static_cast<size_t>(index_value);
-
-        if (i < 0 || i >= m_internal_list.size()) {
-            return std::unexpected(RuntimeError::IndexOutOfBounds);
-        }
-
-        m_internal_list[i] = value;
-        return value;
+    List::List(const t_vector &elements) {
+        m_elements = elements;
     }
 
-    OBJ_RESULT ListObj::$get_item(const GcPtr<Object> &index) {
-        if (!is<Integer>(index)) return std::unexpected(RuntimeError::ExpectedNumberIndex);
-        auto index_value = as<Integer>(index)->get_value();
+    void List::mark() {
+        if (m_marked) return;
 
-        if (std::floor(index_value) != index_value) {
-            return std::unexpected(RuntimeError::ExpectedWholeNumberIndex);
-        }
-
-        auto i = static_cast<size_t>(index_value);
-
-        if (i < 0 || i >= m_internal_list.size()) {
-            return std::unexpected(RuntimeError::IndexOutOfBounds);
-        }
-
-        return m_internal_list[i];
-    }
-
-    void ListObj::mark() {
-        Object::mark();
-
-        for (auto &item: m_internal_list) {
-            item->mark();
+        NativeInstance::mark();
+        for (auto &item: m_elements) {
+            item.mark();
         }
     }
 
-    void ListObj::unmark() {
-        Object::unmark();
+    void List::unmark() {
+        if (!m_marked) return;
 
-        for (auto &item: m_internal_list) {
-            item->unmark();
+        NativeInstance::unmark();
+        for (auto &item: m_elements) {
+            item.unmark();
         }
     }
 
-    void ListObj::prepend(const GcPtr<Object> &value) {
-        m_internal_list.insert(m_internal_list.begin(), value);
-    }
-
-    std::string ListObj::str() {
-        std::string result = "[";
-
-        for (auto &item: m_internal_list) {
-            result += item->str() + ", ";
+    obj_result List::get_item(int64_t index) {
+        if (index < 0 or index > m_elements.size() - 1) {
+            return ERR(fmt::format("Index {} out of range", index));
         }
+        return m_elements[index];
+    }
 
-        if (result.size() > 1) {
-            result.pop_back();
-            result.pop_back();
+    obj_result List::set_item(int64_t index, const GcPtr<Object> &item) {
+        if (index < 0 or index > m_elements.size() - 1) {
+            return ERR(fmt::format("Index {} out of range", index));
         }
-
-        result += "]";
-
-        return result;
+        m_elements[index] = item;
+        return OK();
     }
 
-    OBJ_RESULT ListObj::$_bool() {
-        return BOOL_(!m_internal_list.empty());
+    obj_result List::size() const {
+        return OK(make_int(m_elements.size()));
     }
 
-    OBJ_RESULT ListObj::$iter() {
-        return GarbageCollector::instance().make<ListIterator>(this);
+    size_t List::get_size() const {
+        return m_elements.size();
     }
 
-    OBJ_RESULT ListObj::$get_attribute(const GcPtr<Object> &index) {
-        if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
+    obj_result get_item(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        Int *index;
+        TRY(parse_args(args, index));
 
-        auto attr = as<String>(index)->get_value();
-        using arg_t = std::vector<GcPtr<Object>>;
+        return self->get_item(index->get_value());
+    }
 
-        if (attr == "append") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (args.size() != 1)
-                            return std::unexpected(
-                                    FunctionError("append takes 1 argument", RuntimeError::InvalidArgument));
+    obj_result set_item(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        Int *index;
+        Object *item;
+        TRY(parse_args(args, index, item));
 
-                        this->m_internal_list.push_back(args[0]);
-                        return GarbageCollector::instance().make<Nil>();
-                    });
-        } else if (attr == "prepend") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (args.size() != 1)
-                            return std::unexpected(
-                                    FunctionError("prepend takes 1 argument", RuntimeError::InvalidArgument));
+        return self->set_item(index->get_value(), item);
+    }
 
-                        this->prepend(args[0]);
-                        return GarbageCollector::instance().make<Nil>();
-                    });
-        } else if (attr == "pop") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (!args.empty())
-                            return std::unexpected(
-                                    FunctionError("pop takes 0 arguments", RuntimeError::InvalidArgument));
+    obj_result size(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        TRY(parse_args(args));
 
-                        auto result = m_internal_list.back();
-                        m_internal_list.pop_back();
-                        return result;
-                    });
-        } else if (attr == "remove") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (args.size() != 1)
-                            return std::unexpected(
-                                    FunctionError("remove takes 1 argument", RuntimeError::InvalidArgument));
+        return self->size();
+    }
 
-                        auto it = std::find(m_internal_list.begin(), m_internal_list.end(), args[0]);
-                        if (it == m_internal_list.end())
-                            return std::unexpected(
-                                    FunctionError(fmt::format("unable to remove element"), RuntimeError::GenericError));
-                        m_internal_list.erase(it);
-                        return GarbageCollector::instance().make<Nil>();
-                    });
+    void List::prepend(const GcPtr<Object> &item) {
+        m_elements.insert(m_elements.begin(), item);
+    }
 
-        } else if (attr == "clear") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (!args.empty())
-                            return std::unexpected(
-                                    FunctionError("clear takes no arguments", RuntimeError::InvalidArgument));
+    void List::append(const GcPtr<Object> &item) {
+        m_elements.push_back(item);
+    }
 
-                        this->m_internal_list.clear();
-                        return GarbageCollector::instance().make<Nil>();
-                    });
-        } else if (attr == "size") {
-            return GarbageCollector::instance().make<NativeFunction>(
-                    [this](const arg_t &args) -> NativeErrorOr {
-                        if (!args.empty())
-                            return std::unexpected(
-                                    FunctionError("size takes no arguments", RuntimeError::InvalidArgument));
-                        return GarbageCollector::instance().make<Integer>(m_internal_list.size());
-                    });
+    void List::insert(int64_t index, const GcPtr<Object> &item) {
+        m_elements.insert(m_elements.begin() + index, item);
+    }
+
+    GcPtr<Object> List::pop() {
+        auto last = m_elements.back();
+        m_elements.pop_back();
+        return last;
+    }
+
+
+    std::string List::str() const {
+        std::vector<std::string> strs;
+        for (auto &item: m_elements) {
+            strs.push_back(item->str());
         }
-
-
-        return std::unexpected(RuntimeError::AttributeNotFound);
+        return fmt::format("[{}]", fmt::join(strs, ", "));
     }
 
-    void ListObj::append(const GcPtr<Object> &value) {
-        m_internal_list.push_back(value);
+    obj_result List_append(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        Object *item;
+        TRY(parse_args(args, item));
+
+        self->append(item);
+        return OK();
     }
-};
+
+    obj_result List_insert(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        Int *index;
+        Object *item;
+        TRY(parse_args(args, index, item));
+
+        self->insert(index->get_value(), item);
+        return OK();
+    }
+
+    obj_result List_pop(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        TRY(parse_args(args));
+
+        return self->pop();
+    }
+
+    obj_result list_iterator_next(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<ListIterator>();
+        TRY(parse_args(args));
+        return self->m_list->get_item(self->m_index++);
+    }
+
+    obj_result list_iterator_has_next(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<ListIterator>();
+        TRY(parse_args(args));
+        return OK(AS_BOOL(self->m_index < self->m_list->get_size()));
+    }
+
+    GcPtr<NativeStruct> LIST_ITERATOR_STRUCT = make_immortal<NativeStruct>("ListIterator", "ListIterator(list: List)",
+                                                                           c_Default<ListIterator>, method_map{
+                    {"__next__",     {list_iterator_next,     "__next__()"}},
+                    {"__has_next__", {list_iterator_has_next, "__has_next__()"}},
+            });
+
+    obj_result list_iter(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        TRY(parse_args(args));
+
+        return OK(LIST_ITERATOR_STRUCT->create_instance<ListIterator>(self));
+    }
+
+
+    GcPtr<NativeStruct> LIST_STRUCT = make_immortal<NativeStruct>("List", "List(object)", c_Default<List>, method_map{
+            {"__iter__",    {list_iter, "__iter__()"}},
+            {"__getitem__", {get_item,  "__getitem__(index: Int)"}},
+            {"__setitem__", {set_item,  "__setitem__(index: Int, value: Any)"}},
+            {"size",        {size,      "size()\ngets the size of the list\nreturns Int"}},
+            {"append",      {List_append, "append(item: Any)\nappends an item to the end of the list"}},
+            {"insert",      {List_insert, "insert(index: Int, item: Any)\ninserts an item at the given index"}},
+            {"pop",         {List_pop,    "pop()\nremoves and returns the last item in the list"}},
+    });
+
+
+}

@@ -4,7 +4,7 @@
 using namespace bond;
 GarbageCollector *m_gc;
 
-class SocketAddress : public Object {
+class SocketAddress : public GcObject {
 public:
     explicit SocketAddress(PSocketAddress *socket_address) : m_socket_address(socket_address) {}
     // FIXME: This is a memory leak but program crashes on delete
@@ -12,13 +12,13 @@ public:
 
     std::string str() override { return "SocketAddress"; }
 
-    bool equal(const GcPtr<bond::Object> &other) override { return false; };
+    bool equal(const GcPtr<bond::GcObject> &other) override { return false; };
 
     size_t hash() override { return 0; };
 
     PSocketAddress *get_socket_address() { return m_socket_address; }
 
-    NativeErrorOr get_address(const std::vector<GcPtr<Object>> &obj) {
+    NativeErrorOr get_address(const std::vector<GcPtr<GcObject>> &obj) {
         ASSERT_ARG_COUNT(0, obj);
         char *address = p_socket_address_get_address(m_socket_address);
         if (address == nullptr) {
@@ -29,7 +29,7 @@ public:
         return res;
     }
 
-    NativeErrorOr get_port(const std::vector<GcPtr<Object>> &obj) {
+    NativeErrorOr get_port(const std::vector<GcPtr<GcObject>> &obj) {
         ASSERT_ARG_COUNT(0, obj);
 
         auto port = p_socket_address_get_port(m_socket_address);
@@ -39,7 +39,7 @@ public:
         return Ok(m_gc->make<Integer>(port));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override {
+    std::expected<GcPtr<GcObject>, RuntimeError> $get_attribute(const GcPtr<bond::GcObject> &index) override {
         auto name = index->as<String>()->get_value();
         if (name == "get_address") {
             return MAKE_METHOD(get_address);
@@ -54,7 +54,7 @@ private:
 };
 
 
-NativeErrorOr c_SocketAddress(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr c_SocketAddress(const std::vector<GcPtr<GcObject>> &arguments) {
     ASSERT_ARG_COUNT(2, arguments);
     DEFINE(host, bond::String, 0, arguments);
     DEFINE(port, bond::Integer, 1, arguments);
@@ -67,13 +67,13 @@ NativeErrorOr c_SocketAddress(const std::vector<GcPtr<Object>> &arguments) {
 }
 
 
-class Socket : public Object {
+class Socket : public GcObject {
 public:
     explicit Socket(PSocket *socket) : m_socket(socket) {}
     //TODO: program crashes on delete
 //    ~Socket() override { p_socket_free(m_socket); }
 
-    bool equal(const GcPtr<bond::Object> &other) override { return false; };
+    bool equal(const GcPtr<bond::GcObject> &other) override { return false; };
 
     size_t hash() override { return 0; };
 
@@ -84,7 +84,7 @@ public:
 
     //methods
 
-    NativeErrorOr bind(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr bind(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(2, arguments);
         DEFINE(address, SocketAddress, 0, arguments);
         DEFINE(reuse, bond::Bool, 1, arguments);
@@ -102,7 +102,7 @@ public:
         return Ok(m_gc->make<Bool>(res));
     }
 
-    NativeErrorOr close(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr close(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(0, arguments);
         auto error = p_error_new();
         auto res = p_socket_close(m_socket, &error);
@@ -117,7 +117,7 @@ public:
         return Ok(m_gc->make<Bool>(res));
     }
 
-    NativeErrorOr shutdown(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr shutdown(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(2, arguments);
         DEFINE(shutdown_read, Bool, 0, arguments);
         DEFINE(shutdown_write, Bool, 1, arguments);
@@ -136,7 +136,7 @@ public:
         return Ok(m_gc->make<Bool>(res));
     }
 
-    NativeErrorOr listen(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr listen(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(backlog, bond::Integer, 0, arguments);
 
@@ -156,7 +156,7 @@ public:
         return Ok(m_gc->make<Bool>(res));
     }
 
-    NativeErrorOr accept(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr accept(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(0, arguments);
 
         auto error = p_error_new();
@@ -173,7 +173,7 @@ public:
         return Ok(m_gc->make<Socket>(socket));
     }
 
-    NativeErrorOr connect(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr connect(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(address, SocketAddress, 0, arguments);
 
@@ -190,7 +190,7 @@ public:
         return Ok(m_gc->make<Bool>(res));
     }
 
-    NativeErrorOr send(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr send(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(data, bond::String, 0, arguments);
 
@@ -207,7 +207,7 @@ public:
         return Ok(m_gc->make<Integer>(res));
     }
 
-    NativeErrorOr receive(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr receive(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(size, bond::Integer, 0, arguments);
 
@@ -227,7 +227,7 @@ public:
         return r;
     }
 
-    NativeErrorOr send_to(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr send_to(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(2, arguments);
         DEFINE(data, bond::String, 0, arguments);
         DEFINE(address, SocketAddress, 1, arguments);
@@ -246,7 +246,7 @@ public:
         return Ok(m_gc->make<Integer>(res));
     }
 
-    NativeErrorOr receive_from(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr receive_from(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(1, arguments);
         DEFINE(address, SocketAddress, 0, arguments);
         DEFINE(size, bond::Integer, 1, arguments);
@@ -268,7 +268,7 @@ public:
         return r;
     }
 
-    NativeErrorOr get_local_address(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr get_local_address(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(0, arguments);
 
         auto error = p_error_new();
@@ -284,7 +284,7 @@ public:
         return Ok(m_gc->make<SocketAddress>(addr));
     }
 
-    NativeErrorOr get_remote_address(const std::vector<GcPtr<Object>> &arguments) {
+    NativeErrorOr get_remote_address(const std::vector<GcPtr<GcObject>> &arguments) {
         ASSERT_ARG_COUNT(0, arguments);
 
         auto error = p_error_new();
@@ -300,7 +300,7 @@ public:
         return Ok(m_gc->make<SocketAddress>(addr));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError> $get_attribute(const GcPtr<bond::Object> &index) override {
+    std::expected<GcPtr<GcObject>, RuntimeError> $get_attribute(const GcPtr<bond::GcObject> &index) override {
         if (!index->is<String>()) {
             return std::unexpected(RuntimeError::AttributeNotFound);
         }
@@ -317,7 +317,7 @@ public:
 private:
     PSocket *m_socket;
 #define METHOD(name) {#name, BIND(name)}
-    std::unordered_map<std::string, std::function<NativeErrorOr(const std::vector<GcPtr<Object>> &)>> m_methods = {
+    std::unordered_map<std::string, std::function<NativeErrorOr(const std::vector<GcPtr<GcObject>> &)>> m_methods = {
             METHOD(close),
             METHOD(shutdown),
             METHOD(bind),
@@ -334,7 +334,7 @@ private:
 };
 
 
-NativeErrorOr c_Socket(const std::vector<GcPtr<Object>> &arguments) {
+NativeErrorOr c_Socket(const std::vector<GcPtr<GcObject>> &arguments) {
     ASSERT_ARG_COUNT(3, arguments);
     DEFINE(family, bond::Integer, 0, arguments);
     DEFINE(type, bond::Integer, 1, arguments);
@@ -385,7 +385,7 @@ EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
     auto p_enum = ctx->gc()->make<Enum>("protocol", protocol);
 
 
-    std::unordered_map<std::string, GcPtr<Object>> io_module = {
+    std::unordered_map<std::string, GcPtr<GcObject>> io_module = {
             {"family",        f_enum},
             {"type",          t_enum},
             {"protocol",      p_enum},

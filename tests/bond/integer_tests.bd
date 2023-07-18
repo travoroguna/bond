@@ -1,0 +1,106 @@
+import "core";
+import "assert";
+
+
+fn integer_test_add() ! {
+    var a = 5;
+    var b = 10;
+    var c = a + b;
+    try assert.assert_eq(c , 15, "test_add failed");
+}
+
+fn integer_test_sub() ! {
+    var a = 5;
+    var b = 10;
+    var c = a - b;
+    try assert.assert_eq(c , -5, "test_sub failed");
+}
+
+fn integer_test_mul() ! {
+    var a = 5;
+    var b = 10;
+    var c = a * b;
+    try assert.assert_eq(c , 50, "test_mul failed");
+}
+
+fn integer_test_div() ! {
+    var a = 5;
+    var b = 10;
+    var c = b / a;
+    try assert.assert_eq(c , 2, "test_div failed");
+}
+
+fn integer_test_mod() ! {
+    var a = 5;
+    var b = 10;
+    var c = b % a;
+    try assert.assert_eq(c , 0, "test_mod failed");
+}
+
+fn integer_test_bit_and() ! {
+    var a = 5;
+    var b = 10;
+    var c = b & a;
+    try assert.assert_eq(c , 0, "test_bit_and failed");
+}
+
+fn integer_test_bit_or() ! {
+    var a = 5;
+    var b = 10;
+    var c = b | a;
+    try assert.assert_eq(c , 15, "test_bit_or failed");
+}
+
+fn integer_test_bit_xor() ! {
+    var a = 5;
+    var b = 10;
+    var c = b ^ a;
+    try assert.assert_eq(c , 15, "test_bit_xor failed");
+}
+
+fn integer_test_eq() ! {
+    var a = 5;
+    var b = 10;
+    var c = b == a;
+    try assert.assert_eq(c , false, "test_eq failed");
+    try assert.assert_eq(1 == "1" , false, "test_eq failed");
+}
+
+fn integer_test_ne() ! {
+    var a = 5;
+    var b = 10;
+    var c = b != a;
+    try assert.assert_eq(c , true, "test_ne failed");
+    try assert.assert_eq(1 != "1" , true, "test_eq failed");
+
+}
+
+fn integer_test_lt() ! {
+    var a = 5;
+    var b = 10;
+    var c = b < a;
+    try assert.assert_eq(c , false, "test_lt failed");
+}
+
+fn integer_test_gt() ! {
+    var a = 5;
+    var b = 10;
+    var c = b > a;
+    try assert.assert_eq(c , true, "test_gt failed");
+}
+
+fn integer_test_le() ! {
+    var a = 5;
+    var b = 10;
+    var c = b <= a;
+    try assert.assert_eq(c , false, "test_le failed");
+}
+
+fn integer_test_ge() ! {
+    var a = 5;
+    var b = 10;
+    var c = b >= a;
+    try assert.assert_eq(c , true, "test_ge failed");
+}
+
+

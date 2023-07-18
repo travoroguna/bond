@@ -14,19 +14,18 @@
 // {:?fill_char<count} - left pad
 // {:?fill_char>count} - right pad
 
-bond::GarbageCollector *m_gc;
 bond::Context *m_ctx;
 
 
 namespace bond::fmt {
 #define CHECK_PARAMS(x)\
 if ((x).empty())    \
-    return std::unexpected(FunctionError("expected at least 1 argument", RuntimeError::GenericError)); \
-if (!(x)[0]->is<String>())                                                                              \
-    return std::unexpected(FunctionError("expected first argument to be a string", RuntimeError::GenericError))
+    return ERR("expected at least 1 argument"); \
+if (!(x)[0]->is<String>()) \
+    return ERR(::fmt::format("expected first argument to be a string not {}", get_type_name((x)[0])))
 
 
-    std::expected<std::string, std::string> format_str(const std::vector<GcPtr<Object>> &objects) {
+    std::expected<std::string, std::string> format_str(const bond::t_vector &objects) {
         auto fmt_string = objects[0]->as<String>()->get_value();
         size_t count = 1;
         std::string result;
@@ -42,17 +41,19 @@ if (!(x)[0]->is<String>())                                                      
                     case '{':
                         fmt_count += 2;
                         break;
-                    case '}':
+                    case '}':{
 
                         if (count >= objects.size()) {
                             return std::unexpected(
                                     ::fmt::format("expected {} arguments, got {}", count + 1, objects.size()));
                         }
 
-                        result += objects[count]->str();
+                        auto str_res = objects[count]->str();
+                        result += str_res;
                         count += 1;
                         fmt_count += 2;
                         break;
+                    }
                         //match specifier
                     case ':': {
                         fmt_count += 2;
@@ -166,7 +167,7 @@ if (!(x)[0]->is<String>())                                                      
         return result;
     }
 
-    NativeErrorOr print(const std::vector<GcPtr<Object>> &objects) {
+    obj_result print(const bond::t_vector &objects) {
         CHECK_PARAMS(objects);
         if (objects.size() == 1) {
             ::fmt::print("{}", objects[0]->as<String>()->get_value());
@@ -176,32 +177,32 @@ if (!(x)[0]->is<String>())                                                      
 
         if (result) {
             ::fmt::print("{}", result.value());
-            return Globs::BondNil;
+            return C_NONE;
         } else {
-            return std::unexpected(FunctionError(result.error(), RuntimeError::GenericError));
+            return ERR(result.error());
         }
     }
 
-    NativeErrorOr println(const std::vector<GcPtr<Object>> &objects) {
+    obj_result println(const bond::t_vector &objects) {
         CHECK_PARAMS(objects);
 
         auto result = format_str(objects);
         if (result) {
             ::fmt::print("{}\n", result.value());
-            return Globs::BondNil;
+            return C_NONE;
         } else {
-            return std::unexpected(FunctionError(result.error(), RuntimeError::GenericError));
+            return ERR(result.error());
         }
 
     }
 
-    NativeErrorOr format(const std::vector<GcPtr<Object>> &objects) {
+    obj_result format(const bond::t_vector &objects) {
         CHECK_PARAMS(objects);
         auto result = format_str(objects);
         if (result) {
-            return Ok(m_gc->make<String>(result.value()));
+            return make_string(result.value());
         } else {
-            return Err(result.error());
+            return ERR(result.error());
         }
     }
 
@@ -209,17 +210,15 @@ if (!(x)[0]->is<String>())                                                      
 
 
 EXPORT void bond_module_init(bond::Context *ctx, std::string const &path) {
-    m_gc = ctx->gc();
     m_ctx = ctx;
-    bond::GarbageCollector::instance().set_gc(ctx->gc());
 
-
-    std::unordered_map<std::string, bond::GcPtr<bond::Object>> mod = {
-            {"print",   m_gc->make<bond::NativeFunction>(bond::fmt::print)},
-            {"println", m_gc->make<bond::NativeFunction>(bond::fmt::println)},
-            {"format",  m_gc->make<bond::NativeFunction>(bond::fmt::format)},
+    bond::t_map mod = {
+            {"print",   bond::make_native_function("print", "print(*args)", bond::fmt::print)},
+            {"println", bond::make_native_function("println", "println(*args)", bond::fmt::println)},
+            {"format",  bond::make_native_function("format", "format(*args)", bond::fmt::format)},
     };
 
-    auto module = ctx->gc()->make<bond::Module>(path, mod);
+
+    auto module = bond::MODULE_STRUCT->create_immortal<bond::Module>(path, mod);
     ctx->add_module(path, module);
 }

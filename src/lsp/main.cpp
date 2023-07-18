@@ -11,7 +11,7 @@ namespace lsp {
     std::string build_signature(bond::FuncDef *def) {
         std::string sig = "fn " + def->get_name()+ "(";
 
-        for (int i = 0; i < def->get_params().size(); i++) {
+        for (size_t i = 0; i < def->get_params().size(); i++) {
             auto param = def->get_params()[i];
 
             sig += param.first;
@@ -28,7 +28,6 @@ namespace lsp {
     class Workspace {
     public:
         Workspace(bond::Context *ctx) : m_ctx(ctx) {
-            bond::GarbageCollector::instance().add_root(&m_root);
         }
 
         std::vector<completion_item> get_completion_list(const std::string& uri_link) {
@@ -221,59 +220,33 @@ namespace lsp {
 
             auto ctx = bond::Context(file.parent_path().string());
 
-            bond::LockGc lock;
             bond_init(&ctx, file.string());
 
             auto mod = ctx.get_module(file.string())->as<bond::Module>();
 
-            m_root.push(mod);
 
             auto items = std::vector<completion_item>();
 
-            for (auto &[name, value]: mod->get_globals()->get_map()) {
-//                std::cerr << "found" << name->str() << std::endl;
-                if (bond::instanceof<bond::Enum>(value.get())) {
-                    auto enum_ = dynamic_cast<bond::Enum *>(value.get());
-                    items.emplace_back(completion_item()
-                                               .label(name->str())
-                                               .kind(completion_item_kind::enum_)
-                    );
+            for (auto &[name, value]: mod->get_globals()->get_value()) {
+//                std::cerr << "found" << name << std::endl;
 
-                    auto attributes = enum_->get_attributes();
-
-                    for (auto &[n, v]: attributes) {
-                        items.emplace_back(completion_item().label(n)
-                                                   .kind(completion_item_kind::enum_member)
-                                                   .detail(v->str()));
-                    }
-
-                }
-
-                else if(bond::instanceof<bond::BondObject>(value.get())) {
-                    auto bond_object = dynamic_cast<bond::BondObject *>(value.get());
-                    items.emplace_back(completion_item()
-                                               .label(name->str())
-                                               .kind(completion_item_kind::struct_)
-                    );
-                }
-
-                else if(bond::instanceof<bond::NativeFunction>(value.get())) {
+                if(bond::instanceof<bond::NativeFunction>(value.get())) {
                     auto native_function = dynamic_cast<bond::NativeFunction *>(value.get());
                     items.emplace_back(completion_item()
-                                               .label(name->str())
+                                               .label(name)
                                                .kind(completion_item_kind::function)
                     );
                 }
                 else if(bond::instanceof<bond::Module>(value.get())) {
                     auto module = dynamic_cast<bond::Module *>(value.get());
                     items.emplace_back(completion_item()
-                                               .label(name->str())
+                                               .label(name)
                                                .kind(completion_item_kind::module)
                     );
 
-                    for (auto &[n, v]: module->get_globals()->get_map()) {
+                    for (auto &[n, v]: module->get_globals()->get_value()) {
                         items.emplace_back(completion_item()
-                                                   .label(n->str())
+                                                   .label(n)
                                                    .kind(completion_item_kind::variable)
                         );
                     }
@@ -281,7 +254,7 @@ namespace lsp {
 
                 else {
                     items.emplace_back(completion_item()
-                                               .label(name->str())
+                                               .label(name)
                                                .kind(completion_item_kind::variable)
 
                     );
@@ -335,7 +308,6 @@ namespace lsp {
         std::recursive_mutex m_mutex;
         std::vector<bool> m_loading;
         std::unordered_set<std::string> m_loaded;
-        bond::Root m_root;
     };
 
 
@@ -411,8 +383,6 @@ namespace lsp {
 
 int main(int32_t argc, char **argv) {
     p_libsys_init();
-    bond::GarbageCollector::instance().set_main_thread_id(std::this_thread::get_id());
-    bond::GarbageCollector::instance().make_thread_storage();
 
     auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
 

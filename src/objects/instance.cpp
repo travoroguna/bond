@@ -1,126 +1,173 @@
 #include "../object.h"
 
 namespace bond {
-    StructInstance::StructInstance(const GcPtr<Struct> &struct_type) {
-        m_struct_type = struct_type;
-        m_attributes = GarbageCollector::instance().make<Map>();
-    }
+    void Instance::mark() {
+        if (m_marked)
+            return;
 
-    void StructInstance::mark() {
-        Object::mark();
-        m_struct_type.mark();
-        m_attributes.mark();
-    }
-
-    void StructInstance::unmark() {
-        Object::unmark();
-        m_struct_type.unmark();
-        m_attributes.unmark();
-    }
-
-
-    OBJ_RESULT StructInstance::$set_attribute(const GcPtr<Object> &index, const GcPtr<Object> &value) {
-        if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
-        auto name = as<String>(index)->get_value();
-
-        if (m_attributes->has(index)) {
-            m_attributes->set(index, value);
-            return value;
+        for (auto const &[_, value]: m_fields) {
+            value->mark();
         }
 
-        return std::unexpected(RuntimeError::AttributeNotFound);
+        m_type->mark();
     }
 
-    OBJ_RESULT StructInstance::$get_attribute(const GcPtr<Object> &index) {
-        if (!is<String>(index)) return std::unexpected(RuntimeError::ExpectedStringIndex);
-        auto name = as<String>(index)->get_value();
+    void Instance::unmark() {
+        if (!m_marked)
+            return;
 
-        if (m_attributes->has(index)) {
-            return m_attributes->get_unchecked(index);
+        for (auto const &[_, value]: m_fields) {
+            value->unmark();
         }
 
-        if (auto method = m_struct_type->get_method(index)) {
-            return GarbageCollector::instance().make<BoundMethod>(this, method.value());
-        }
-
-        return std::unexpected(RuntimeError::AttributeNotFound);
+        m_type->unmark();
     }
 
-    OBJ_RESULT StructInstance::$set_item(const GcPtr<Object> &index, const GcPtr<Object> &value) {
-        auto name = String("__set_item__");
-        GcPtr<String> name_ptr = &name;
-
-        if (auto method = m_struct_type->get_method(name_ptr)) {
-            return GarbageCollector::instance().make<BoundMethod>(this, method.value());
-        }
-
-        return std::unexpected(RuntimeError::AttributeNotFound);;
+    obj_result Instance::bind_method(const std::string &name) {
+        auto meth = m_type->get_method(name);
+        if (!meth)
+            return ERR("Method " + name + " not found");
+        auto m = BOUND_METHOD_STRUCT->create_instance<BoundMethod>(this, *meth);
+        return OK(m);
     }
 
-    OBJ_RESULT StructInstance::$get_item(const GcPtr<Object> &index) {
-        auto name = String("__get_item__");
-        GcPtr<String> name_ptr = &name;
-
-        if (auto method = m_struct_type->get_method(name_ptr)) {
-            return GarbageCollector::instance().make<BoundMethod>(this, method.value());
+    obj_result Instance::get_method(const std::string &name) {
+        if (m_type == nullptr) {
+            return ERR("Type not set");
         }
 
-        return std::unexpected(RuntimeError::AttributeNotFound);
+        auto meth = m_type->get_method(name);
+        if (!meth)
+            return ERR("Method " + name + " not found");
+        return OK(*meth);
     }
 
-    OBJ_RESULT StructInstance::user_method(const std::string &name) {
-        auto name_ptr = GarbageCollector::instance().make<String>(name);
-        if (auto method = m_struct_type->get_method(name_ptr)) {
-            return GarbageCollector::instance().make<BoundMethod>(this, method.value());
+    obj_result Instance::get_field(const std::string &name) {
+        if (m_fields.contains(name)) {
+            return OK(m_fields[name]);
         }
-        return std::unexpected(RuntimeError::AttributeNotFound);
+        return ERR("Field " + name + " not found");
     }
 
-    OBJ_RESULT StructInstance::$add(const GcPtr<Object> &other) { return user_method("__add__"); }
-
-    OBJ_RESULT StructInstance::$sub(const GcPtr<Object> &other) { return user_method("__sub__"); }
-
-    OBJ_RESULT StructInstance::$mul(const GcPtr<Object> &other) { return user_method("__mul__"); }
-
-    OBJ_RESULT StructInstance::$div(const GcPtr<Object> &other) { return user_method("__div__"); }
-
-    OBJ_RESULT StructInstance::$lt(const GcPtr<Object> &other) { return user_method("__lt__"); }
-
-    OBJ_RESULT StructInstance::$le(const GcPtr<Object> &other) { return user_method("__le__"); }
-
-    OBJ_RESULT StructInstance::$gt(const GcPtr<Object> &other) { return user_method("__gt__"); }
-
-    OBJ_RESULT StructInstance::$ge(const GcPtr<Object> &other) { return user_method("__ge__"); }
-
-    std::string StructInstance::format_args() {
-        std::string result;
-
-        for (auto &[name, value]: m_attributes->get_map()) {
-            result += fmt::format("{}={}, ", name->as<String>()->get_value(), value->str());
+    obj_result Instance::set_field(const std::string &name, const GcPtr<Object> &value) {
+        if (m_fields.contains(name)) {
+            m_fields[name] = value;
+            return OK(value);
         }
-        result = result.substr(0, result.size() - 2);
-        return result;
+        return ERR("Field " + name + " not found");
     }
 
+    obj_result Instance::get_type() {
+        if (m_type == nullptr) {
+            return ERR("Type not set");
+        }
+        return OK(m_type);
+    }
 
-    OBJ_RESULT StructInstance::$eq(const GcPtr<Object> &other) {
-        if (!other->is<StructInstance>()) return BOOL_(false);
+    std::string Instance::str() const {
+        std::vector<std::string> fields;
+        for (auto const &[key, value]: m_fields) {
+            fields.push_back(key + ": " + value->str());
+        }
+        return fmt::format("{}({})", m_type->get_name(), fmt::join(fields, ", "));
+    }
 
-        auto other_instance = other->as<StructInstance>();
-        if (other_instance->get_struct_type() != m_struct_type) return BOOL_(false);
+    obj_result I_get_attribute(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<Instance>();
+        String *name;
+        auto opt = parse_args(args, name);
+        TRY(opt);
+        auto res = self->get_field(name->get_value());
 
-        for (auto &[name, value]: m_attributes->get_map()) {
-            if (auto v = other_instance->get_attr(name)) {
-
-                if (v == value) continue;
-                return BOOL_(false);
+        if (!res.has_value()) {
+            auto meth = self->bind_method(name->get_value());
+            if (meth.has_value()) {
+                return OK(meth.value());
             }
+            return ERR("Field " + name->get_value() + " not found");
         }
 
-        return BOOL_(true);
+        return res;
     }
 
-    OBJ_RESULT StructInstance::$ne(const GcPtr<Object> &other) {
-        return BOOL_(!$eq(other).value()->as<Bool>()->get_value());
+    obj_result I_set_attribute(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<Instance>();
+        String *name;
+        Object *value;
+        auto opt = parse_args(args, name, value);
+        TRY(opt);
+
+        return self->set_field(name->get_value(), value);
     }
+
+    obj_result get_type(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<Instance>();
+        TRY(parse_args(args));
+        return self->get_type();
+    }
+
+    // slot wrappers
+    //    NE = 0,
+    //    EQ,
+    //    LE,
+    //    GT,
+    //    GE,
+    //    LT,
+    //
+    //    BIN_ADD,
+    //    BIN_SUB,
+    //    BIN_MUL,
+    //    BIN_DIV,
+    //    BIN_MOD,
+    //    UNARY_SUB,
+    //
+    //    GET_ATTR,
+    //    SET_ATTR,
+    //    GET_ITEM,
+    //    SET_ITEM,
+    //
+    //    ITER,
+    //    NEXT,
+    //    HAS_NEXT,
+
+    auto slot_wrapper(const std::string &slot_name) -> NativeMethodPtr {
+        return [slot_name](const GcPtr<Object> &Self, const t_vector &args) -> obj_result {
+            auto self = Self->as<Instance>();
+            TRY(parse_args(args));
+            auto res = self->get_method(slot_name);
+            if (!res.has_value()) {
+                return ERR("Method " + slot_name + " not found");
+            }
+            return OK(res.value());
+        };
+    }
+
+    auto constructor = c_Default<Instance>;
+    GcPtr<NativeStruct> INSTANCE_STRUCT = make_immortal<NativeStruct>("Instance", "Instance(type: Type, fields: Map)",
+                                                                      constructor, method_map{
+                    {"__getattr__", {I_get_attribute, "__getattr__(name: String)"}},
+                    {"__setattr__", {I_set_attribute, "__setattr__(name: String, value: Object)"}},
+                    {"get_type", {get_type, "get_type()"}},
+                    {"__eq__", {slot_wrapper("__eq__"), "__eq__(other: Object)"}},
+                    {"__ne__", {slot_wrapper("__ne__"), "__ne__(other: Object)"}},
+                    {"__lt__", {slot_wrapper("__lt__"), "__lt__(other: Object)"}},
+                    {"__le__", {slot_wrapper("__le__"), "__le__(other: Object)"}},
+                    {"__gt__", {slot_wrapper("__gt__"), "__gt__(other: Object)"}},
+                    {"__ge__", {slot_wrapper("__ge__"), "__ge__(other: Object)"}},
+                    {"__add__", {slot_wrapper("__add__"), "__add__(other: Object)"}},
+                    {"__sub__", {slot_wrapper("__sub__"), "__sub__(other: Object)"}},
+                    {"__mul__", {slot_wrapper("__mul__"), "__mul__(other: Object)"}},
+                    {"__div__", {slot_wrapper("__div__"), "__div__(other: Object)"}},
+                    {"__mod__", {slot_wrapper("__mod__"), "__mod__(other: Object)"}},
+                    {"__neg__", {slot_wrapper("__neg__"), "__neg__()"}},
+                    {"__getitem__", {slot_wrapper("__getitem__"), "__getitem__(key: Object)"}},
+                    {"__setitem__", {slot_wrapper("__setitem__"), "__setitem__(key: Object, value: Object)"}},
+                    {"__iter__", {slot_wrapper("__iter__"), "__iter__()"}},
+                    {"__next__", {slot_wrapper("__next__"), "__next__()"}},
+                    {"__has_next__", {slot_wrapper("__has_next__"), "__has_next__()"}},
+            });
+
+    GcPtr<NativeStruct> BOUND_METHOD_STRUCT = make_immortal<NativeStruct>("BoundMethod", "BoundMethod(instance: Instance, method: Function)",
+                                                                          c_Default<BoundMethod>);
+
 };

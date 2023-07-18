@@ -1,4 +1,6 @@
-// bond quick refrence
+import "core";
+
+// bond quick reference
 
 // integers or floats
 // currently you can not do operations with floats and integers
@@ -43,46 +45,8 @@ numbers[0] = 10;
 numbers[4] = 50;
 
 
+
 // functions
-// inbuilt functions
-
-// println - takes in a variable number of arguments and prints them to the console
-println("hello", "world");
-
-// int - takes in a string and converts it to an integer
-var num0 = try int("10");
-
-// float - takes in a string and converts it to a float
-var num1 = try float("10.5");
-
-// str - takes in  any type  and converts them to a string
-var str0 = str(10);
-
-// range - takes in a start and end and returns a range iterator that is lazy
-var range0 = range(0, 10);
-println(range0);
-
-// Ok = wraps a value in a result
-var ok0 = Ok(10);
-
-// Err = wraps an error in a result
-var err0 = Err("error");
-
-// is_instance - takes in a value and a type and returns true if the value is an instance of the type
-var is_instance0 = is_instance(int, 10);
-
-
-// map = creates a hashmap, poorly named .
-var map0 = map();
-map0["hello"] = "world";
-map0["foo"] = "bar";
-
-// map can be indexed
-var hello = try map0["hello"];
-
-
-
-// user defined functions
 // functions can be defined with the fn keyword
 // functions can take in a variable number of arguments upto 255
 
@@ -99,9 +63,9 @@ println(add_result);
 
 fn divide(l, m) ! {
     if m == 0 {
-        return Err("cannot divide by zero");
+        err "cannot divide by zero";
     }
-    return Ok(l / m);
+    ok l / m;
 }
 
 // in the future Ok and Err will be language constructs and not functions
@@ -188,7 +152,7 @@ for number in number_l {
 }
 
 // for loops can also be used to iterate over a range
-for number in range(0, 10) {
+for number in core.Range(0, 10, 1) {
     println(number);
 }
 
@@ -321,12 +285,13 @@ println(a);
 // modules can be used to organize code
 // modules can be imported with the import keyword
 
+// import "<relative path>";
 // import "<relative path>" as <name>;
 // import "gl/gl" as open_gl;
+// import "core";
+// import "core" as core_module;
 
-import "fmt" as fmt;
 
-fmt.println("hello {}", "world");
 
 // import syntax can only be used at the top level
 // modules are loader at runtime and are cached

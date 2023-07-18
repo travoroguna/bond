@@ -2,238 +2,118 @@
 
 
 namespace bond {
-    class StringIterator : public Object {
-    public:
-        explicit StringIterator(const GcPtr<String> &string) : m_string(string) {}
+    obj_result String_construct(const t_vector &args) {
+        String *num;
 
-        std::expected<GcPtr<Object>, RuntimeError> $next() override {
-            return GarbageCollector::instance().make<String>(std::string(m_string->get_value()[m_index++], 1));
+        auto opt = parse_args(args, num);
+        TRY(opt);
+
+        return GcPtr<Object>(num);
+    }
+
+    obj_result String_add(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_num = self->as<String>();
+        String *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return make_string(self_num->get_value() + other->get_value());
+    }
+
+    obj_result String_join(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+
+        std::vector<std::string> strings;
+
+        for (auto& item : args) {
+            strings.push_back(item->str());
         }
 
-        std::expected<GcPtr<Object>, RuntimeError> $has_next() override {
-            return BOOL_(m_index < m_string->get_value().size());
+        return make_string(fmt::format("{}", fmt::join(strings, self_str->get_value())));
+    }
+
+    obj_result String_size(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        TRY(parse_args(args));
+        return make_int(self_str->get_value().size());
+    }
+
+    obj_result String_get_item(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        Int* index;
+        TRY(parse_args(args, index));
+
+        if (index->get_value() < 0 or index->get_value() > self_str->get_value().size() - 1) {
+            return ERR(fmt::format("Index {} out of range", index->get_value()));
         }
 
-        void mark() override {
-            Object::mark();
-            m_string.mark();
+        return make_string(fmt::format("{}", self_str->get_value()[index->get_value()]));
+    }
+
+    obj_result String_sub_string(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        Int* start;
+        Int* end;
+        TRY(parse_args(args, start, end));
+
+        if (start->get_value() < 0 or start->get_value() > self_str->get_value().size() - 1) {
+            return ERR(fmt::format("Index {} out of range", start->get_value()));
         }
 
-        void unmark() override {
-            Object::unmark();
-            m_string.unmark();
+        if (end->get_value() < 0 or end->get_value() > self_str->get_value().size() - 1) {
+            return ERR(fmt::format("Index {} out of range", end->get_value()));
         }
 
-        bool equal(const GcPtr<bond::Object> &other) override {
-            if (!is<StringIterator>(other)) return false;
-            return m_string == as<StringIterator>(other)->m_string && m_index == as<StringIterator>(other)->m_index;
-        }
-
-        size_t hash() override {
-            return std::hash<size_t>{}(m_index) ^ m_string->hash();
-        }
-
-    private:
-        GcPtr<String> m_string;
-        size_t m_index = 0;
-    };
-
-
-    OBJ_RESULT String::$add(const GcPtr<Object> &other) {
-        if (!is<String>(other)) return std::unexpected(RuntimeError::TypeError);
-        return GarbageCollector::instance().make<String>(m_value + as<String>(other)->get_value());
+        return make_string(self_str->get_value().substr(start->get_value(), end->get_value()));
     }
 
-    bool String::equal(const GcPtr<Object> &other) {
-        if (!is<String>(other)) return false;
-        return m_value == as<String>(other)->get_value();
+    obj_result String_it_next(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<StringIterator>();
+        TRY(parse_args(args));
+        return make_string(fmt::format("{}", self_str->m_value[self_str->m_index++]));
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
-
-    String::$eq(const GcPtr<Object> &other) {
-        return BOOL_(this->equal(other));
+    obj_result String_it_has_next(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<StringIterator>();
+        TRY(parse_args(args));
+        return AS_BOOL(self_str->m_index < self_str->m_value.size());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    auto STRING_ITER_STRUCT = make_immortal<NativeStruct>("StringIter", "StringIterator(value)", c_Default<StringIterator>, method_map {
+            {"__next__", {String_it_next, "__next__() -> String"}},
+            {"__has_next__", {String_it_has_next, "__has_next__() -> Bool"}},
+    });
 
-    String::$ne(const GcPtr<Object> &other) {
-        return BOOL_(!this->equal(other));
+    obj_result String_iter(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        TRY(parse_args(args));
+        return OK(STRING_ITER_STRUCT->create_instance<StringIterator>(self_str->get_value()));
     }
 
-    size_t String::hash() {
-        return std::hash<std::string>{}(m_value);
+    obj_result String_eq(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        String* other;
+        TRY(parse_args(args, other));
+        return AS_BOOL(self_str->get_value() == other->get_value());
     }
 
-    std::string String::str() {
-        return m_value;
+    obj_result String_neq(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        String* other;
+        TRY(parse_args(args, other));
+        return AS_BOOL(self_str->get_value() != other->get_value());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
-
-    String::$_bool() {
-        return BOOL_(!m_value.empty());
-    }
-
-    NativeErrorOr String::join(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(1, args);
-
-        auto iter = args[0]->$iter();
-        if (!iter.has_value()) {
-            return std::unexpected(
-                    FunctionError(fmt::format("Object {} is not iterable", args[0]->str()), RuntimeError::TypeError));
-        }
-
-        auto it = iter.value();
-
-        auto test_next = it->$has_next();
-        if (!test_next.has_value()) {
-            return std::unexpected(
-                    FunctionError(fmt::format("Object {} is not iterable, has_next is not defined", args[0]->str()),
-                                  RuntimeError::TypeError));
-        }
-
-        std::string result;
-
-        while (true) {
-            auto has_v = it->$has_next().value();
-            auto cond = has_v->$_bool();
-
-            if (!cond.has_value()) {
-                return std::unexpected(FunctionError(fmt::format("Unable to convert {} to bool", args[0]->str()),
-                                                     RuntimeError::TypeError));
-            }
-
-            if (!cond.value()->as<Bool>()->get_value()) {
-                break;
-            }
-
-            auto next = it->$next();
-
-            if (!next.has_value()) {
-                return std::unexpected(
-                        FunctionError(fmt::format("Object {} is not iterable, next is not defined", args[0]->str()),
-                                      RuntimeError::TypeError));
-            }
-
-            if (!is<String>(next.value())) {
-                return std::unexpected(FunctionError(fmt::format("Object {} is not a string", args[0]->str()),
-                                                     RuntimeError::TypeError));
-            }
-
-            result += next.value()->as<String>()->get_value() + m_value;
-        }
-
-        return GarbageCollector::instance().make<String>(result.substr(0, result.size() - m_value.size()));
-    }
-
-    NativeErrorOr String::split(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(1, args);
-        DEFINE(sep, String, 0, args);
-
-        auto result = GarbageCollector::instance().make<ListObj>();
-        size_t end = m_value.find(sep->get_value());
-        auto copy_str = m_value;
-
-        while (end != std::string::npos) {
-            result->append(GarbageCollector::instance().make<String>(copy_str.substr(0, end)));
-            copy_str.erase(copy_str.begin(), copy_str.begin() + end + sep->get_value().size());
-            end = copy_str.find(sep->get_value());
-        }
-
-        result->append(GarbageCollector::instance().make<String>(copy_str.substr(0, end)));
-        return result;
-    }
-
-    NativeErrorOr String::find(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(1, args);
-        DEFINE(sub, String, 0, args);
-
-        auto pos = m_value.find(sub->get_value());
-
-        if (pos == std::string::npos) {
-            return Globs::BondNil;
-        }
-
-        return GarbageCollector::instance().make<Integer>(pos);
-    }
-
-
-    NativeErrorOr String::replace(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(2, args);
-        DEFINE(sub, String, 0, args);
-        DEFINE(replace, String, 1, args);
-
-        std::string result;
-
-        size_t pos = 0;
-
-        while ((pos = m_value.find(sub->get_value(), pos)) != std::string::npos) {
-            result += m_value.substr(0, pos) + replace->get_value();
-            pos += sub->get_value().length();
-        }
-
-        result += m_value.substr(pos);
-
-        return GarbageCollector::instance().make<String>(result);
-    }
-
-    NativeErrorOr String::starts_with(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(1, args);
-        DEFINE(sub, String, 0, args);
-
-        return BOOL_(m_value.find(sub->get_value()) == 0);
-    }
-
-    NativeErrorOr String::ends_with(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(1, args);
-        DEFINE(sub, String, 0, args);
-
-        return BOOL_(m_value.find(sub->get_value()) == m_value.size() - sub->get_value().size());
-    }
-
-    NativeErrorOr String::to_upper(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(0, args);
-
-        auto str = m_value;
-        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
-
-        return GarbageCollector::instance().make<String>(str);
-    }
-
-    NativeErrorOr String::to_lower(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(0, args);
-
-        auto str = m_value;
-        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
-
-        return GarbageCollector::instance().make<String>(str);
-    }
-
-    NativeErrorOr String::strip(const std::vector<GcPtr<Object>> &args) {
-        ASSERT_ARG_COUNT(0, args);
-
-        auto str = m_value;
-        str.erase(0, str.find_first_not_of(' '));
-        str.erase(str.find_last_not_of(' ') + 1);
-
-        return GarbageCollector::instance().make<String>(str);
-    }
-
-    std::expected<GcPtr<Object>, RuntimeError> String::$get_attribute(const GcPtr<bond::Object> &index) {
-        if (is<String>(index)) {
-            auto key = index->as<String>()->get_value();
-
-            if (m_attributes.contains(key)) {
-                return MAKE_FORM_BIND(m_attributes[key]);
-            }
-        }
-
-        return std::unexpected(RuntimeError::AttributeNotFound);
-    }
-
-    std::expected<GcPtr<Object>, RuntimeError> String::$iter() {
-        return GarbageCollector::instance().make<StringIterator>(this);
-    }
+    GcPtr<NativeStruct> STRING_STRUCT = make_immortal<NativeStruct>("String", "String(value)", String_construct, method_map {
+            {"__add__", {String_add, "__add__(other: String) -> String"}},
+            {"__iter__", {String_iter, "__iter__() -> StringIterator"}},
+            {"__getitem__", {String_get_item, "get_item(index: Int) -> String"}},
+            {"__eq__", {String_eq, "__eq__(other: String) -> Bool"}},
+            {"__ne__", {String_neq, "__neq__(other: String) -> Bool"}},
+            {"size", {String_size, "size() -> Int"}},
+            {"join", {String_join, "join(*args: List<Any>) -> String"}},
+            {"sub_string", {String_sub_string, "sub_string(start: Int, end: Int) -> String"}},
+    });
 
 };

@@ -2,36 +2,40 @@
 
 
 namespace bond {
-    std::string Nil::str() {
-        return "nil";
+
+    auto NONE_CONST = make_immortal<None>();
+
+    obj_result None_construct(const t_vector &args) {
+        auto opt = parse_args(args);
+        TRY(opt);
+        return NONE_CONST;
     }
 
-    bool Nil::equal(const GcPtr<Object> &other) {
-        return is<Nil>(other);
+    obj_result None_eq(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<None>();
+        Object *other;
+
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return AS_BOOL(other->is<None>());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
+    obj_result None_ne(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_num = self->as<None>();
+        Object *other;
 
-    Nil::$eq(const GcPtr<Object> &other) {
-        return GarbageCollector::instance().make<Bool>(this->equal(other));
+        auto opt = parse_args(args, other);
+        TRY(opt);
+
+        return AS_BOOL(!other->is<None>());
     }
 
-    std::expected<GcPtr<Object>, RuntimeError>
-
-    Nil::$ne(const GcPtr<Object> &other) {
-        return GarbageCollector::instance().make<Bool>(!this->equal(other));
-    }
-
-    size_t Nil::hash() {
-        //Todo: find a good way to hash as all nill
-        //      values are the same
-        return 7654345678900987654;
-    }
-
-    std::expected<GcPtr<Object>, RuntimeError>
-
-    Nil::$_bool() {
-        return BOOL_(false);
-    }
-
+    GcPtr<NativeStruct> NONE_STRUCT = make_immortal<NativeStruct>("None", "None()", None_construct,
+      method_map {
+              {"__eq__", {None_eq, "eq(other)"}},
+              {"__ne__", {None_ne, "ne(other)"}},
+         }
+       );
+    GcPtr<None> C_NONE = NONE_STRUCT->create({}).value()->as<None>();
 }
