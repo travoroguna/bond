@@ -69,7 +69,7 @@ namespace bond {
 
     class Parser {
     public:
-        Parser(std::vector<Token> &tokens, Context *context) : m_tokens(tokens), m_scopes(context) { ctx = context; }
+        Parser(const std::vector<Token> &tokens, Context *context) : m_tokens(tokens), m_scopes(context) { ctx = context; }
 
         std::vector<std::shared_ptr<Node>> parse();
 
@@ -86,7 +86,7 @@ namespace bond {
     private:
 
         Scopes m_scopes;
-        std::vector<Token> &m_tokens;
+        std::vector<Token> m_tokens;
         Context *ctx;
         uint32_t m_current = 0;
         bool in_function = false;
@@ -189,6 +189,8 @@ namespace bond {
         bool m_report = true;
 
         std::vector<std::pair<std::string, SharedSpan>> m_diagnostics;
+
     };
 
+    std::string split_at_last_occur(const std::string& str, char c);
 } // bond

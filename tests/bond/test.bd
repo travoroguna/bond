@@ -1,0 +1,3 @@
+import "../../examples/quickstart" as ini;
+
+println(ini.Point);

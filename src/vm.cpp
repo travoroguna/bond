@@ -836,7 +836,7 @@ namespace bond {
                         break;
                     } else if (obj->is<Module>()) {
                         auto o = obj->as<Module>();
-                        auto meth = o->get_attr(name);
+                        auto meth = o->get_attribute(name);
 
                         if (!meth.has_value()) {
                             runtime_error(fmt::format("method {} does not exist in module {}", name, o->get_path()));

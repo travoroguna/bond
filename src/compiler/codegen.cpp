@@ -427,7 +427,7 @@ namespace bond {
 
     void CodeGenerator::visit(ImportDef *stmnt) {
         auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
-        auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
 
         m_code->add_ins(Opcode::LOAD_CONST, name, stmnt->get_span());
         m_code->add_ins(Opcode::IMPORT, alias, stmnt->get_span());

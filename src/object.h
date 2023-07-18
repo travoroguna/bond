@@ -119,6 +119,18 @@ namespace bond {
 
     };
 
+    template<typename T, typename... Args>
+    inline GcPtr<T> make(Args &&...args) {
+        return GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
+    }
+
+    template<typename T, typename... Args>
+    inline GcPtr<T> make_immortal(Args &&...args) {
+        auto imm = GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
+//        immortals.push_back(imm);
+        return imm;
+    }
+
     using t_vector = std::vector<GcPtr<Object>, gc_allocator<GcPtr<Object>>>;
     using t_map = std::unordered_map<std::string, GcPtr<Object>, std::hash<std::string>, std::equal_to<>,
             gc_allocator<std::pair<const std::string, GcPtr<Object>>>>;
@@ -549,10 +561,11 @@ namespace bond {
 
         GcPtr<Map> get_globals() { return m_globals; }
 
-        obj_result get_attr(const std::string &name);
+        obj_result get_attribute(const std::string &name);
 
         std::string get_path() { return m_path; }
 
+        std::string str() const override { return fmt::format("<module {}>", m_path); }
     private:
         GcPtr<Map> m_globals;
         std::string m_path;
@@ -688,18 +701,6 @@ namespace bond {
 
     static t_vector immortals;
 
-
-    template<typename T, typename... Args>
-    inline GcPtr<T> make(Args &&...args) {
-        return GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
-    }
-
-    template<typename T, typename... Args>
-    inline GcPtr<T> make_immortal(Args &&...args) {
-        auto imm = GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
-        immortals.push_back(imm);
-        return imm;
-    }
 
     template<typename T, typename... Args>
     inline obj_result OK(Args &&...args) {

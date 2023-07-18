@@ -89,6 +89,7 @@ namespace bond {
 
     std::string split_at_last_occur(const std::string& str, char c) {
         auto pos = str.rfind(c);
+        fmt::print("pos: {}, {}\n", pos, pos==std::string::npos);
         if (pos == std::string::npos) return str;
         return str.substr(pos + 1);
     }
@@ -100,6 +101,7 @@ namespace bond {
             auto alias = split_at_last_occur(split_at_last_occur(path.get_lexeme(), ':'), '/');
 
             m_scopes.declare(alias, path.get_span(), false);
+            fmt::print("alias: {}\n", alias);
             return std::make_shared<ImportDef>(path.get_span(), path.get_lexeme(), alias);
         }
 

@@ -10,7 +10,7 @@ namespace bond {
 #ifdef _WIN32
         DebugBreak();
 #else
-        raise(SIGTRAP);
+//        raise(SIGTRAP);
 #endif
     }
 }

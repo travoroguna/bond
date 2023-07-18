@@ -27,6 +27,8 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
+
+if (MSVC)
 CPMAddPackage(
         NAME libatomic_ops
         GITHUB_REPOSITORY ivmai/libatomic_ops
@@ -34,6 +36,7 @@ CPMAddPackage(
         OPTIONS "enable_gpl ON"
         EXCLUDE_FROM_ALL YES
 )
+endif()
 
 CPMAddPackage(
         NAME bdwgc
@@ -53,7 +56,10 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h)
 
 target_link_libraries(bond-lib gc gccpp fmt::fmt-header-only nlohmann_json plibsysstatic)
-target_link_libraries(gc atomic_ops)
+
+if (MSVC)
+  target_link_libraries(gc atomic_ops)
+endif()
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")
 

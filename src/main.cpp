@@ -117,19 +117,16 @@ int main(int32_t argc, char **argv) {
     if (argc == 1) {
         fmt::print("bond 0.0.0 \n");
         run_repl(lib_path, args);
-    } else {
+    }
+    else {
         if (!std::filesystem::exists(argv[1])) {
             fmt::print("File not found: {}\n", argv[1]);
             return 1;
         }
         auto full_path = std::filesystem::absolute(argv[1]);
 
-#ifdef _WIN32
         auto path = std::filesystem::path(argv[1]);
         std::filesystem::current_path(path.parent_path());
-#else
-        std::filesystem::current_path(".");
-#endif
         run_file(full_path.string(), lib_path, args);
     }
 

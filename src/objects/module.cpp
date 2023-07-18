@@ -16,7 +16,7 @@ namespace bond {
         }
     }
 
-    obj_result Module::get_attr(const std::string &name) {
+    obj_result Module::get_attribute(const std::string &name) {
 //        auto meth = m_native_struct->get_method(name);
 
 //        if (meth.has_value()) {
@@ -38,7 +38,7 @@ namespace bond {
         auto opt = parse_args(args, name);
         TRY(opt);
 
-        auto res = self->get_attr(name->get_value());
+        auto res = self->get_attribute(name->get_value());
 
         if (res.has_value()) {
             return OK(res.value());

@@ -11,7 +11,7 @@ namespace lsp {
     std::string build_signature(bond::FuncDef *def) {
         std::string sig = "fn " + def->get_name()+ "(";
 
-        for (int i = 0; i < def->get_params().size(); i++) {
+        for (size_t i = 0; i < def->get_params().size(); i++) {
             auto param = def->get_params()[i];
 
             sig += param.first;

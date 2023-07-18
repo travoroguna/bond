@@ -45,6 +45,13 @@ namespace bond {
                 return std::filesystem::canonical(p).string();
             }
         }
+
+        if (std::filesystem::exists(path)) {
+            auto ext = std::filesystem::path(path).extension();
+            if (ext == ".bd" || ext == ".dll" || ext == ".so") {
+                return std::filesystem::canonical(path).string();
+            }
+        }
 //
         return std::unexpected(fmt::format("failed to resolve path {}", path));
     }
@@ -84,8 +91,43 @@ namespace bond {
         return mod->as<Module>();
     }
 
+    std::expected<GcPtr<Module>, std::string> create_module(Context* m_ctx, const std::string &path, std::string &alias);
+
+    std::expected<GcPtr<Module>, std::string> create_package(Context* m_ctx, const std::string &path, std::string &alias) {
+        //do we load all the files in the directory ending in bd
+        //what about sub-directories
+
+        auto mod_map = MAP_STRUCT->create_instance<Map>();
+
+        for (const auto &entry : std::filesystem::directory_iterator(path)) {
+            auto ext = entry.path().extension();
+            if (ext == ".bd" || ext == ".dll" || ext == ".so") {
+                auto a = entry.path().stem().string();
+                auto res = create_module(m_ctx, std::filesystem::absolute(entry), a);
+                if (!res) {
+                    return std::unexpected(res.error());
+                }
+                mod_map->set(a, res.value());
+            }
+            else if (std::filesystem::is_directory(entry.path())) {
+                auto a = split_at_last_occur(split_at_last_occur(entry.path().stem().string(), ':'), '/');
+
+                auto res = create_package(m_ctx, entry.path().string(), a);
+                if (!res) {
+                    return std::unexpected(res.error());
+                }
+                mod_map->set(a, res.value());
+            }
+        }
+
+        return MODULE_STRUCT->create_instance<Module>(alias, mod_map);
+    }
 
     std::expected<GcPtr<Module>, std::string> create_module(Context* m_ctx, const std::string &path, std::string &alias) {
+        if (std::filesystem::is_directory(path)) {
+            return create_package(m_ctx, path, alias);
+        }
+
         auto res = path_resolver(m_ctx, path);
 
         if (!res) {
@@ -131,6 +173,8 @@ namespace bond {
         return mod;
     }
 
+
+
     // import parser
     // import "core:io" as io; -> core inbuilt module
     // import "library:io" as io; -> libraries
@@ -143,6 +187,10 @@ namespace bond {
             return m_modules[path];
         }
 
+        if (ctx->has_module(path)) {
+            return ctx->get_module(path)->as<Module>();
+        }
+
 
         if (path.starts_with("core:")) {
             auto p = path.substr(5);
@@ -150,7 +198,7 @@ namespace bond {
                 return std::unexpected("invalid core import expected name after core:, e.g. core:io");
             }
 
-            auto res = core_module->get_attr(p);
+            auto res = core_module->get_attribute(p);
             if (!res) {
                 return std::unexpected(fmt::format("failed to import core module {}", p));
             }
