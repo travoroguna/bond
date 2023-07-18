@@ -33,7 +33,6 @@ namespace bond {
         func->set_globals(m_globals);
         push(func);
         call_function(func, t_vector());
-        fmt::print("func\n{}\n", func->get_code()->disassemble());
         exec();
     }
 

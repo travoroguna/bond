@@ -39,6 +39,7 @@ json message::to_json() const {
 	if (is_response()) return as_response().to_json();
 	if (is_notification()) return as_notification().to_json();
 	lsp_unreachable;
+    return {};
 }
 
 message message::parse(char const* msg) {

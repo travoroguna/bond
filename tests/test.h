@@ -7,6 +7,7 @@
 
 #include "../src/gc.h"
 #include "../src/object.h"
+#include "../src/engine.h"
 #include <fmt/core.h>
 
 

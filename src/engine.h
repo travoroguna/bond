@@ -1,0 +1,45 @@
+//
+// Created by travor on 18/07/2023.
+//
+
+#pragma once
+
+#include <fstream>
+#include <filesystem>
+#include "compiler/lexer.h"
+#include "compiler/parser.h"
+#include "compiler/context.h"
+#include "compiler/codegen.h"
+#include "vm.h"
+#include "gc.h"
+#include "core/core.h"
+#include <memory>
+#include <utility>
+
+namespace bond {
+    class Engine {
+    private:
+        std::string m_lib_path;
+        std::vector<std::string> m_args;
+        Context m_context;
+
+
+    public:
+        Engine(std::string lib_path, std::vector<std::string> args)
+            : m_lib_path(std::move(lib_path)), m_args(std::move(args)), m_context(m_lib_path) {
+            m_context.set_args(m_args);
+        }
+
+        Context* get_context() { return &m_context; }
+        void run_repl();
+        void execute_source(std::string &source, const char *path, bond::Vm &vm);
+        void run_file(const std::string &path);
+        static void add_core_module(const GcPtr<Module>& mod);
+    };
+
+    std::unique_ptr<Engine> create_engine(const std::string& lib_path, const std::vector<std::string>& args);
+    std::unique_ptr<Engine> create_engine(const std::string& lib_path);
+
+}
+
+

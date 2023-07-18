@@ -3,13 +3,13 @@
 #include "lsp.hpp"
 #include "uri.hh"
 #include "../bond.h"
+#include "../import.h"
 #include <filesystem>
-#include <plibsys.h>
 #include <thread>
 
 namespace lsp {
     std::string build_signature(bond::FuncDef *def) {
-        std::string sig = "fn " + def->get_name()+ "(";
+        std::string sig = "fn " + def->get_name() + "(";
 
         for (size_t i = 0; i < def->get_params().size(); i++) {
             auto param = def->get_params()[i];
@@ -30,7 +30,7 @@ namespace lsp {
         Workspace(bond::Context *ctx) : m_ctx(ctx) {
         }
 
-        std::vector<completion_item> get_completion_list(const std::string& uri_link) {
+        std::vector<completion_item> get_completion_list(const std::string &uri_link) {
             m_loaded.clear();
 
             auto path = uri(uri_link).get_path();
@@ -65,7 +65,7 @@ namespace lsp {
         }
 
 
-        std::vector<completion_item> get_dot_list(const std::string& uri_link) {
+        std::vector<completion_item> get_dot_list(const std::string &uri_link) {
             auto path = uri(uri_link).get_path();
 
             int index;
@@ -82,23 +82,20 @@ namespace lsp {
             return m;
         }
 
-        std::vector<completion_item> get_dot_completion(const std::vector<std::shared_ptr<bond::Node>>& nodes) {
-//            std::cerr << "nodes has " << nodes.size() << " items" << std::endl;
+        std::vector<completion_item> get_dot_completion(const std::vector<std::shared_ptr<bond::Node>> &nodes) {
             std::vector<completion_item> items;
 
             for (auto &node: nodes) {
-//                std::cerr << "node: " << typeid(*node.get()).name() << std::endl;
 
                 if (bond::instanceof<bond::StructNode>(node.get())) {
-//                    std::cerr << "StructNode" << std::endl;
                     auto struct_node = dynamic_cast<bond::StructNode *>(node.get());
 
-                    for (auto &field : struct_node->get_methods()) {
+                    for (auto &field: struct_node->get_methods()) {
                         auto meth = dynamic_cast<bond::FuncDef *>(field.get());
                         items.push_back(completion_item()
-                                                   .label(meth->get_name())
-                                                   .kind(completion_item_kind::method)
-                                                   .detail(build_signature(meth))
+                                                .label(meth->get_name())
+                                                .kind(completion_item_kind::method)
+                                                .detail(build_signature(meth))
                         );
                     }
                 }
@@ -113,7 +110,7 @@ namespace lsp {
             return items;
         }
 
-        std::vector<completion_item> get_completion_items(const std::vector<std::shared_ptr<bond::Node>>& nodes) {
+        std::vector<completion_item> get_completion_items(const std::vector<std::shared_ptr<bond::Node>> &nodes) {
             std::vector<completion_item> items;
 
             for (auto &node: nodes) {
@@ -141,7 +138,8 @@ namespace lsp {
                 } else if (bond::instanceof<bond::ImportDef>(node.get())) {
                     auto import_def = dynamic_cast<bond::ImportDef *>(node.get());
                     items.emplace_back(completion_item()
-                                               .label(fmt::format("{} {}", import_def->get_alias(), import_def->get_name()))
+                                               .label(fmt::format("{} {}", import_def->get_alias(),
+                                                                  import_def->get_name()))
                                                .insertText(import_def->get_alias())
                                                .sortText(import_def->get_alias())
                                                .kind(completion_item_kind::module));
@@ -179,15 +177,17 @@ namespace lsp {
             return items;
         }
 
-        std::vector<completion_item> get_items_from_import(bond::ImportDef *import) {
-            auto path = path_resolver(import->get_name());
+
+        std::vector<completion_item> get_items_from_import(bond::ImportDef *import_def) {
+            auto path = bond::path_resolver(m_ctx, import_def->get_name());
+
             if (!path.has_value()) {
 //                std::cerr << "invalid path " << import->get_name() << std::endl;
                 return {};
             }
 
-            if(path->ends_with(".dll") or path->ends_with(".so")){
-                if (m_compiled_library_cache.contains(path.value())){
+            if (path->ends_with(".dll") or path->ends_with(".so")) {
+                if (m_compiled_library_cache.contains(path.value())) {
                     return m_compiled_library_cache[path.value()];
                 }
 
@@ -197,98 +197,13 @@ namespace lsp {
             }
 
             auto id = m_ctx->new_module(path.value());
-            auto mod= parse(id, bond::Context::read_file(path.value()));
+            auto mod = parse(id, bond::Context::read_file(path.value()));
             return get_completion_items(mod);
         }
 
         std::vector<completion_item> get_lib_items(const std::string &filename) {
-            auto library = p_library_loader_new(filename.c_str());
-
-            if (library == nullptr) {
-                return {};
-            }
-
-
-            auto bond_init = (void (*)(bond::Context *, const std::string &)) p_library_loader_get_symbol(library,
-                                                                                                          "bond_module_init");
-            if (bond_init == nullptr) {
-                fmt::print("Failed to load symbol bond_module_init from {}\n", filename);
-                return {};
-            }
-
-            auto file = std::filesystem::path(filename);
-
-            auto ctx = bond::Context(file.parent_path().string());
-
-            bond_init(&ctx, file.string());
-
-            auto mod = ctx.get_module(file.string())->as<bond::Module>();
-
-
-            auto items = std::vector<completion_item>();
-
-            for (auto &[name, value]: mod->get_globals()->get_value()) {
-//                std::cerr << "found" << name << std::endl;
-
-                if(bond::instanceof<bond::NativeFunction>(value.get())) {
-                    auto native_function = dynamic_cast<bond::NativeFunction *>(value.get());
-                    items.emplace_back(completion_item()
-                                               .label(name)
-                                               .kind(completion_item_kind::function)
-                    );
-                }
-                else if(bond::instanceof<bond::Module>(value.get())) {
-                    auto module = dynamic_cast<bond::Module *>(value.get());
-                    items.emplace_back(completion_item()
-                                               .label(name)
-                                               .kind(completion_item_kind::module)
-                    );
-
-                    for (auto &[n, v]: module->get_globals()->get_value()) {
-                        items.emplace_back(completion_item()
-                                                   .label(n)
-                                                   .kind(completion_item_kind::variable)
-                        );
-                    }
-                }
-
-                else {
-                    items.emplace_back(completion_item()
-                                               .label(name)
-                                               .kind(completion_item_kind::variable)
-
-                    );
-                }
-
-            }
-
-            return items;
-        }
-
-        std::expected<std::string, std::string> path_resolver(const std::string &path) {
-#ifdef _WIN32
-            auto test_compiled_native = m_ctx->get_lib_path() + path + ".dll";
-            auto test_compiled_c_path = path + ".dll";
-#else
-            auto lib_p = std::string("lib") + path + ".so";
-        auto test_compiled_native = m_ctx->get_lib_path() + lib_p + ".so";
-        auto test_compiled_c_path = lib_p + ".so";
-#endif
-
-            auto test_native = m_ctx->get_lib_path() + path + ".bd";
-            auto test_user = path + ".bd";
-
-
-            std::array<std::string, 4> paths = {test_compiled_native, test_compiled_c_path, test_native, test_user};
-
-            for (auto &p: paths) {
-//                std::cerr << "trying " << p << std::endl;
-                if (std::filesystem::exists(p)) {
-                    return p;
-                }
-            }
-
-            return std::unexpected(fmt::format("failed to resolve path {}", path));
+            //TODO: use import library
+            return {};
         }
 
         std::vector<std::shared_ptr<bond::Node>> parse(uint32_t id, const std::string &text) {
@@ -313,7 +228,7 @@ namespace lsp {
 
     class BondLsp : public lsp::langserver {
     public:
-        explicit BondLsp(const std::string &path): m_ctx(path) {}
+        explicit BondLsp(const std::string &path) : m_ctx(path) {}
 
         initialize_result initialize(initialize_params const &params) override {
             auto root_path = params.root_path();
@@ -327,18 +242,18 @@ namespace lsp {
                             lsp::server_capabilities()
                                     .completion_provider(
                                             lsp::completion_options()
-                                            .resolve_provider(false)
-                                            .trigger_characters(std::vector<char>{'.'})
-                                            )
+                                                    .resolve_provider(false)
+                                                    .trigger_characters(std::vector<char>{'.'})
+                                    )
                                     .diagnostic_provider(diagnostic_options())
-                                    );
+                    );
         }
 
-        void on_text_document_opened(did_open_text_document_params const & open_params) override {
+        void on_text_document_opened(did_open_text_document_params const &open_params) override {
             std::cerr << "opened " << open_params.text_document().uri() << std::endl;
         }
 
-        void on_text_document_changed(did_change_text_document_params const & changed_params) override {
+        void on_text_document_changed(did_change_text_document_params const &changed_params) override {
             std::cerr << "changed " << changed_params.text_document().uri() << std::endl;
         }
 
@@ -354,7 +269,7 @@ namespace lsp {
             return {};
         }
 
-        completion_list on_completion(completion_params const& params) override {
+        completion_list on_completion(completion_params const &params) override {
             auto document = params.text_document().uri();
             auto kind = params.doc_context().trigger_kind();
 
@@ -366,7 +281,7 @@ namespace lsp {
             return completion_list().is_incomplete(false).items(list);
         }
 
-        document_diagnostic_report on_diagnostic(document_diagnostic_params const&) {
+        document_diagnostic_report on_diagnostic(document_diagnostic_params const &) {
             return {};
         }
 
@@ -382,12 +297,9 @@ namespace lsp {
 
 
 int main(int32_t argc, char **argv) {
-    p_libsys_init();
-
     auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
 
     auto server = lsp::BondLsp(lib_path);
     lsp::start_langserver(server, std::cin, std::cout);
-    p_libsys_shutdown();
     return 0;
 }

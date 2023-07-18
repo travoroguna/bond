@@ -22,6 +22,8 @@ namespace bond {
     private:
         t_map m_modules;
     };
+
+    std::expected<std::string, std::string> path_resolver(Context* ctx, const std::string &path);
 }
 
 

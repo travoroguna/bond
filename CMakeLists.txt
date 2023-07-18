@@ -51,5 +51,7 @@ set(CPACK_PACKAGE_VERSION_MINOR 0)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 include(CPack)
 
+
+include(CTest)
 enable_testing()
 add_subdirectory(tests)

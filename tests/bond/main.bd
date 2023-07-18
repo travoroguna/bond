@@ -57,7 +57,3 @@ fn test_all() {
 }
 
 test_all();
-
-import "package/ini";
-
-println(ini.get_exports());
