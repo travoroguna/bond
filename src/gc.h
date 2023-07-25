@@ -21,7 +21,7 @@
 #define GC_DEBUG
 #endif
 
-
+#include <gc.h>
 #include <gc_cpp.h>
 #include <gc_allocator.h>
 
@@ -86,21 +86,7 @@ namespace bond {
 
         explicit operator bool() const { return m_ptr != nullptr; }
 
-        void mark() {
-            if (m_ptr)
-                m_ptr->mark();
-        }
-
-        void unmark() {
-            if (m_ptr)
-                m_ptr->unmark();
-        }
-
         void reset() { m_ptr = nullptr; }
-
-        [[nodiscard]] bool is_marked() const { return m_ptr->is_marked(); }
-
-        bool operator==(GcPtr const &other) const { return m_ptr->equal(other); }
 
         template<typename K>
         GcPtr(const GcPtr <K> &other) : m_ptr(other.get()) {}
@@ -125,14 +111,11 @@ namespace bond {
     };
 
 
-    class GcObject: public gc_cleanup {
+    class GcObject: public gc {
     public:
         GcObject() = default;
 
         virtual ~GcObject() = default;
-
-        [[nodiscard]] bool is_marked() const { return m_marked; }
-
 
         template<typename T>
         static bool is(GcPtr<GcObject> const &obj) {
@@ -153,14 +136,6 @@ namespace bond {
         }
 
         bool operator==(GcObject const &other) const { return this == &other; }
-
-        virtual void mark() { m_marked = true; }
-
-        virtual void unmark() { m_marked = false; }
-
-
-    protected:
-        bool m_marked{false};
     };
 
 

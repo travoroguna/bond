@@ -108,20 +108,6 @@ namespace bond {
         return res;
     }
 
-    void NativeInstance::unmark() {
-        if (!m_marked)
-            return;
-        Object::unmark();
-        m_native_struct->unmark();
-    }
-
-    void NativeInstance::mark() {
-        if (m_marked)
-            return;
-        Object::mark();
-        m_native_struct->mark();
-    }
-
     bool NativeInstance::has_slot(Slot slot) {
         return m_native_struct->get_slot(slot) != nullptr;
     }

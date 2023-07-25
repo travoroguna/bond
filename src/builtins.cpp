@@ -10,6 +10,10 @@
 #include <iostream>
 #include "conv.hpp"
 
+#ifdef DEBUG
+#include <gc_backptr.h>
+#endif
+
 namespace bond {
     obj_result b_println(const t_vector &args) {
         for (auto &arg: args) {
@@ -29,8 +33,10 @@ namespace bond {
     }
 
     obj_result b_dump(const t_vector &args) {
-//        GC_dump();
-//        GC_generate_random_backtrace();
+#ifdef DEBUG
+        GC_dump();
+        GC_generate_random_backtrace();
+#endif
         fmt::print("heap size: {} bytes\n", GC_get_heap_size());
         return OK();
     }
@@ -219,7 +225,7 @@ namespace bond {
     };
 
     bool built = false;
-    std::unordered_map<std::string, GcPtr<Object>> builtins;
+    t_map builtins;
 
     void add_builtins_to_globals(const GcPtr<Map> &globals) {
         if (!built) {

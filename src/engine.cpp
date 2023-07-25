@@ -77,9 +77,9 @@ namespace bond {
 
     std::unique_ptr<Engine> create_engine(const std::string &lib_path, const std::vector<std::string> &args) {
         GC_INIT();
-        GC_enable_incremental();
+
         GC_set_warn_proc([](char *msg, GC_word arg) {
-//        fmt::print("GC warning: {}\n", msg);
+            fmt::print("{} {}\n", msg, arg);
         });
 
         bond::init_caches();

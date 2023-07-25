@@ -5,8 +5,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-include(cmake/CPM.cmake)
 
+OPTION(BOND_DEBUG "Debug mode" OFF)
+
+include(cmake/CPM.cmake)
 
 CPMAddPackage(
         NAME CPMLicenses.cmake
@@ -42,6 +44,11 @@ cpm_licenses_create_disclaimer_target(
 )
 
 install(TARGETS bond)
+
+if (BOND_DEBUG)
+    message("Debug mode")
+    target_compile_definitions(bond-lib PRIVATE DEBUG)
+endif ()
 
 
 set(CPACK_PACKAGE_NAME "bond")

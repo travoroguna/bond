@@ -6,24 +6,6 @@ namespace bond {
         m_elements = elements;
     }
 
-    void List::mark() {
-        if (m_marked) return;
-
-        NativeInstance::mark();
-        for (auto &item: m_elements) {
-            item.mark();
-        }
-    }
-
-    void List::unmark() {
-        if (!m_marked) return;
-
-        NativeInstance::unmark();
-        for (auto &item: m_elements) {
-            item.unmark();
-        }
-    }
-
     obj_result List::get_item(int64_t index) {
         if (index < 0 or index > m_elements.size() - 1) {
             return ERR(fmt::format("Index {} out of range", index));

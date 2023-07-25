@@ -73,6 +73,14 @@ namespace bond {
         GcPtr<Map> get_locals() { return m_locals; }
         GcPtr<Map> get_globals() { return m_globals; }
 
+        void clear() {
+            m_locals.reset();
+            m_globals.reset();
+            m_function.reset();
+            m_code.reset();
+            m_ip = 0;
+        }
+
 
     private:
         GcPtr<Function> m_function;
@@ -149,24 +157,20 @@ namespace bond {
 
         void setup_bound_call(const GcPtr<Object>& instance, const GcPtr<Function>& function, t_vector & args);
 
-        void push(GcPtr<Object> const &obj) { m_stack.push_back(obj); }
+        inline void push(GcPtr<Object> const &obj) { m_stack.push_back(obj); }
 
-        GcPtr<Object> pop() {
+        inline GcPtr<Object> pop() {
             auto res = peek();
             m_stack.pop_back();
             return res;
         }
 
-        GcPtr<Object> peek() { return m_stack.back(); }
-
-        GcPtr<Object> peek(size_t rel_index) { return m_stack[m_stack.size() - 1 - rel_index]; }
-
-        void print_stack() {}
+        inline GcPtr<Object> peek() { return m_stack.back(); }
+        inline GcPtr<Object> peek(size_t rel_index) { return m_stack[m_stack.size() - 1 - rel_index]; }
 
         t_vector m_stack;
 
         void call_object(const GcPtr <Object> &func, t_vector &args);
-
         void compare_op(Slot slot, const std::string &op_name);
     };
 

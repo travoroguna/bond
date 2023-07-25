@@ -13,27 +13,6 @@ namespace bond {
         return m_value[key];
     }
 
-    void Map::mark() {
-        if (m_marked)
-            return;
-
-        bond::NativeInstance::mark();
-
-        for (auto const &[_, value]: m_value) {
-            value->mark();
-        }
-    }
-    void Map::unmark() {
-        if (!m_marked)
-            return;
-
-        bond::NativeInstance::unmark();
-
-        for (auto const &[_, value]: m_value) {
-            value->unmark();
-        }
-    }
-
     obj_result c_Map(const t_vector &args) {
         Map* map;
         auto res = parse_args(args, map);

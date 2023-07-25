@@ -15,6 +15,9 @@
 #include "../gc.h"
 
 namespace bond {
+    using c_map = std::unordered_map<std::string, GcPtr<GcObject>, std::hash<std::string>, std::equal_to<>,
+            gc_allocator<std::pair<const std::string, GcPtr<GcObject>>>>;
+
     class Context {
     public:
         explicit Context(std::string lib_path)  {
@@ -52,7 +55,7 @@ namespace bond {
 
     private:
         std::unordered_map<uint32_t, std::string> m_modules;
-        std::unordered_map<std::string, GcPtr<GcObject>> m_compiled_modules;
+        c_map m_compiled_modules;
         bool m_has_error = false;
         std::string m_lib_path;
         std::vector<std::string> m_args;
