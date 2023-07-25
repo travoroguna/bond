@@ -392,6 +392,8 @@ namespace bond {
                     break;
                 }
                 case Opcode::RETURN: {
+                    m_current_frame->clear();
+
                     if (m_frame_pointer == stop_frame) {
                         m_frame_pointer--;
                         m_current_frame = &m_frames[m_frame_pointer - 1];
