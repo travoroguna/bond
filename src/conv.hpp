@@ -145,13 +145,22 @@ namespace bond {
                 auto struct_ = make<NativeStruct>(builder->m_name, builder->m_doc, builder->m_constructor,
                                                   builder->m_methods, builder->m_fields);
                 auto constructor = builder->m_constructor;
-
                 auto wrapper = [constructor, struct_](const t_vector &args) -> obj_result {
                     auto res = constructor(args);
                     if (!res.has_value()) {
                         return res;
                     }
-                    res.value()->as<NativeInstance>()->set_native_struct(struct_.get());
+
+                    auto val = res.value();
+
+                    if (val->is<Result>()) {
+                        if (val->as<Result>()->has_value()) {
+                            val->as<Result>()->get_value()->as<NativeInstance>()->set_native_struct(struct_.get());
+                        }
+                        return val;
+                    }
+
+                    val->as<NativeInstance>()->set_native_struct(struct_.get());
                     return res;
                 };
 

@@ -111,8 +111,6 @@ namespace bond {
     public:
         Object() = default;
 
-        ~Object() override = default;
-
         [[nodiscard]] virtual std::string str() const {
             return fmt::format("<Object at {}>", (void *) this);
         }
@@ -131,9 +129,9 @@ namespace bond {
         return imm;
     }
 
-    using t_vector = std::vector<GcPtr<Object>, gc_allocator<GcPtr<Object>>>;
+    using t_vector = std::vector<GcPtr<Object>, traceable_allocator<GcPtr<Object>>>;
     using t_map = std::unordered_map<std::string, GcPtr<Object>, std::hash<std::string>, std::equal_to<>,
-            gc_allocator<std::pair<const std::string, GcPtr<Object>>>>;
+            traceable_allocator<std::pair<const std::string, GcPtr<Object>>>>;
 
     using NativeMethodPtr = std::function<obj_result(const GcPtr<Object> &self, const t_vector &)>;
     using NativeFunctionPtr = std::function<obj_result(const t_vector &)>;
@@ -237,10 +235,6 @@ namespace bond {
         obj_result call_slot(Slot slot, const t_vector &args);
 
         virtual bool has_slot(Slot slot);
-
-        void mark() override;
-
-        void unmark() override;
 
         [[nodiscard]] std::string str() const override {
             return fmt::format("<instance of {} at {}>", m_native_struct->get_name(), (void *) this);
@@ -355,10 +349,6 @@ namespace bond {
 
         bool has(const std::string &key) { return m_value.contains(key); }
 
-        void mark() override;
-
-        void unmark() override;
-
     private:
         t_map m_value;
     };
@@ -441,10 +431,6 @@ namespace bond {
 
         [[nodiscard]] GcPtr<Map> get_globals() const { return m_globals; }
 
-        void mark() override;
-
-        void unmark() override;
-
 
     private:
         std::string m_name;
@@ -503,10 +489,6 @@ namespace bond {
 
         obj_result get_method(const std::string &name);
 
-        void mark() override;
-
-        void unmark() override;
-
         obj_result get_field(const std::string &name);
 
         obj_result set_field(const std::string &name, const GcPtr<Object> &value);
@@ -549,16 +531,6 @@ namespace bond {
 
         Module(std::string path, const t_map &objects);
 
-        void mark() override {
-            NativeInstance::mark();
-            m_globals->mark();
-        }
-
-        void unmark() override {
-            NativeInstance::unmark();
-            m_globals->unmark();
-        }
-
         GcPtr<Map> get_globals() { return m_globals; }
 
         obj_result get_attribute(const std::string &name);
@@ -594,10 +566,6 @@ namespace bond {
         List() = default;
 
         List(const t_vector &elements);
-
-        void mark() override;
-
-        void unmark() override;
 
         obj_result get_item(int64_t index);
 
@@ -701,14 +669,10 @@ namespace bond {
         return OK(args[0]);
     }
 
-    static t_vector immortals;
-
-
     template<typename T, typename... Args>
     inline obj_result OK(Args &&...args) {
         return std::make_shared<T>(std::forward<Args>(args)...);
     }
-
 
     std::string get_type_name(const GcPtr<Object> &obj);
 

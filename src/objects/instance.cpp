@@ -1,28 +1,6 @@
 #include "../object.h"
 
 namespace bond {
-    void Instance::mark() {
-        if (m_marked)
-            return;
-
-        for (auto const &[_, value]: m_fields) {
-            value->mark();
-        }
-
-        m_type->mark();
-    }
-
-    void Instance::unmark() {
-        if (!m_marked)
-            return;
-
-        for (auto const &[_, value]: m_fields) {
-            value->unmark();
-        }
-
-        m_type->unmark();
-    }
-
     obj_result Instance::bind_method(const std::string &name) {
         auto meth = m_type->get_method(name);
         if (!meth)
