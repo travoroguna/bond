@@ -419,9 +419,13 @@ namespace bond {
 
         std::string get_alias() { return m_alias; }
 
+        std::string get_actual_path() { return actual_path; }
+        void set_actual_path(const std::string& path) { actual_path = path; }
+
     private:
         std::string m_name;
         std::string m_alias;
+        std::string actual_path;
     };
 
     class Try : public Node {

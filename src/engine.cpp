@@ -75,6 +75,18 @@ namespace bond {
         core_module->add_module(mod->get_path(), mod);
     }
 
+    /**
+ * @brief Creates a new instance of the Engine class.
+ *
+ * This function initializes the garbage collector, sets a warning procedure for garbage collector messages,
+ * initializes the Bond caches, and builds the core Bond module. It then creates a new Engine object using the
+ * specified library path and arguments.
+ *
+ * @param lib_path The path to the library to be used by the Engine.
+ * @param args The arguments to be passed to the Engine.
+ * @return A unique pointer to the newly created Engine object.
+ */
+
     std::unique_ptr<Engine> create_engine(const std::string &lib_path, const std::vector<std::string> &args) {
         GC_INIT();
 

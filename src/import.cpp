@@ -12,13 +12,13 @@
 #include "vm.h"
 
 #ifdef _WIN32
-
 #include <Windows.h>
-
 #else
 #include <dlfcn.h>
 #endif
 
+
+#include "compiler/bfmt.h"
 
 namespace bond {
     std::expected<std::string, std::string> path_resolver(Context* ctx, const std::string &path) {
@@ -212,6 +212,44 @@ namespace bond {
         m_modules[path] = mod.value();
         return mod;
     }
+
+
+
+
+    std::expected<GcPtr<Code>, std::string> Import::import_archive(Context *ctx, const std::string &path) {
+        if (!std::filesystem::exists(path)) {
+            return std::unexpected(fmt::format("archive {} does not exist", path));
+        }
+
+        auto res = read_archive(path);
+        TRY(res);
+
+        m_context = ctx;
+        m_compiled_archive = res.value();
+        return res.value()[0];
+    }
+
+    std::expected<GcPtr<Module>, std::string> Import::get_pre_compiled(uint32_t id) {
+        if (m_compiled_modules.contains(id)) return m_compiled_modules[id];
+
+        auto code = m_compiled_archive[id];
+        auto vm = Vm(m_context);
+        vm.run(code);
+
+        if (vm.had_error() or m_context->has_error()) {
+            return std::unexpected(fmt::format("failed to import module {} from archive", id));
+        }
+
+        auto module = MODULE_STRUCT->create_instance<Module>(std::to_string(id), vm.get_globals());
+        m_compiled_modules[id] = module;
+        return module;
+    }
+
+    obj_result resolve_core(const std::string& path) {
+        return core_module->get_attribute(path);
+    }
+
+
 
 
 }

@@ -172,6 +172,27 @@ namespace bond {
 
         void call_object(const GcPtr <Object> &func, t_vector &args);
         void compare_op(Slot slot, const std::string &op_name);
+
+        void call_native_function(const GcPtr <Object> &func, t_vector &args);
+
+        void call_script_function(const GcPtr <Object> &func, t_vector &args);
+
+        void call_struct(const GcPtr <Object> &func, t_vector &args);
+
+        void call_bound_method(const GcPtr <Object> &func, t_vector &args);
+
+        void call_native_struct(const GcPtr <Object> &func, t_vector &args);
+
+        void call_closure(const GcPtr <Object> &func, t_vector &args);
+
+        void update_frame_pointer();
+
+        void check_argument_count(const t_vector &args, const std::vector<std::pair<std::string, SharedSpan>> &params);
+
+        static void
+        set_local_arguments(Frame *frame, const t_vector &args,
+                            const std::vector<std::pair<std::string, SharedSpan>> &params,
+                            const GcPtr <Map> &locals);
     };
 
 };

@@ -36,11 +36,12 @@ if (MSVC)
     )
 endif ()
 
+
 CPMAddPackage(
         NAME bdwgc
         GITHUB_REPOSITORY ivmai/bdwgc
         GIT_TAG v8.2.4
-        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug OFF" "enable_large_config ON"
+        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug ON" "enable_large_config ON"
         EXCLUDE_FROM_ALL YES
 )
 
@@ -51,7 +52,11 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         compiler/parser.cpp compiler/parser.h compiler/codegen.cpp compiler/codegen.h vm.cpp vm.h gc.cpp gc.h compiler/nodevisitor.cpp
         compiler/nodevisitor.h object.h object.cpp api.h api.cpp builtins.cpp bond.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
-        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h engine.cpp engine.h engine.h)
+        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h engine.cpp engine.h engine.h
+        compiler/bfmt.cpp
+        compiler/bfmt.h
+        core/build.cpp
+        core/build.h)
 
 target_link_libraries(bond-lib gc gccpp fmt::fmt-header-only nlohmann_json)
 

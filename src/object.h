@@ -71,7 +71,8 @@ namespace bond {
         MAKE_ERROR,
         MAKE_OK,
 
-        CREATE_CLOSURE
+        CREATE_CLOSURE,
+        IMPORT_PRE_COMPILED
     };
 
     enum Slot : uint32_t {
@@ -136,6 +137,7 @@ namespace bond {
     using NativeMethodPtr = std::function<obj_result(const GcPtr<Object> &self, const t_vector &)>;
     using NativeFunctionPtr = std::function<obj_result(const t_vector &)>;
 
+//    using NativeFunctionPtr = obj_result (*)(const t_vector &);
     class NativeInstance;
 
     using slot_array = std::array<NativeMethodPtr, Slot::SIZE>;
@@ -658,7 +660,7 @@ namespace bond {
     extern GcPtr<None> C_NONE;
 
 
-#define TRY(expr) if (auto result = (expr); !result) return result
+#define TRY(expr) if (auto result = (expr); !result) return std::unexpected(result.error())
 #define AS_BOOL(cond) (cond ? C_TRUE : C_FALSE)
 
     template<typename T>

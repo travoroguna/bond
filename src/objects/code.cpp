@@ -130,6 +130,7 @@ namespace bond {
                 OPRAND_INSTRUCTION(BREAK);
                 OPRAND_INSTRUCTION(CONTINUE);
                 OPRAND_INSTRUCTION(CALL_METHOD);
+                OPRAND_INSTRUCTION(IMPORT_PRE_COMPILED);
 
                 SIMPLE_INSTRUCTION(BIT_OR);
                 SIMPLE_INSTRUCTION(BIT_XOR);

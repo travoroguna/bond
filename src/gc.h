@@ -31,6 +31,19 @@ namespace bond {
 
     class GcObject;
 
+    /**
+ * @brief Determines if the given pointer is an instance of a specified base type.
+ *
+ * This function uses the dynamic_cast operator to check if the pointer `ptr` can be safely
+ * casted to a pointer of the base type `Base`. It returns true if the cast is successful and
+ * false otherwise.
+ *
+ * @tparam Base The base type.
+ * @tparam T The derived type.
+ * @param ptr The pointer to check.
+ * @return true if `ptr` is an instance of `Base`, false otherwise.
+ */
+
     template<typename Base, typename T>
     inline bool instanceof(const T *ptr) {
         return dynamic_cast<const Base *>(ptr) != nullptr;
@@ -137,9 +150,5 @@ namespace bond {
 
         bool operator==(GcObject const &other) const { return this == &other; }
     };
-
-
-
-
 
 }

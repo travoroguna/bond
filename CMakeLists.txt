@@ -17,6 +17,14 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
+CPMAddPackage(
+        NAME argumentum
+        GITHUB_REPOSITORY mmahnic/argumentum
+        GIT_TAG v0.3.2
+        EXCLUDE_FROM_ALL YES
+)
+
+
 add_subdirectory(src)
 add_subdirectory(src/lsp)
 
@@ -36,7 +44,7 @@ else ()
 endif ()
 
 
-target_link_libraries(bond bond-lib)
+target_link_libraries(bond bond-lib Argumentum::headers)
 
 
 cpm_licenses_create_disclaimer_target(

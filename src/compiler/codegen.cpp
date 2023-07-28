@@ -426,6 +426,20 @@ namespace bond {
     }
 
     void CodeGenerator::visit(ImportDef *stmnt) {
+        auto a_path = stmnt->get_actual_path();
+
+        if (!a_path.empty()) {
+            // if get_actual path is set this means that a call to new_module
+            // has already been made and will return the same module id
+
+            auto pre_compiled_id = m_ctx->new_module(a_path);
+            auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
+
+            m_code->add_ins(Opcode::LOAD_CONST, alias, stmnt->get_span());
+            m_code->add_ins(Opcode::IMPORT_PRE_COMPILED, pre_compiled_id, stmnt->get_span());
+            return;
+        }
+
         auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
         auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
 

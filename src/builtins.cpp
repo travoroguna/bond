@@ -28,7 +28,6 @@ namespace bond {
         for (auto &arg: args) {
             fmt::print("{} ", arg->str());
         }
-        fmt::print("\n");
         return OK();
     }
 

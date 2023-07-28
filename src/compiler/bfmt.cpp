@@ -14,10 +14,12 @@ namespace bond{
     auto write_code_impl(std::ofstream& stream, const GcPtr<Code>& code) -> void;
     auto read_code_impl(std::ifstream &stream) -> GcPtr<Code>;
 
+    template <>
     auto write_val(std::ofstream &stream, std::string value) -> void{
         stream.write(value.c_str(), value.size() + 1);
     }
 
+    template <>
     auto read_val(std::ifstream& stream) -> std::string {
         std::vector<char> buff;
         char mini_buf[1];
@@ -71,7 +73,7 @@ namespace bond{
     }
 
     auto read_function(std::ifstream& stream) -> GcPtr<Function> {
-        std::string name = read_val(stream);
+        auto name = read_val<std::string>(stream);
         auto arg_count = read_val<uint32_t>(stream);
         auto code = read_code_impl(stream);
 
@@ -79,7 +81,7 @@ namespace bond{
         auto params = std::vector<std::pair<std::string, SharedSpan>>();
 
         for (int i = 0; i < arg_count; i++) {
-            std::string arg_name = read_val(stream);
+            auto arg_name = read_val<std::string>(stream);
             auto arg_span = read_span(stream);
 
             params.emplace_back(arg_name, arg_span);
@@ -105,37 +107,35 @@ namespace bond{
         write_val<uint32_t>(stream, methods.size());
 
         for (auto &field: fields){
-            write_val(stream, field->get_value());
+            write_val(stream, field);
         }
 
         for (auto& [name, method] : methods){
-            write_val(stream, name->as<String>()->get_value());
+            write_val(stream, name);
             write_function(stream, method->as<Function>().get());
         }
 
     }
 
     auto read_struct(std::ifstream& stream) -> GcPtr<Struct> {
-        std::string name = read_val(stream);
+        auto name = read_val<std::string>(stream);
 
         auto field_count = read_val<uint32_t>(stream);
         auto method_count = read_val<uint32_t>(stream);
 
-        auto fields = std::vector<GcPtr<String>>();
-
-        auto lock = LockGc();
+        auto fields = std::vector<std::string>();
 
         for (int i = 0; i < field_count; i++){
-            std::string field_name = read_val(stream);
-            fields.push_back(GarbageCollector::instance().make_immortal<String>(field_name));
+            auto field_name = read_val<std::string>(stream);
+            fields.push_back(field_name);
         }
 
-        auto s= GarbageCollector::instance().make_immortal<Struct>(GarbageCollector::instance().make_immortal<String>(name), fields);
+        auto s = STRUCT_STRUCT->create_instance<Struct>(name, fields);
 
         for (int i = 0; i < method_count; i++){
-            std::string method_name = read_val(stream);
+            std::string method_name = read_val<std::string>(stream);
             auto method = read_function(stream);
-            s->add_method(GarbageCollector::instance().make_immortal<String>(method_name), method);
+            s->add_method(method_name, method);
         }
 
         return s;
@@ -151,13 +151,13 @@ namespace bond{
         write_val<uint32_t>(stream, spans.size());
 
         for(auto& constant : constants){
-            if (instanceof<Integer>(constant.get())) {
+            if (instanceof<Int>(constant.get())) {
                 write_val<uint8_t>(stream, 0);
-                write_val<int64_t>(stream, constant->as<Integer>()->get_value());
+                write_val<int64_t>(stream, constant->as<Int>()->get_value());
             }
             else if(instanceof<String>(constant.get())) {
                 write_val<uint8_t>(stream, 1);
-                write_val(stream, std::string(constant->as<String>()->get_value()));
+                write_val<std::string>(stream, std::string(constant->as<String>()->get_value()));
             }
             else if(instanceof<Float>(constant.get())) {
                 write_val<uint8_t>(stream, 2);
@@ -187,22 +187,35 @@ namespace bond{
 
     }
 
-    auto write_code_file(const std::string &path, const GcPtr<Code> &code) -> void{
-        //format
-        // 1. magic number int32_t 0x424F4E44
-        // 2. version int32_t 0x00000001
-        // 3. md5 hash
-        // 4. constants count uint32_t
-        // 5. code size uint32_t
-        // 6. span count uint32_t
-        // 7. constants
-        // 8. code
-        // 9. spans
+    auto write_archive(const std::string &path, const std::unordered_map<std::string, std::shared_ptr<Unit>>& units) -> std::expected<void, std::string> {
+        if (std::filesystem::exists(path)) {
+            std::filesystem::remove(path);
+            fmt::print("Removed existing archive {}\n", path);
+        }
+
+        fmt::print("Writing archive to {}\n", path);
 
         std::ofstream stream(path, std::ios::binary);
-        write_val<int32_t>(stream, BOND_MAGIC_NUMBER);
-        write_val<int32_t>(stream, BOND_VERSION);
-        write_code_impl(stream, code);
+
+        if (!stream) {
+            return std::unexpected("Could not open file");
+        }
+
+        write_val<uint32_t>(stream, BOND_MAGIC_NUMBER);
+        write_val<uint32_t>(stream, BOND_VERSION);
+        write_val<uint32_t>(stream, units.size());
+
+        size_t i = 1;
+        for (auto& [_, unit] : units) {
+            fmt::print("[{}/{}] unit {}, {}\n", i, units.size(), unit->get_unit_id(), _);
+            write_val<uint32_t>(stream, unit->get_unit_id());
+            auto code = unit->compile();
+            TRY(code);
+            write_code_impl(stream, code.value());
+            i++;
+        }
+
+        return {};
     }
 
 
@@ -211,22 +224,21 @@ namespace bond{
         auto code_size = read_val<uint32_t>(stream);
         auto spans_count = read_val<uint32_t>(stream);
 
-        auto constants = std::vector<GcPtr<GcObject>>();
-        auto lock = LockGc();
+        t_vector constants;
 
         for (auto i = 0; i < constants_count; i++) {
             auto type = read_val<uint8_t>(stream);
             if (type == 0) {
                 auto value = read_val<int64_t>(stream);
-                constants.emplace_back(GarbageCollector::instance().make_immortal<Integer>(value));
+                constants.emplace_back(make_int(value));
             }
             else if (type == 1) {
-                std::string value = read_val(stream);
-                constants.emplace_back(GarbageCollector::instance().make_immortal<String>(value));
+                std::string value = read_val<std::string>(stream);
+                constants.emplace_back(make_string(value));
             }
             else if (type == 2) {
                 auto value = read_val<float>(stream);
-                constants.emplace_back(GarbageCollector::instance().make_immortal<Float>(value));
+                constants.emplace_back(make_float(value));
             }
             else if (type == 3) {
                 auto function = read_function(stream);
@@ -254,25 +266,47 @@ namespace bond{
             spans.emplace_back(read_span(stream));
         }
 
-        return GarbageCollector::instance().make_immortal<Code>(instructions, constants, spans);
+        return CODE_STRUCT->create_instance<Code>(instructions, spans, constants);
     }
 
-    auto read_code_file(const std::string &path) -> std::expected<GcPtr<Code>, std::string>{
+    auto read_archive(const std::string &path) -> std::expected<std::unordered_map<uint32_t, GcPtr<Code>>, std::string>{
         std::ifstream stream(path, std::ios::binary);
         if (!stream) {
             return std::unexpected("Could not open file");
         }
 
-        auto magic_number = read_val<int32_t>(stream);
+        auto magic_number = read_val<uint32_t>(stream);
         if (magic_number != BOND_MAGIC_NUMBER) {
             return std::unexpected(fmt::format("Invalid magic number, expected {} got {}", BOND_MAGIC_NUMBER, magic_number));
         }
 
-        auto version = read_val<int32_t>(stream);
+        auto version = read_val<uint32_t>(stream);
         if (version != BOND_VERSION) {
             return std::unexpected(fmt::format("Invalid version, expected {}, got {}", BOND_VERSION, version));
         }
 
-        return read_code_impl(stream);
+        auto module_count = read_val<uint32_t>(stream);
+
+        std::unordered_map<uint32_t, GcPtr<Code>> modules;
+
+        for (auto i = 0; i < module_count; i++) {
+            auto module_id = read_val<uint32_t>(stream);
+            auto code = read_code_impl(stream);
+            modules.emplace(module_id, code);
+        }
+
+        return modules;
+    }
+
+    auto may_be_bar_file(const std::string &path) -> bool {
+        std::ifstream stream(path, std::ios::binary);
+        if (!stream) {
+            return false;
+        }
+
+        auto magic_number = read_val<uint32_t>(stream);
+        auto version = read_val<uint32_t>(stream);
+
+        return magic_number == BOND_MAGIC_NUMBER and version == BOND_VERSION;
     }
 }

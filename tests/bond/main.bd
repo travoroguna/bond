@@ -41,7 +41,7 @@ fn test_all() {
 
     var count = 1;
     for test in collection {
-        print("[" + str(count) + "/" + str(collection.size()) + "] " + test.__name__ + " ... ");
+        println("[" + str(count) + "/" + str(collection.size()) + "] " + test.__name__ + " ... ");
         var res = test();
         if res.is_ok() {
             passed = passed + 1;
