@@ -2,6 +2,7 @@
 #include "conv.hpp"
 #include "core/build.h"
 #include "import.h"
+#include "api.h"
 #include <argumentum/argparse-h.h>
 
 
@@ -12,7 +13,7 @@ int main(int32_t argc, char **argv) {
     auto lib_path = "/usr/local/libraries/bond/";
 #endif
 
-    auto args = std::vector<std::string>(argv, argv + argc);
+    auto args = std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
     auto engine = bond::create_engine(lib_path, args);
 
     std::string file;
@@ -26,6 +27,12 @@ int main(int32_t argc, char **argv) {
     params.add_parameter(build, "--build-archive", "-b")
             .nargs(0)
             .help("Build archive from file");
+
+
+    if (argc == 1) {
+        engine->run_repl();
+        return 0;
+    }
 
     if (!parser.parse_args(argc, argv, 1)) {
         return 1;
@@ -69,8 +76,13 @@ int main(int32_t argc, char **argv) {
             return 1;
         }
 
+        auto pre = bond::get_current_vm();
         auto vm = bond::Vm(engine->get_context());
+        bond::set_current_vm(&vm);
+
         vm.run(res.value());
+
+        bond::set_current_vm(pre);
         return vm.had_error() or engine->get_context()->has_error() ? 1 : 0;
     }
 

@@ -7,6 +7,7 @@ import "float_tests";
 import "string_tests";
 import "result";
 import "list_tests";
+import "map_tests";
 
 
 var all_tests = [
@@ -15,7 +16,8 @@ var all_tests = [
     integer_tests,
     float_tests,
     string_tests,
-    list_tests
+    list_tests,
+    map_tests
 ];
 
 
@@ -37,20 +39,23 @@ fn test_all() {
         }
     }
 
-    println("running " + core.to_string(collection.size()) + " tests ...");
+    println(format("collected {} tests", collection.size()));
 
     var count = 1;
     for test in collection {
-        println("[" + str(count) + "/" + str(collection.size()) + "] " + test.__name__ + " ... ");
+        print(format("\r[{}/{}] {}", count, collection.size(), test.__name__));
+
         var res = test();
         if res.is_ok() {
             passed = passed + 1;
         } else {
             failed = failed + 1;
-            println("Test failed: " + res.error());
+            println("\nTest failed: " + res.error());
         }
         count = count + 1;
     }
+
+    println("");
 
     println("Passed: " + core.to_string(passed));
     println("Failed: " + core.to_string(failed));

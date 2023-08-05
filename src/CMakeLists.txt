@@ -40,11 +40,15 @@ endif ()
 CPMAddPackage(
         NAME bdwgc
         GITHUB_REPOSITORY ivmai/bdwgc
-        GIT_TAG v8.2.4
-        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug ON" "enable_large_config ON"
+        GIT_TAG master
+        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug ON" "enable_large_config OFF" "enable_threads OFF" "enable_dynamic_loading ON"
         EXCLUDE_FROM_ALL YES
 )
 
+if(EMSCRIPTEN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -pthread")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -pthread")
+endif()
 
 add_subdirectory(libs)
 
@@ -56,12 +60,15 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         compiler/bfmt.cpp
         compiler/bfmt.h
         core/build.cpp
-        core/build.h)
+        core/build.h
+        objects/hashmap.cpp)
 
-target_link_libraries(bond-lib gc gccpp fmt::fmt-header-only nlohmann_json)
+target_link_libraries(bond-lib gc gccpp gctba fmt::fmt-header-only nlohmann_json)
+target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
 
 if (MSVC)
-    target_link_libraries(gc atomic_ops)
+#    target_link_libraries(gc atomic_ops)
 endif ()
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")

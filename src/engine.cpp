@@ -8,12 +8,16 @@
 
 namespace bond {
     void bond::Engine::run_repl() {
-        auto vm = bond::Vm(&m_context);
+        fmt::print("bond {} on {}\n", BOND_VERSION, COMPILER_VERSION);
         auto id = m_context.new_module(std::string("<repl>"));
-        bond::Scopes scope = bond::Scopes(&m_context);
 
+        auto globals = MAP_STRUCT->create_instance<StringMap>();
+        Scopes scopes(&m_context);
 
         while (true) {
+            auto vm = bond::Vm(&m_context, globals);
+            bond::set_current_vm(&vm);
+
             auto path = std::string("<repl>");
             m_context.reset_error();
             std::string source;
@@ -30,15 +34,29 @@ namespace bond {
             auto lexer = bond::Lexer(source, &m_context, id);
             if (m_context.has_error()) continue;
             auto parser = bond::Parser(lexer.tokenize(), &m_context);
-            parser.set_scopes(&scope);
+            parser.set_scopes(&scopes);
+
             if (m_context.has_error()) continue;
 
-            auto codegen = bond::CodeGenerator(&m_context, &scope);
+            auto codegen = bond::CodeGenerator(&m_context, &scopes);
+            codegen.set_mode_repl();
+
             auto bytecode = codegen.generate_code(parser.parse());
+
             if (m_context.has_error()) continue;
+
+            fmt::print("{}\n", bytecode->disassemble());
+
 
             vm.run(bytecode);
 
+            if (vm.had_error()) continue;
+            vm.pop();
+
+            if (!vm.has_top()) continue;
+
+            auto top = vm.pop();
+            if (!top->is<None>()) fmt::print("{}\n", top->str());
         }
     }
 
@@ -54,9 +72,11 @@ namespace bond {
         if (m_context.has_error()) return;
 
         auto codegen = bond::CodeGenerator(&m_context, parser.get_scopes());
+
         auto bytecode = codegen.generate_code(nodes);
 
         if (m_context.has_error()) return;
+
 
         auto file = std::ofstream("out.bond");
         file << bytecode->disassemble();
@@ -68,26 +88,20 @@ namespace bond {
     void Engine::run_file(const std::string &path) {
         auto src = bond::Context::read_file(std::string(path));
         auto vm = bond::Vm(&m_context);
+        auto pre_vm = get_current_vm();
+        set_current_vm(&vm);
+
         execute_source(src, path.c_str(), vm);
+
+        set_current_vm(pre_vm);
     }
 
     void Engine::add_core_module(const GcPtr<Module> &mod) {
         core_module->add_module(mod->get_path(), mod);
     }
 
-    /**
- * @brief Creates a new instance of the Engine class.
- *
- * This function initializes the garbage collector, sets a warning procedure for garbage collector messages,
- * initializes the Bond caches, and builds the core Bond module. It then creates a new Engine object using the
- * specified library path and arguments.
- *
- * @param lib_path The path to the library to be used by the Engine.
- * @param args The arguments to be passed to the Engine.
- * @return A unique pointer to the newly created Engine object.
- */
 
-    std::unique_ptr<Engine> create_engine(const std::string &lib_path, const std::vector<std::string> &args) {
+    std::unique_ptr<Engine> create_engine(const std::string &lib_path, const std::vector<std::string, gc_allocator<std::string>> &args) {
         GC_INIT();
 
         GC_set_warn_proc([](char *msg, GC_word arg) {
@@ -101,6 +115,6 @@ namespace bond {
     }
 
     std::unique_ptr<Engine> create_engine(const std::string &lib_path) {
-        return create_engine(lib_path, std::vector<std::string>());
+        return create_engine(lib_path, std::vector<std::string, gc_allocator<std::string>>());
     }
 }

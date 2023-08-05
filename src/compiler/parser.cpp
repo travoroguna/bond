@@ -14,18 +14,21 @@ namespace bond {
 
     std::vector<std::shared_ptr<Node>> Parser::parse() {
         std::vector<std::shared_ptr<Node>> nodes;
-        m_scopes.new_scope();
 
-        auto span = std::make_shared<Span>(0, 0, 0, 1);
-        const char *builtins[] = {
-                "println", "print", "dump", "exit",
-                "help", "type_of", "instance_of", "input",
-                "Int", "Float", "String", "Bool", "List",
-                "debug_break", "__future__"
-        };
+        if (!m_scopes->has_globals()) {
+            m_scopes->new_scope();
 
-        for (auto &builtin: builtins) {
-            m_scopes.declare(builtin, span, false);
+            auto span = std::make_shared<Span>(0, 0, 0, 1);
+            const char *builtins[] = {
+                    "println", "print", "dump", "exit",
+                    "help", "type_of", "instance_of", "input",
+                    "Int", "Float", "String", "Bool", "List",
+                    "debug_break", "__future__", "format", "iter"
+            };
+
+            for (auto &builtin: builtins) {
+                m_scopes->declare(builtin, span, false);
+            }
         }
 
         while (!is_at_end()) {
@@ -62,7 +65,7 @@ namespace bond {
         try {
             if (match({TokenType::VAR})) return variable_declaration();
             else if (match({TokenType::STRUCT})) return struct_declaration();
-            else if (match({TokenType::FUN})) return function_declaration(false);
+            else if (match({TokenType::FUN})) return function_declaration(false, false);
             else if (match({TokenType::IMPORT})) return import_declaration();
             else if (match({TokenType::ASYNC})) return async_declaration();
             else return statement();
@@ -82,12 +85,12 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::async_declaration() {
         consume(TokenType::FUN, peek().get_span(), "Expected function after async keyword");
-        auto function = function_declaration(false);
+        auto function = function_declaration(false, false);
         return std::make_shared<AsyncDef>(function->get_span(), function);
     }
 
 
-    std::string split_at_last_occur(const std::string& str, char c) {
+    std::string split_at_last_occur(const std::string &str, char c) {
         auto pos = str.rfind(c);
         if (pos == std::string::npos) return str;
         return str.substr(pos + 1);
@@ -99,7 +102,7 @@ namespace bond {
         if (match({TokenType::SEMICOLON})) {
             auto alias = split_at_last_occur(split_at_last_occur(path.get_lexeme(), ':'), '/');
 
-            m_scopes.declare(alias, path.get_span(), false);
+            m_scopes->declare(alias, path.get_span(), false);
             return std::make_shared<ImportDef>(path.get_span(), path.get_lexeme(), alias);
         }
 
@@ -107,7 +110,7 @@ namespace bond {
         auto alias = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected identifier after 'as' keyword");
         consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after import statement");
 
-        m_scopes.declare(alias.get_lexeme(), alias.get_span(), false);
+        m_scopes->declare(alias.get_lexeme(), alias.get_span(), false);
 
         return std::make_shared<ImportDef>(span_from_spans(path.get_span(), alias.get_span()), path.get_lexeme(),
                                            alias.get_lexeme());
@@ -117,15 +120,15 @@ namespace bond {
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected struct name after struct keyword");
 
 
-        if (m_scopes.is_declared(id.get_lexeme())) {
+        if (m_scopes->is_declared(id.get_lexeme())) {
             ctx->error(id.get_span(), fmt::format("Struct {} is already declared in this scope", id.get_lexeme()));
-            auto sp = m_scopes.get(id.get_lexeme()).value()->span;
+            auto sp = m_scopes->get(id.get_lexeme()).value()->span;
             throw ParserError(fmt::format("Note Struct {} is already declared here", id.get_lexeme()), sp);
         }
 
-        m_scopes.declare(id.get_lexeme(), id.get_span(), false);
+        m_scopes->declare(id.get_lexeme(), id.get_span(), false);
 
-        m_scopes.new_scope();
+        m_scopes->new_scope();
 
 
         consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' after struct name");
@@ -175,7 +178,7 @@ namespace bond {
                 throw ParserError("Instance variables must be declared before methods", peek().get_span());
             } else if (check(TokenType::FUN)) {
                 consume(TokenType::FUN, peek().get_span(), "");
-                auto method = function_declaration(true);
+                auto method = function_declaration(true, false);
                 methods.push_back(method);
 
                 if (instance_methods.contains(dynamic_cast<FuncDef *>(method.get())->get_name())) {
@@ -195,33 +198,48 @@ namespace bond {
         }
 
         consume(TokenType::RIGHT_BRACE, peek().get_span(), "Expected '}' after struct body");
-        m_scopes.end_scope();
+        m_scopes->end_scope();
         return std::make_shared<StructNode>(id.get_span(), id.get_lexeme(), instance_variables, methods);
 
     }
 
-    std::shared_ptr<Node> Parser::function_declaration(bool is_method) {
+    std::shared_ptr<Node> Parser::function_declaration(bool is_method, bool is_expression) {
         bool pre = in_function;
         bool pre_is_err_func = is_error_func;
 
         in_function = true;
-        auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected function name after fun keyword");
 
-        if (is_method) {
-            if (m_scopes.is_declared_in_current_scope(id.get_lexeme())) {
-                ctx->error(id.get_span(), fmt::format("Method {} is already declared in this struct", id.get_lexeme()));
-                auto sp = m_scopes.get(id.get_lexeme()).value()->span;
-                throw ParserError(fmt::format("Note Method {} is declared here", id.get_lexeme()), sp);
-            }
-        } else {
-            if (m_scopes.is_declared(id.get_lexeme())) {
-                ctx->error(id.get_span(),
-                           fmt::format("Function {} is already declared in this scope", id.get_lexeme()));
-                auto sp = m_scopes.get(id.get_lexeme()).value()->span;
-                throw ParserError(fmt::format("Note {} is already declared here", id.get_lexeme()), sp);
+        std::string name;
+        SharedSpan span;
+
+        if (!is_expression) {
+            auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected function name after fun keyword");
+
+            if (is_method) {
+                if (m_scopes->is_declared_in_current_scope(id.get_lexeme())) {
+                    ctx->error(id.get_span(),
+                               fmt::format("Method {} is already declared in this struct", id.get_lexeme()));
+                    auto sp = m_scopes->get(id.get_lexeme()).value()->span;
+                    throw ParserError(fmt::format("Note Method {} is declared here", id.get_lexeme()), sp);
+                }
+            } else {
+                if (m_scopes->is_declared(id.get_lexeme())) {
+                    ctx->error(id.get_span(),
+                               fmt::format("Function {} is already declared in this scope", id.get_lexeme()));
+                    auto sp = m_scopes->get(id.get_lexeme()).value()->span;
+                    throw ParserError(fmt::format("Note {} is already declared here", id.get_lexeme()), sp);
+                }
+
+                m_scopes->declare(id.get_lexeme(), id.get_span(), false);
             }
 
-            m_scopes.declare(id.get_lexeme(), id.get_span(), false);
+            name = id.get_lexeme();
+            span = id.get_span();
+        }
+
+        else {
+            name = "<anonymous function>";
+            span = peek().get_span();
         }
 
         consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after function name");
@@ -244,24 +262,31 @@ namespace bond {
             is_error_func = true;
         }
 
-        consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' before function body");
 
-        m_scopes.new_scope();
+        m_scopes->new_scope();
         for (auto &param: params) {
-            m_scopes.declare(param.first, param.second, true);
+            m_scopes->declare(param.first, param.second, true);
         }
 
-        auto body = block(false);
-        m_scopes.end_scope();
+        std::shared_ptr<Node> body;
+
+        if (peek().get_type() == TokenType::LEFT_BRACE) {
+            consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' before function body");
+            body = block(false);
+        } else {
+            body = expression();
+        }
+//        auto body = block(false);
+        m_scopes->end_scope();
 
         bool tmp = is_error_func;
         is_error_func = pre_is_err_func;
         in_function = pre;
 
-        return std::make_shared<FuncDef>(span_from_spans(id.get_span(), previous().get_span()),
-                                            id.get_lexeme(),
-                                            params,
-                                            body, tmp);
+        return std::make_shared<FuncDef>(span_from_spans(span, previous().get_span()),
+                                         name,
+                                         params,
+                                         body, tmp);
     }
 
     std::shared_ptr<Node> Parser::variable_declaration() {
@@ -279,14 +304,14 @@ namespace bond {
                 }
 
                 auto id = std::dynamic_pointer_cast<Identifier>(expr);
-                if (m_scopes.is_declared(id->get_name())) {
+                if (m_scopes->is_declared(id->get_name())) {
                     ctx->error(id->get_span(),
                                fmt::format("Variable {} is already declared in this scope", id->get_name()));
-                    auto sp = m_scopes.get(id->get_name()).value()->span;
+                    auto sp = m_scopes->get(id->get_name()).value()->span;
                     throw ParserError(fmt::format("Note Variable {} is already declared here", id->get_name()), sp);
                 }
 
-                m_scopes.declare(id->get_name(), id->get_span(), true);
+                m_scopes->declare(id->get_name(), id->get_span(), true);
             }
 
             consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after expression in variable declaration");
@@ -296,9 +321,9 @@ namespace bond {
 
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after var keyword");
 
-        if (m_scopes.is_declared(id.get_lexeme())) {
+        if (m_scopes->is_declared(id.get_lexeme())) {
             ctx->error(id.get_span(), fmt::format("Variable {} is already declared in this scope", id.get_lexeme()));
-            auto sp = m_scopes.get(id.get_lexeme()).value()->span;
+            auto sp = m_scopes->get(id.get_lexeme()).value()->span;
             throw ParserError(fmt::format("Note Variable {} is already declared here", id.get_lexeme()), sp);
         }
 
@@ -306,7 +331,7 @@ namespace bond {
         auto initializer = expression();
         consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after expression in variable declaration");
 
-        m_scopes.declare(id.get_lexeme(), id.get_span(), true);
+        m_scopes->declare(id.get_lexeme(), id.get_span(), true);
 
         return std::make_shared<NewVar>(span_from_spans(id.get_span(), previous().get_span()), id.get_lexeme(),
                                         initializer);
@@ -330,7 +355,7 @@ namespace bond {
         else if (match({TokenType::LEFT_BRACE})) return block(true);
         else if (match({TokenType::FOR})) return for_statement();
         else if (match({TokenType::VAR})) return variable_declaration();
-        else if (match({TokenType::FUN})) return closure_declaration();
+        else if (match({TokenType::FUN})) return closure_declaration(false);
         else if (match({TokenType::RETURN})) return return_statement();
         else if (match({TokenType::BREAK})) return break_statement();
         else if (match({TokenType::CONTINUE})) return continue_statement();
@@ -345,7 +370,8 @@ namespace bond {
             ctx->error(previous().get_span(), "Can not use Ok statement outside function");
         }
         if (!is_error_func) {
-            ctx->error(previous().get_span(), "Can not use Ok statement in non-error function\n  Hint: mark function as error with '!' eg 'fn foo()! {}'");
+            ctx->error(previous().get_span(),
+                       "Can not use Ok statement in non-error function\n  Hint: mark function as error with '!' eg 'fn foo()! {}'");
 
         }
         auto expr = expression();
@@ -358,7 +384,8 @@ namespace bond {
             ctx->error(previous().get_span(), "Can not use err statement outside function");
         }
         if (!is_error_func) {
-            ctx->error(previous().get_span(), "Can not use ok statement in non-error function\n  Hint: mark function as error with '!' eg 'fn foo()! {}'");
+            ctx->error(previous().get_span(),
+                       "Can not use ok statement in non-error function\n  Hint: mark function as error with '!' eg 'fn foo()! {}'");
 
         }
         auto expr = expression();
@@ -407,13 +434,13 @@ namespace bond {
         return _or();
     }
 
-    std::shared_ptr<Node> Parser::closure_declaration() {
+    std::shared_ptr<Node> Parser::closure_declaration(bool is_expression) {
         auto pre = is_error_func;
         is_error_func = false;
-        auto function = dynamic_pointer_cast<FuncDef>(function_declaration(false));
+        auto function = dynamic_pointer_cast<FuncDef>(function_declaration(false, is_expression));
         is_error_func = pre;
         return std::make_shared<ClosureDef>(function->get_span(), function->get_name(),
-                                            function);
+                                            function, is_expression);
 
     }
 
@@ -448,10 +475,10 @@ namespace bond {
         consume(TokenType::IN, peek().get_span(), "Expected 'in' after variable name");
         auto iterable = expression();
 
-        m_scopes.new_scope();
-        m_scopes.declare(id.get_lexeme(), id.get_span(), true);
+        m_scopes->new_scope();
+        m_scopes->declare(id.get_lexeme(), id.get_span(), true);
 //  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after for condition");
-        m_scopes.end_scope();
+        m_scopes->end_scope();
 
         auto body = statement();
         m_in_loop = false;
@@ -480,7 +507,7 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::block(bool create_scope = true) {
 
-        if (create_scope) m_scopes.new_scope();
+        if (create_scope) m_scopes->new_scope();
         std::vector<std::shared_ptr<Node>> statements;
 
         while (!check(TokenType::RIGHT_BRACE) && !is_at_end()) {
@@ -489,7 +516,7 @@ namespace bond {
 
         consume(TokenType::RIGHT_BRACE, peek().get_span(), "Expected '}' after block");
 
-        if (create_scope) m_scopes.end_scope();
+        if (create_scope) m_scopes->end_scope();
 
         if (statements.empty()) return std::make_shared<Block>(peek().get_span(), statements);
         return std::make_shared<Block>(statements.front()->get_span(), statements);
@@ -546,12 +573,14 @@ namespace bond {
 
                 for (auto &node: list) {
                     if (!instanceof<Identifier>(node.get())) {
-                        throw ParserError("invalid assignment target", node->get_span());
+                        throw ParserError("invalid assignment target, expected an identifier", node->get_span());
                     }
                     auto n = dynamic_cast<Identifier *>(node.get());
-                    if (!m_scopes.is_declared(n->get_name())) {
+
+                    if (!m_scopes->is_declared(n->get_name())) {
                         throw ParserError(fmt::format("variable {} is not declared", n->get_name()), n->get_span());
                     }
+
                     targets.push_back(node);
                 }
 
@@ -782,6 +811,21 @@ namespace bond {
         }
     }
 
+    std::vector<std::pair<SharedNode, SharedNode>> Parser::key_value_pairs(TokenType end_token) {
+        std::vector<std::pair<SharedNode, SharedNode>> pairs;
+
+        if (!check(end_token)) {
+            do {
+                auto key = expression();
+                consume(TokenType::COLON, key->get_span(), "Expected ':' after key");
+                auto value = expression();
+                pairs.emplace_back(key, value);
+            } while (match({TokenType::COMMA}));
+        }
+
+        return pairs;
+    }
+
     std::shared_ptr<Node> Parser::primary() {
         if (match({TokenType::FALSE})) return std::make_shared<FalseLiteral>(previous().get_span());
         if (match({TokenType::TRUE})) return std::make_shared<TrueLiteral>(previous().get_span());
@@ -806,6 +850,17 @@ namespace bond {
             auto exprs = expr_list(TokenType::RIGHT_SQ);
             consume(TokenType::RIGHT_SQ, previous().get_span(), "Expected ']' after expression.");
             return std::make_shared<ListLiteral>(span_from_spans(start, previous().get_span()), exprs);
+        }
+
+        if (match({TokenType::LEFT_BRACE})) {
+            auto start = previous().get_span();
+            auto pairs = key_value_pairs(TokenType::RIGHT_BRACE);
+            consume(TokenType::RIGHT_BRACE, previous().get_span(), "Expected '}' after expression.");
+            return std::make_shared<DictLiteral>(span_from_spans(start, previous().get_span()), pairs);
+        }
+
+        if (match({TokenType::FUN})) {
+            return closure_declaration(true);
         }
 
         throw ParserError("Expected expression.", peek().get_span());
@@ -844,6 +899,17 @@ namespace bond {
 
     Token Parser::previous() {
         return m_tokens[m_current - 1];
+    }
+
+    Parser::Parser(const std::vector<Token> &tokens, Context *context) : m_tokens(tokens), m_scopes(nullptr) {
+        ctx = context;
+        m_scopes = new Scopes(context);
+    }
+
+    void Parser::set_scopes(Scopes *scopes) {
+        if (m_managed_scope) delete m_scopes;
+        m_managed_scope = true;
+        m_scopes = scopes;
     }
 
     void Scopes::new_scope() {
@@ -908,6 +974,16 @@ namespace bond {
     bool Scopes::is_global(const std::string &name) {
         if (m_scopes.empty()) return false;
         return m_scopes[0].contains(name);
+    }
+
+    void Scopes::print() {
+        size_t i = 0;
+        for (auto &scope: m_scopes) {
+            std::cout << "Scope " << i++ << ":\n";
+            for (auto &[name, var]: scope) {
+                std::cout << "    " << name << " " << var->is_global << " " << var->is_mut << "\n";
+            }
+        }
     }
 
 } // bond

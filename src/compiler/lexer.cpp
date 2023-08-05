@@ -117,22 +117,58 @@ namespace bond {
     }
 
     void Lexer::make_string() {
-        while (peek() != '"' && !is_at_end()) {
-            if (peek() == '\n') m_line++;
+        bool isEscaped = false;
+
+        while (peek() != '"' || isEscaped) {
+            if (peek() == '\n' && !isEscaped) m_line++;
+
+            if (peek() == '\\' && !isEscaped)
+            {
+                isEscaped = true;
+            } else {
+                isEscaped = false;
+            }
+
+            if (is_at_end()) {
+                m_context->error(make_span(), "Unterminated string.");
+                return;
+            }
             advance();
         }
 
-        if (is_at_end()) {
-            m_context->error(make_span(), "Unterminated string.");
+        // The closing '"'.
+        if (isEscaped) {
+            m_context->error(make_span(), "Unterminated escape character.");
             return;
         }
-
-        // The closing '"'.
         advance();
 
         // Trim the surrounding quotes.
         auto value = m_source.substr(m_start + 1, m_current - m_start - 2);
+        replaceEscapedSequences(value);
+
         new_token(TokenType::STRING, value);
+    }
+
+    std::unordered_map<char, char> replacement = {
+            {'n', '\n'},
+            {'t', '\t'},
+            {'r', '\r'},
+            {'0', '\0'},
+            {'\\', '\\'},
+            {'\'', '\''},
+            {'"', '"'}
+    };
+    void Lexer::replaceEscapedSequences(std::string& str) {
+        size_t position = 0;
+
+        for (auto [c, rep]: replacement) {
+            while ((position = str.find(fmt::format("\\{}", c), position)) != std::string::npos) {
+                str.replace(position, 2, fmt::format("{}", rep));
+                position += 1;
+            }
+            position = 0;
+        }
     }
 
     bool is_alpha(char c) {
@@ -199,6 +235,7 @@ namespace bond {
             ADD_TOKEN('|', TokenType::BITWISE_OR);
             ADD_TOKEN('&', TokenType::BITWISE_AND);
             ADD_TOKEN('^', TokenType::BITWISE_XOR);
+            ADD_TOKEN(':', TokenType::COLON);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);

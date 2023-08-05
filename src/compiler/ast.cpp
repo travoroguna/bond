@@ -237,10 +237,11 @@ namespace bond {
         visitor->visit(this);
     }
 
-    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def) {
+    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def, bool is_expression) {
         m_span = span;
         m_name = name;
         m_func_def = func_def;
+        m_is_expression = is_expression;
     }
 
     void ClosureDef::accept(NodeVisitor *visitor) {
@@ -355,6 +356,15 @@ namespace bond {
     }
 
     void ResultStatement::accept(NodeVisitor *visitor) {
+        visitor->visit(this);
+    }
+
+    DictLiteral::DictLiteral(const SharedSpan &span, const std::vector<std::pair<SharedNode, SharedNode>> &pairs) {
+        m_span = span;
+        m_pairs = pairs;
+    }
+
+    void DictLiteral::accept(NodeVisitor *visitor) {
         visitor->visit(this);
     }
 }

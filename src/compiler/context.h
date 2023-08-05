@@ -24,9 +24,9 @@ namespace bond {
             m_lib_path = std::move(lib_path);
         }
 
-        void set_args(const std::vector<std::string> &args) { m_args = args; }
+        void set_args(const std::vector<std::string, gc_allocator<std::string>> &args) { m_args = args; }
 
-        [[nodiscard]] std::vector<std::string> get_args() const { return m_args; }
+        [[nodiscard]]std::vector<std::string, gc_allocator<std::string>> get_args() const { return m_args; }
 
         [[nodiscard]] std::string get_lib_path() const { return m_lib_path; }
 
@@ -58,6 +58,6 @@ namespace bond {
         c_map m_compiled_modules;
         bool m_has_error = false;
         std::string m_lib_path;
-        std::vector<std::string> m_args;
+        std::vector<std::string, gc_allocator<std::string>> m_args;
     };
 }

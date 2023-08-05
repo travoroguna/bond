@@ -2,6 +2,7 @@
 
 #include "compiler/ast.h"
 #include "gc.h"
+//#include "vm.h"
 #include <optional>
 #include <utility>
 #include <cassert>
@@ -10,7 +11,6 @@
 #include <mutex>
 
 namespace bond {
-
     enum class Opcode : uint32_t {
         LOAD_CONST,
         BIN_ADD,
@@ -72,7 +72,9 @@ namespace bond {
         MAKE_OK,
 
         CREATE_CLOSURE,
-        IMPORT_PRE_COMPILED
+        CREATE_CLOSURE_EX,
+        IMPORT_PRE_COMPILED,
+        BUILD_DICT
     };
 
     enum Slot : uint32_t {
@@ -99,6 +101,8 @@ namespace bond {
         NEXT,
         HAS_NEXT,
 
+        HASH,
+
         SIZE
     };
 
@@ -107,6 +111,7 @@ namespace bond {
 
     using obj_result = std::expected<GcPtr<Object>, std::string>;
 
+    std::string Slot_to_string(Slot slot);
 
     class Object : public GcObject {
     public:
@@ -130,10 +135,9 @@ namespace bond {
         return imm;
     }
 
-    using t_vector = std::vector<GcPtr<Object>, traceable_allocator<GcPtr<Object>>>;
+    using t_vector = std::vector<GcPtr<Object>, gc_allocator<GcPtr<Object>>>;
     using t_map = std::unordered_map<std::string, GcPtr<Object>, std::hash<std::string>, std::equal_to<>,
-            traceable_allocator<std::pair<const std::string, GcPtr<Object>>>>;
-
+            gc_allocator<std::pair<const std::string, GcPtr<Object>>>>;
     using NativeMethodPtr = std::function<obj_result(const GcPtr<Object> &self, const t_vector &)>;
     using NativeFunctionPtr = std::function<obj_result(const t_vector &)>;
 
@@ -143,6 +147,8 @@ namespace bond {
     using slot_array = std::array<NativeMethodPtr, Slot::SIZE>;
     using getter = std::function<obj_result(const GcPtr<Object> &)>;
     using setter = std::function<obj_result(const GcPtr<Object> &, const GcPtr<Object> &)>;
+    using method_map = std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>>;
+
 
 
     class NativeStruct : public Object {
@@ -202,9 +208,13 @@ namespace bond {
 
         std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &get_methods() { return m_methods; }
 
+        void set_methods(const method_map &methods) { m_methods = methods; }
+
         std::optional<getter> get_getter(const std::string &name) const;
 
         std::optional<setter> get_setter(const std::string &name) const;
+
+        std::unordered_map<std::string, std::pair<getter, setter>> &get_attributes() { return m_attributes; }
 
 
     protected:
@@ -257,9 +267,6 @@ namespace bond {
 
     obj_result ERR(std::string error);
 
-    using method_map = std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>>;
-
-
 
 
 // builtin types
@@ -274,6 +281,45 @@ namespace bond {
 
     private:
         double m_value;
+    };
+
+    struct ht_entry {
+        GcPtr<Object> key;
+        GcPtr<Object> value;
+        size_t hash;
+    };
+
+
+    class HashMap : public NativeInstance {
+    public:
+        HashMap() { expand(); }
+
+        [[nodiscard]] std::string str() const override;
+
+        std::expected<GcPtr<Object>, std::string> get(const GcPtr<Object> &key);
+
+        std::expected<void, std::string> set(const GcPtr<Object> &key, const GcPtr<Object> &value);
+
+        std::expected<void, std::string> remove(const GcPtr<Object> &key);
+
+        std::expected<bool, std::string> has(const GcPtr<Object> &key);
+
+        size_t size();
+
+        size_t capacity() { return m_entries.size(); }
+
+        std::vector<std::shared_ptr<ht_entry>> &get_entries() { return m_entries; }
+
+
+    private:
+        void expand();
+
+        std::vector<std::shared_ptr<ht_entry>> m_entries;
+        size_t m_size = 0;
+
+        std::expected<void, std::string> set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value);
+
+        std::expected<size_t, std::string> hash_key(const GcPtr<bond::Object> &key);
     };
 
     class Int : public NativeInstance {
@@ -322,8 +368,6 @@ namespace bond {
 
         std::string m_value;
         size_t m_index = 0;
-
-
     };
 
     class None : public NativeInstance {
@@ -333,11 +377,11 @@ namespace bond {
         [[nodiscard]] std::string str() const override { return "Nil"; }
     };
 
-    class Map : public NativeInstance {
+    class StringMap : public NativeInstance {
     public:
-        Map() = default;
+        StringMap() = default;
 
-        Map(const t_map &map) : m_value(map) {}
+        StringMap(const t_map &map) : m_value(map) {}
 
         [[nodiscard]] t_map get_value() const { return m_value; }
 
@@ -429,16 +473,16 @@ namespace bond {
 
         [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
 
-        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
+        void set_globals(const GcPtr<StringMap> &globals) { m_globals = globals; }
 
-        [[nodiscard]] GcPtr<Map> get_globals() const { return m_globals; }
+        [[nodiscard]] GcPtr<StringMap> get_globals() const { return m_globals; }
 
 
     private:
         std::string m_name;
         std::vector<std::pair<std::string, SharedSpan>> m_arguments;
         GcPtr<Code> m_code;
-        GcPtr<Map> m_globals;
+        GcPtr<StringMap> m_globals;
     };
 
     class Instance;
@@ -459,9 +503,9 @@ namespace bond {
 
         bool has_method(const std::string &name) const { return m_methods.contains(name); }
 
-        void set_globals(const GcPtr<Map> &globals);
+        void set_globals(const GcPtr<StringMap> &globals);
 
-        [[nodiscard]] GcPtr<Map> get_globals() const { return m_globals; }
+        [[nodiscard]] GcPtr<StringMap> get_globals() const { return m_globals; }
 
         std::unordered_map<std::string, GcPtr<Function>> &get_methods() { return m_methods; }
 
@@ -472,7 +516,7 @@ namespace bond {
         std::string m_name;
         std::vector<std::string> m_fields;
         std::unordered_map<std::string, GcPtr<Function>> m_methods;
-        GcPtr<Map> m_globals;
+        GcPtr<StringMap> m_globals;
     };
 
 
@@ -529,11 +573,12 @@ namespace bond {
 
     class Module : public NativeInstance {
     public:
-        explicit Module(std::string path, const GcPtr<Map> &globals) : m_globals(globals), m_path(std::move(path)) {}
+        explicit Module(std::string path, const GcPtr<StringMap> &globals) : m_globals(globals),
+                                                                             m_path(std::move(path)) {}
 
         Module(std::string path, const t_map &objects);
 
-        GcPtr<Map> get_globals() { return m_globals; }
+        GcPtr<StringMap> get_globals() { return m_globals; }
 
         obj_result get_attribute(const std::string &name);
 
@@ -542,8 +587,9 @@ namespace bond {
         void add_module(const std::string &name, const GcPtr<Module> &mod);
 
         std::string str() const override { return fmt::format("<module {}>", m_path); }
+
     private:
-        GcPtr<Map> m_globals;
+        GcPtr<StringMap> m_globals;
         std::string m_path;
     };
 
@@ -624,16 +670,16 @@ namespace bond {
 
     class Closure : public NativeInstance {
     public:
-        Closure(GcPtr<Function> function, GcPtr<Map> up_values) : m_function(std::move(function)),
-                                                                  m_up_values(std::move(up_values)) {}
+        Closure(GcPtr<Function> function, GcPtr<StringMap> up_values) : m_function(std::move(function)),
+                                                                        m_up_values(std::move(up_values)) {}
 
         [[nodiscard]] GcPtr<Function> get_function() const { return m_function; }
 
-        [[nodiscard]] GcPtr<Map> get_up_values() const { return m_up_values; }
+        [[nodiscard]] GcPtr<StringMap> get_up_values() const { return m_up_values; }
 
     private:
         GcPtr<Function> m_function;
-        GcPtr<Map> m_up_values;
+        GcPtr<StringMap> m_up_values;
     };
 
 
@@ -653,7 +699,7 @@ namespace bond {
     extern GcPtr<NativeStruct> MODULE_STRUCT;
     extern GcPtr<NativeStruct> LIST_STRUCT;
     extern GcPtr<NativeStruct> BOUND_METHOD_STRUCT;
-
+    extern GcPtr<NativeStruct> HASHMAP_STRUCT;
 
     extern GcPtr<Bool> C_TRUE;
     extern GcPtr<Bool> C_FALSE;
@@ -661,7 +707,7 @@ namespace bond {
 
 
 #define TRY(expr) if (auto result = (expr); !result) return std::unexpected(result.error())
-#define AS_BOOL(cond) (cond ? C_TRUE : C_FALSE)
+#define AS_BOOL(cond) (cond ? bond::C_TRUE : bond::C_FALSE)
 
     template<typename T>
     obj_result c_Default(const t_vector args) {
@@ -723,13 +769,25 @@ namespace bond {
 
     GcPtr<Result> make_result(const GcPtr<Object> &value, bool is_error);
 
-    inline GcPtr<Result> make_ok(const GcPtr<Object> &value){
+    inline GcPtr<Result> make_ok(const GcPtr<Object> &value) {
         return make_result(value, false);
+    }
+
+    template<typename T, typename... Args>
+    inline GcPtr<Result> make_ok(Args &&...args) {
+        return make_ok(GcPtr<T>(new(GC) T(std::forward<Args>(args)...)));
     }
 
     inline GcPtr<Result> make_error(const GcPtr<Object> &value) {
         return make_result(value, true);
     }
+
+    template<typename T, typename... Args>
+    inline GcPtr<Result> make_error(Args &&...args) {
+        return make_error(GcPtr<T>(new(GC) T(std::forward<Args>(args)...)));
+    }
+
+    GcPtr<List> make_list(const t_vector &values);
 
     GcPtr<Int> make_int(int64_t value);
 
@@ -737,9 +795,32 @@ namespace bond {
 
     GcPtr<NativeFunction> make_native_function(std::string name, std::string doc, const NativeFunctionPtr &function);
 
-    GcPtr<Module> make_module(std::string path, const GcPtr<Map> &globals);
+    GcPtr<Module> make_module(std::string path, const GcPtr<StringMap> &globals);
 
     GcPtr<NativeStruct>
     make_native_struct(std::string name, std::string doc, NativeFunctionPtr constructor, const method_map &methods);
 
+
 } // namespace bond
+
+// formatting
+template<>
+struct fmt::formatter<bond::GcPtr<bond::Object>> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template<typename FormatContext>
+    auto format(const bond::GcPtr<bond::Object> &obj, FormatContext &ctx) {
+        return fmt::format_to(ctx.out(), "{}", obj->str());
+    }
+};
+
+// Variadic template to convert vector elements to a format argument pack.
+template<typename... Args>
+std::string format_impl(const std::string &format_string, const std::vector<fmt::format_context::format_arg> &args) {
+    return fmt::vformat(format_string, fmt::basic_format_args<fmt::format_context>(args.data(), args.size()));
+}
+
+
+// Main function to call the format_impl with the vector of arguments.
+std::string format_(const std::string &format_string, const std::vector<fmt::format_context::format_arg> &args);
+std::expected<std::string, std::string> bond_format(const std::string &format_string, const bond::t_vector &args);

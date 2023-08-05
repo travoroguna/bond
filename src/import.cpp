@@ -12,16 +12,19 @@
 #include "vm.h"
 
 #ifdef _WIN32
+
 #include <Windows.h>
+
 #else
 #include <dlfcn.h>
 #endif
 
 
 #include "compiler/bfmt.h"
+#include "api.h"
 
 namespace bond {
-    std::expected<std::string, std::string> path_resolver(Context* ctx, const std::string &path) {
+    std::expected<std::string, std::string> path_resolver(Context *ctx, const std::string &path) {
 #ifdef _WIN32
         auto test_compiled_native = ctx->get_lib_path() + path + ".dll";
         auto test_compiled_c_path = path + ".dll";
@@ -53,7 +56,8 @@ namespace bond {
         return std::unexpected(fmt::format("failed to resolve path {}", path));
     }
 
-    std::expected<GcPtr<Module>, std::string> load_dynamic_lib(Context* ctx, const std::string &path, std::string &alias) {
+    std::expected<GcPtr<Module>, std::string>
+    load_dynamic_lib(Context *ctx, const std::string &path, std::string &alias) {
 #ifdef _WIN32
         auto handle = LoadLibrary(path.c_str());
         if (!handle) {
@@ -88,15 +92,17 @@ namespace bond {
         return mod->as<Module>();
     }
 
-    std::expected<GcPtr<Module>, std::string> create_module(Context* m_ctx, const std::string &path, std::string &alias);
+    std::expected<GcPtr<Module>, std::string>
+    create_module(Context *m_ctx, const std::string &path, std::string &alias);
 
-    std::expected<GcPtr<Module>, std::string> create_package(Context* m_ctx, const std::string &path, std::string &alias) {
+    std::expected<GcPtr<Module>, std::string>
+    create_package(Context *m_ctx, const std::string &path, std::string &alias) {
         //do we load all the files in the directory ending in bd
         //what about sub-directories
 
-        auto mod_map = MAP_STRUCT->create_instance<Map>();
+        auto mod_map = MAP_STRUCT->create_instance<StringMap>();
 
-        for (const auto &entry : std::filesystem::directory_iterator(path)) {
+        for (const auto &entry: std::filesystem::directory_iterator(path)) {
             auto ext = entry.path().extension();
             if (ext == ".bd" || ext == ".dll" || ext == ".so") {
                 auto a = entry.path().stem().string();
@@ -105,8 +111,7 @@ namespace bond {
                     return std::unexpected(res.error());
                 }
                 mod_map->set(a, res.value());
-            }
-            else if (std::filesystem::is_directory(entry.path())) {
+            } else if (std::filesystem::is_directory(entry.path())) {
                 auto a = split_at_last_occur(split_at_last_occur(entry.path().stem().string(), ':'), '/');
 
                 auto res = create_package(m_ctx, entry.path().string(), a);
@@ -120,7 +125,8 @@ namespace bond {
         return MODULE_STRUCT->create_instance<Module>(alias, mod_map);
     }
 
-    std::expected<GcPtr<Module>, std::string> create_module(Context* m_ctx, const std::string &path, std::string &alias) {
+    std::expected<GcPtr<Module>, std::string>
+    create_module(Context *m_ctx, const std::string &path, std::string &alias) {
         if (std::filesystem::is_directory(path)) {
             return create_package(m_ctx, path, alias);
         }
@@ -156,8 +162,11 @@ namespace bond {
             return std::unexpected(fmt::format("unable to import module {}", resolved_path));
         }
 
+        auto pre_vm = get_current_vm();
         auto vm = Vm(m_ctx);
+        set_current_vm(&vm);
         vm.run(code);
+        set_current_vm(pre_vm);
 
 
         if (vm.had_error() or m_ctx->has_error()) {
@@ -177,7 +186,8 @@ namespace bond {
     // import "library:io" as io; -> libraries
     // import "file/io" as io; -> local files
 
-    std::expected<GcPtr<Object>, std::string> Import::import_module(Context* ctx, const std::string& path, std::string& alias) {
+    std::expected<GcPtr<Object>, std::string>
+    Import::import_module(Context *ctx, const std::string &path, std::string &alias) {
         if (m_modules.contains(path)) {
             return m_modules[path];
         }
@@ -189,7 +199,7 @@ namespace bond {
 
         if (path.starts_with("core:")) {
             auto p = path.substr(5);
-            if(p.empty()) {
+            if (p.empty()) {
                 return std::unexpected("invalid core import expected name after core:, e.g. core:io");
             }
 
@@ -214,8 +224,6 @@ namespace bond {
     }
 
 
-
-
     std::expected<GcPtr<Code>, std::string> Import::import_archive(Context *ctx, const std::string &path) {
         if (!std::filesystem::exists(path)) {
             return std::unexpected(fmt::format("archive {} does not exist", path));
@@ -233,8 +241,11 @@ namespace bond {
         if (m_compiled_modules.contains(id)) return m_compiled_modules[id];
 
         auto code = m_compiled_archive[id];
+        auto pre_vm = get_current_vm();
         auto vm = Vm(m_context);
+        set_current_vm(&vm);
         vm.run(code);
+        set_current_vm(pre_vm);
 
         if (vm.had_error() or m_context->has_error()) {
             return std::unexpected(fmt::format("failed to import module {} from archive", id));
@@ -245,11 +256,8 @@ namespace bond {
         return module;
     }
 
-    obj_result resolve_core(const std::string& path) {
+    obj_result resolve_core(const std::string &path) {
         return core_module->get_attribute(path);
     }
-
-
-
 
 }

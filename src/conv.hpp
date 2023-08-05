@@ -85,12 +85,12 @@ namespace bond {
     template<>
     struct bond_traits<t_map> {
         static t_map unwrap(const GcPtr<Object> &object) {
-            auto obj = object->as<Map>();
+            auto obj = object->as<StringMap>();
             return obj->get_value();
         }
 
         static GcPtr<Object> wrap(const t_map &object) {
-            return MAP_STRUCT->create_instance<Map>(object);
+            return MAP_STRUCT->create_instance<StringMap>(object);
         }
     };
 
@@ -133,7 +133,7 @@ namespace bond {
             }
         };
 
-        GcPtr<Map> m_exports = MAP_STRUCT->create_instance<Map>();
+        GcPtr<StringMap> m_exports = MAP_STRUCT->create_instance<StringMap>();
         std::vector<std::shared_ptr<StructBuilder>> m_structs;
         std::string m_path;
 
@@ -195,4 +195,14 @@ namespace bond {
         }
 
     };
+
+    template<typename T>
+    inline GcPtr<Result> make_ok_t(T object) {
+        return make_ok(bond_traits<T>::wrap(object));
+    }
+
+    template<typename T>
+    inline GcPtr<Result> make_error_t(T object) {
+        return make_error(bond_traits<T>::wrap(object));
+    }
 }

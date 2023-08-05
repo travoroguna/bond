@@ -33,7 +33,9 @@ namespace bond {
 
         ASYNC, AWAIT,
 
-        OK, ERROR
+        OK, ERROR,
+
+        COLON
     };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {
@@ -94,6 +96,8 @@ namespace bond {
         char peek_next();
 
         void make_identifier();
+
+        void replaceEscapedSequences(std::string &str);
     };
 
 } // bond

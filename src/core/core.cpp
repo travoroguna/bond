@@ -48,7 +48,7 @@ namespace bond {
             auto self = Self->as<Range>();
             auto res = self->m_start;
             self->m_start += self->m_step;
-            return OK(make<Int>(res));
+            return OK(make_int(res));
         }
     };
 

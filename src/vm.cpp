@@ -13,7 +13,6 @@
 namespace bond {
 
 #define TODO() runtime_error("not implemented", RuntimeError::GenericError, m_current_frame->get_span())
-#define TO_BOOL(X) BOOL_STRUCT->create({(X)}).value()->as<Bool>()
 
     void Vm::run(const GcPtr<Code> &code) {
         m_stop = false;
@@ -34,7 +33,7 @@ namespace bond {
         m_frame_pointer++;
 
         if (m_frame_pointer >= FRAME_MAX) {
-            const char* stack_overflow_error = "stack overflow";
+            const char *stack_overflow_error = "stack overflow";
             if (m_current_frame != nullptr) {
                 runtime_error(stack_overflow_error, RuntimeError::GenericError, m_current_frame->get_span());
             } else {
@@ -57,8 +56,9 @@ namespace bond {
         }
     }
 
-    void Vm::set_local_arguments(Frame* frame, const t_vector &args, const VectorArgs &params, const GcPtr<Map> &locals) {
-        auto local_args = MAP_STRUCT->create_instance<Map>();
+    void Vm::set_local_arguments(Frame *frame, const t_vector &args, const VectorArgs &params,
+                                 const GcPtr<StringMap> &locals) {
+        auto local_args = MAP_STRUCT->create_instance<StringMap>();
 
         for (size_t i = 0; i < args.size(); i++) {
             local_args->set(params[i].first, args[i]);
@@ -74,7 +74,7 @@ namespace bond {
         frame->set_locals(local_args);
     }
 
-    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<Map> &locals) {
+    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<StringMap> &locals) {
 
         auto frame = &m_frames[m_frame_pointer];
 
@@ -83,6 +83,11 @@ namespace bond {
         auto params = function->get_arguments();
 
         check_argument_count(args, params);
+
+        if (m_stop) {
+            return;
+        }
+
         set_local_arguments(frame, args, params, locals);
 
         frame->set_function(function);
@@ -314,6 +319,41 @@ namespace bond {
         }
 
         return *result;
+    }
+
+
+    bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
+        call_object(obj, args);
+        exec(m_frame_pointer);
+        return had_error();
+    }
+
+    std::expected<GcPtr<Object>, std::string>
+    Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args) {
+        if (!instance->is<NativeInstance>()) {
+            return std::unexpected(fmt::format("unable to call slot {} on value of type {}", Slot_to_string(slot),
+                                               get_type_name(instance)));
+        }
+
+        if (instance->is<Instance>() and slot != Slot::GET_ATTR and slot != Slot::SET_ATTR) {
+            auto res = instance->as<Instance>()->call_slot(slot, {});
+            TRY(res);
+
+            auto args_ = const_cast<t_vector &>(args);
+            setup_bound_call(instance, res.value()->as<Function>(), args_);
+            exec(m_frame_pointer);
+
+            if (m_stop) {
+                return std::unexpected("");
+            }
+
+            return pop();
+        }
+
+        auto res = instance->as<NativeInstance>()->call_slot(slot, args);
+        TRY(res);
+
+        return *res;
     }
 
     void Vm::call_object(const GcPtr<Object> &func, t_vector &args) {
@@ -715,9 +755,7 @@ namespace bond {
                     if (!jump_condition->get_value()) {
                         m_current_frame->jump_absolute(jump_pos);
                     }
-
                     break;
-
                 }
 
                 case Opcode::CALL: {
@@ -757,8 +795,15 @@ namespace bond {
                             }
                         }
                     }
-                    push(call_slot(Slot::GET_ATTR, obj, {attr}, "unable to get attribute {} of {}", attr->str(),
-                                   obj->str()));
+
+
+                    auto call_res = call_slot(Slot::GET_ATTR, obj, {attr});
+
+                    if (!call_res.has_value()) {
+                        runtime_error(fmt::format("unable to get attribute {} of {}", attr->str(), obj->str()));
+                        continue;
+                    }
+                    push(call_res.value());
                     break;
                 }
                 case Opcode::SET_ATTRIBUTE: {
@@ -884,14 +929,13 @@ namespace bond {
                         runtime_error(fmt::format("method {} of {} does not exist", name, obj->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
-                    }
-                    else {
+                    } else {
                         auto o = obj->as<NativeInstance>();
                         if (o->has_method(name)) {
                             auto res = o->call_method(name, args);
 
                             if (!res.has_value()) {
-                                runtime_error(fmt::format("unable to call method\n  {}", name, res.error()),
+                                runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()),
                                               RuntimeError::GenericError,
                                               m_current_frame->get_span());
                                 break;
@@ -1020,6 +1064,33 @@ namespace bond {
                     break;
                 }
 
+                case Opcode::CREATE_CLOSURE_EX: {
+                    auto func = m_current_frame->get_constant()->as<Function>();
+                    func->set_globals(m_current_frame->get_globals());
+                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
+                                                                            m_current_frame->get_locals());
+                    push(closure);
+                    break;
+                }
+
+                case Opcode::BUILD_DICT: {
+                    auto count = m_current_frame->get_oprand();
+                    auto dict = HASHMAP_STRUCT->create_instance<HashMap>();
+
+                    for (int i = 0; i < count; i++) {
+                        auto value = pop();
+                        auto key = pop();
+                        auto res = dict->set(key, value);
+
+                        if (!res.has_value()) {
+                            runtime_error(fmt::format("unable to build dict\n  {}", res.error()));
+                            break;
+                        }
+                    }
+                    push(dict);
+                    break;
+                }
+
                 case Opcode::MAKE_ASYNC:
                 case Opcode::AWAIT:
                     runtime_error("async/await is not implemented");
@@ -1028,5 +1099,6 @@ namespace bond {
 //            collect_if_needed();
         }
     }
+
 
 } // bond

@@ -20,6 +20,8 @@
 
 
 namespace bond {
+#define TO_BOOL(X) BOOL_STRUCT->create({(X)}).value()->as<Bool>()
+
 
     class Frame {
     public:
@@ -52,11 +54,11 @@ namespace bond {
 
         GcPtr<Function> get_function() { return m_function; }
 
-        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
+        void set_globals(const GcPtr<StringMap> &globals) { m_globals = globals; }
 
         void jump_absolute(size_t ip) { m_ip = ip; }
 
-        void set_locals(const GcPtr<Map> &locals) { m_locals = locals; }
+        void set_locals(const GcPtr<StringMap> &locals) { m_locals = locals; }
 
         void set_global(const std::string &key, const GcPtr<Object> &value) { m_globals->set(key, value); }
 
@@ -70,8 +72,8 @@ namespace bond {
 
         GcPtr<Object> get_local(const std::string &key) { return m_locals->get_unchecked(key); }
 
-        GcPtr<Map> get_locals() { return m_locals; }
-        GcPtr<Map> get_globals() { return m_globals; }
+        GcPtr<StringMap> get_locals() { return m_locals; }
+        GcPtr<StringMap> get_globals() { return m_globals; }
 
         void clear() {
             m_locals.reset();
@@ -86,8 +88,8 @@ namespace bond {
         GcPtr<Function> m_function;
         GcPtr<Code> m_code;
         size_t m_ip = 0;
-        GcPtr<Map> m_locals;
-        GcPtr<Map> m_globals;
+        GcPtr<StringMap> m_locals;
+        GcPtr<StringMap> m_globals;
     };
 
 
@@ -102,26 +104,53 @@ namespace bond {
             m_True = C_TRUE;
             m_False = C_FALSE;
             m_Nil = C_NONE;
-            m_globals = MAP_STRUCT->create_instance<Map>();
+            m_globals = MAP_STRUCT->create_instance<StringMap>();
             assert(m_globals.get() != nullptr);
+            add_builtins_to_globals(m_globals);
+        }
+
+        Vm(Context *ctx, const GcPtr<StringMap> &globals) {
+            m_ctx = ctx;
+            m_True = C_TRUE;
+            m_False = C_FALSE;
+            m_Nil = C_NONE;
+            m_globals = globals;
             add_builtins_to_globals(m_globals);
         }
 
         void run(const GcPtr<Code> &code);
 
+        bool has_top() { return m_stack.size() > 0; }
+
         bool had_error() { return m_has_error; }
 
-        GcPtr<Map> get_globals() { return m_globals; }
+        GcPtr<StringMap> get_globals() { return m_globals; }
 
-        void set_globals(const GcPtr<Map> &globals) { m_globals = globals; }
+        void set_globals(const GcPtr<StringMap> &globals) { m_globals = globals; }
 
-        void call_function(const GcPtr<Function> &function, const t_vector  &args, const GcPtr<Map> &locals = nullptr);
+        void call_function(const GcPtr<Function> &function, const t_vector  &args, const GcPtr<StringMap> &locals = nullptr);
 
         void exec(uint32_t stop_frame = 0);
 
         void runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span);
 
         void runtime_error(const std::string &error, RuntimeError e);
+
+        template <typename ...T>
+        [[nodiscard]] GcPtr<Object> call_slot(Slot slot, const GcPtr<Object>& instance, const t_vector & args, fmt::format_string<T...> fmt, T&&... fmt_args);
+
+        std::expected<GcPtr<Object>, std::string> call_slot(Slot slot, const GcPtr<Object>& instance, const t_vector & args);
+
+
+
+        inline GcPtr<Object> pop() {
+            auto res = peek();
+            m_stack.pop_back();
+            return res;
+        }
+
+        bool call_object_ex(const GcPtr <Object> &obj, t_vector &args);
+
 
     private:
         GcPtr<Bool> m_True;
@@ -138,7 +167,7 @@ namespace bond {
 
         std::expected<GcPtr<Module>, std::string> load_dynamic_lib(const std::string &path, std::string &alias);
 
-        GcPtr<Map> m_globals;
+        GcPtr<StringMap> m_globals;
 
         void create_instance(const GcPtr<Struct> &_struct, const t_vector &args);
 
@@ -152,25 +181,16 @@ namespace bond {
 
         void bin_op(Slot slot, const std::string &op_name);
 
-        template <typename ...T>
-        [[nodiscard]] GcPtr<Object> call_slot(Slot slot, const GcPtr<Object>& instance, const t_vector & args, fmt::format_string<T...> fmt, T&&... fmt_args);
 
         void setup_bound_call(const GcPtr<Object>& instance, const GcPtr<Function>& function, t_vector & args);
 
         inline void push(GcPtr<Object> const &obj) { m_stack.push_back(obj); }
-
-        inline GcPtr<Object> pop() {
-            auto res = peek();
-            m_stack.pop_back();
-            return res;
-        }
 
         inline GcPtr<Object> peek() { return m_stack.back(); }
         inline GcPtr<Object> peek(size_t rel_index) { return m_stack[m_stack.size() - 1 - rel_index]; }
 
         t_vector m_stack;
 
-        void call_object(const GcPtr <Object> &func, t_vector &args);
         void compare_op(Slot slot, const std::string &op_name);
 
         void call_native_function(const GcPtr <Object> &func, t_vector &args);
@@ -192,7 +212,11 @@ namespace bond {
         static void
         set_local_arguments(Frame *frame, const t_vector &args,
                             const std::vector<std::pair<std::string, SharedSpan>> &params,
-                            const GcPtr <Map> &locals);
+                            const GcPtr <StringMap> &locals);
+
+        void call_object(const GcPtr <Object> &func, t_vector &args);
+
+
     };
 
 };

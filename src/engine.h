@@ -11,6 +11,7 @@
 #include "compiler/context.h"
 #include "compiler/codegen.h"
 #include "vm.h"
+#include "api.h"
 #include "gc.h"
 #include "core/core.h"
 #include <memory>
@@ -20,12 +21,12 @@ namespace bond {
     class Engine {
     private:
         std::string m_lib_path;
-        std::vector<std::string> m_args;
+        std::vector<std::string, gc_allocator<std::string>> m_args;
         Context m_context;
 
 
     public:
-        Engine(std::string lib_path, std::vector<std::string> args)
+        Engine(std::string lib_path, std::vector<std::string, gc_allocator<std::string>> args)
             : m_lib_path(std::move(lib_path)), m_args(std::move(args)), m_context(m_lib_path) {
             m_context.set_args(m_args);
         }
@@ -37,7 +38,7 @@ namespace bond {
         static void add_core_module(const GcPtr<Module>& mod);
     };
 
-    std::unique_ptr<Engine> create_engine(const std::string& lib_path, const std::vector<std::string>& args);
+    std::unique_ptr<Engine> create_engine(const std::string& lib_path, const std::vector<std::string, gc_allocator<std::string>>& args);
     std::unique_ptr<Engine> create_engine(const std::string& lib_path);
 
 }

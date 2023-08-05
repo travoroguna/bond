@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "api.h"
 #include "object.h"
 
 namespace bond {
-
-    void add_builtins_to_globals(const GcPtr<Map> &globals);
+    void add_builtins_to_globals(const GcPtr<StringMap> &globals);
 }

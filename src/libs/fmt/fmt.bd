@@ -1,8 +1,0 @@
-fn print(format, args);
-fn println(format, args);
-fn format(format, args);
-
-// format specifiers
-// {} - default
-// {:?fill_char<count} - left pad
-// {:?fill_char>count} - right pad

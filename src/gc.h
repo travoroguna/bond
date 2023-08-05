@@ -14,16 +14,19 @@
 #include <cassert>
 #include <thread>
 
-
+#define DEBUG
 #define GC_BUILD
 
 #ifdef DEBUG
 #define GC_DEBUG
 #endif
 
+
+#undef _free
+#undef _realloc
 #include <gc.h>
 #include <gc_cpp.h>
-#include <gc_allocator.h>
+#include <gc/gc_allocator.h>
 
 
 
@@ -124,7 +127,7 @@ namespace bond {
     };
 
 
-    class GcObject: public gc {
+    class GcObject: public gc_cleanup {
     public:
         GcObject() = default;
 
@@ -146,6 +149,11 @@ namespace bond {
         template<typename T>
         static GcPtr<T> as(GcPtr<GcObject> const &obj) {
             return GcPtr<T>(dynamic_cast<T *>(obj.get()));
+        }
+
+        template<typename ...Args>
+        bool is_one_of() {
+            return (is<Args>() || ...);
         }
 
         bool operator==(GcObject const &other) const { return this == &other; }

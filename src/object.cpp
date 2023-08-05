@@ -39,7 +39,8 @@ namespace bond {
             {"__setitem__",  Slot::SET_ITEM},
             {"__iter__",     Slot::ITER},
             {"__next__",     Slot::NEXT},
-            {"__has_next__", Slot::HAS_NEXT}
+            {"__has_next__", Slot::HAS_NEXT},
+            {"__hash__", Slot::HASH},
     };
 
     std::unordered_map<Slot, std::string> swap_map(const std::unordered_map<std::string, Slot> &map) {
@@ -52,9 +53,14 @@ namespace bond {
 
     const std::unordered_map<Slot, std::string> slot_str_map = swap_map(method_mappings);
 
+    std::string Slot_to_string(Slot slot) {
+        return slot_str_map.at(slot);
+    }
+
     bool Instance::has_slot(Slot slot) {
         return m_type->has_method(slot_str_map.at(slot));
     }
+
 
     void NativeStruct::set_slots() {
         std::fill_n(m_slots.data(), Slot::SIZE, nullptr);
@@ -166,7 +172,7 @@ namespace bond {
         return NATIVE_FUNCTION_STRUCT->create_instance<NativeFunction>(std::move(name), std::move(doc), function);
     }
 
-    GcPtr<Module> make_module(std::string path, const GcPtr<Map> &globals) {
+    GcPtr<Module> make_module(std::string path, const GcPtr<StringMap> &globals) {
         return MODULE_STRUCT->create_instance<Module>(std::move(path), globals);
     }
 
@@ -190,5 +196,42 @@ namespace bond {
         return obj.type_name();
     }
 
+    GcPtr<List> make_list(const t_vector &values) {
+        return LIST_STRUCT->create_instance<List>(values);
+    }
 
+}
+
+std::string format_(const std::string &format_string, const std::vector<fmt::format_context::format_arg> &args) {
+    return format_impl(format_string, args);
+}
+
+std::expected<std::string, std::string> bond_format(const std::string &format_string, const bond::t_vector &args) {
+    std::vector<fmt::format_context::format_arg> fmt_args;
+
+    for (auto &arg: args) {
+        fmt::format_context::format_arg a;
+
+        if (arg->is<bond::Int>()) {
+            a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Int>()->get_value());
+        }
+        else if(arg->is<bond::Float>()) {
+            a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Float>()->get_value());
+        }
+        else if(arg->is<bond::Bool>()) {
+            a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Bool>()->get_value());
+        }
+        else {
+            a = fmt::detail::make_arg<fmt::format_context>(arg);
+        }
+
+        fmt_args.push_back(a);
+    }
+
+    try {
+        return format_(format_string, fmt_args);
+    }
+    catch (fmt::format_error &e) {
+        return std::unexpected(e.what());
+    }
 }

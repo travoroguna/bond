@@ -45,7 +45,10 @@ namespace bond {
     std::string Instance::str() const {
         std::vector<std::string> fields;
         for (auto const &[key, value]: m_fields) {
-            fields.push_back(key + ": " + value->str());
+            if (value.get() == this)
+                fields.push_back(key + ": <self>");
+            else
+                fields.push_back(key + ": " + value->str());
         }
         return fmt::format("{}({})", m_type->get_name(), fmt::join(fields, ", "));
     }
@@ -143,6 +146,7 @@ namespace bond {
                     {"__iter__", {slot_wrapper("__iter__"), "__iter__()"}},
                     {"__next__", {slot_wrapper("__next__"), "__next__()"}},
                     {"__has_next__", {slot_wrapper("__has_next__"), "__has_next__()"}},
+                    {"__hash__", {slot_wrapper("__hash__"), "__hash__()"}},
             });
 
     GcPtr<NativeStruct> BOUND_METHOD_STRUCT = make_immortal<NativeStruct>("BoundMethod", "BoundMethod(instance: Instance, method: Function)",

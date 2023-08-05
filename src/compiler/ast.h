@@ -344,7 +344,7 @@ namespace bond {
 
     class ClosureDef : public Node {
     public:
-        ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def);
+        ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def, bool is_expression);
 
         void accept(NodeVisitor *visitor) override;
 
@@ -352,9 +352,12 @@ namespace bond {
 
         std::shared_ptr<FuncDef> get_func_def() { return m_func_def; }
 
+        bool is_expression() { return m_is_expression; }
+
     private:
         std::string m_name;
         std::shared_ptr<FuncDef> m_func_def;
+        bool m_is_expression;
     };
 
     class StructNode : public Node {
@@ -524,6 +527,18 @@ namespace bond {
     private:
         SharedNode m_expr;
         bool m_is_error;
+    };
+
+    class DictLiteral : public Node {
+    public:
+        DictLiteral(const SharedSpan &span, const std::vector<std::pair<SharedNode, SharedNode>> &pairs);
+
+        void accept(NodeVisitor *visitor) override;
+
+        std::vector<std::pair<SharedNode, SharedNode>> get_pairs() { return m_pairs; }
+
+    private:
+        std::vector<std::pair<SharedNode, SharedNode>> m_pairs;
     };
 
 }

@@ -10,7 +10,7 @@ namespace bond {
     Module::Module(std::string path, const t_map &objects) {
         m_path = std::move(path);
 
-        m_globals = MAP_STRUCT->create_instance<Map>();
+        m_globals = MAP_STRUCT->create_instance<StringMap>();
         for (auto const &[name, object]: objects) {
             m_globals->set(name, object);
         }
