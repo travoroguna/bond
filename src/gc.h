@@ -21,9 +21,10 @@
 #define GC_DEBUG
 #endif
 
+#define ALL_INTERIOR_POINTERS
+#define DBG_HDRS_ALL
+#define GC_THREADS
 
-#undef _free
-#undef _realloc
 #include <gc.h>
 #include <gc_cpp.h>
 #include <gc/gc_allocator.h>

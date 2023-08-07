@@ -41,7 +41,7 @@ CPMAddPackage(
         NAME bdwgc
         GITHUB_REPOSITORY ivmai/bdwgc
         GIT_TAG master
-        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug ON" "enable_large_config OFF" "enable_threads OFF" "enable_dynamic_loading ON"
+        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug OFF" "enable_large_config OFF" "enable_threads OFF" "enable_dynamic_loading ON"
         EXCLUDE_FROM_ALL YES
 )
 
@@ -65,7 +65,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         objects/hashmap.cpp
         )
 
-target_link_libraries(bond-lib gc gccpp gctba fmt::fmt-header-only nlohmann_json bnk)
+target_link_libraries(bond-lib gc gctba fmt::fmt-header-only nlohmann_json bnk)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 
