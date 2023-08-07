@@ -55,6 +55,17 @@ namespace bond {
     };
 
     template<>
+    struct bond_traits<float> {
+        static double unwrap(const GcPtr<Object> &object) {
+            return object->as<Float>()->get_value();
+        }
+
+        static GcPtr<Object> wrap(const double &object) {
+            return make_float(object);
+        }
+    };
+
+    template<>
     struct bond_traits<std::string> {
         static std::string unwrap(const GcPtr<Object> &object) {
             return object->as<String>()->get_value();
@@ -170,6 +181,13 @@ namespace bond {
             }
             return MODULE_STRUCT->create_instance<Module>(m_path, m_exports);
         }
+
+        /**
+ * Constructor for the struct_ class.
+ *
+ * @param name The name of the struct_.
+ * @param doc The documentation for the struct_.
+ */
 
         StructBuilder &struct_(const std::string &name, const std::string &doc) {
             auto builder = std::make_shared<StructBuilder>(name, doc);

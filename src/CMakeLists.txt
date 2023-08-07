@@ -51,6 +51,7 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory(libs)
+add_subdirectory(core/bnk)
 
 add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context.cpp compiler/context.h compiler/span.h compiler/ast.cpp compiler/ast.h
         compiler/parser.cpp compiler/parser.h compiler/codegen.cpp compiler/codegen.h vm.cpp vm.h gc.cpp gc.h compiler/nodevisitor.cpp
@@ -61,9 +62,10 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         compiler/bfmt.h
         core/build.cpp
         core/build.h
-        objects/hashmap.cpp)
+        objects/hashmap.cpp
+        )
 
-target_link_libraries(bond-lib gc gccpp gctba fmt::fmt-header-only nlohmann_json)
+target_link_libraries(bond-lib gc gccpp gctba fmt::fmt-header-only nlohmann_json bnk)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 

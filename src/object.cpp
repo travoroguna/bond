@@ -166,6 +166,7 @@ namespace bond {
         for (int i = 0; i < 256; i++) {
             int_cache[i] = INT_STRUCT->create_immortal<Int>(i);
         }
+
     }
 
     GcPtr<NativeFunction> make_native_function(std::string name, std::string doc, const NativeFunctionPtr& function) {

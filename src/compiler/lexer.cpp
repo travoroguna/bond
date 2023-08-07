@@ -130,7 +130,7 @@ namespace bond {
             }
 
             if (is_at_end()) {
-                m_context->error(make_span(), "Unterminated string.");
+                report("Unterminated string.", make_span());
                 return;
             }
             advance();
@@ -138,7 +138,7 @@ namespace bond {
 
         // The closing '"'.
         if (isEscaped) {
-            m_context->error(make_span(), "Unterminated escape character.");
+            report("Unterminated escape character.", make_span());
             return;
         }
         advance();
@@ -268,9 +268,18 @@ namespace bond {
                     make_identifier();
                 } else {
                     auto span = make_span();
-                    m_context->error(span, fmt::format("unexpected character {}", c));
+                    report("unexpected character", span);
                 }
         }
 #undef ADD_TOKEN
+    }
+
+    void Lexer::report(const std::string &message, const std::shared_ptr<Span> &span) {
+        if (m_report) {
+            m_context->error(span, message);
+        }
+        else {
+            m_error_spans.emplace_back(message, span);
+        }
     }
 } // bond

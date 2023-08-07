@@ -37,6 +37,103 @@ namespace bond {
     using SharedNode = std::shared_ptr<Node>;
     using SharedSpan = std::shared_ptr<Span>;
 
+
+    struct Param{
+        std::string name;
+        std::optional<SharedNode> type;
+        SharedSpan span;
+
+        Param(std::string name, std::optional<SharedNode> type, SharedSpan span)
+            : name(name), type(type), span(span) {}
+    };
+
+    // types
+
+    class TypeNode : public Node {
+    public:
+        TypeNode(const SharedSpan &span, std::string name)
+                : m_name(std::move(name)) {
+            m_span = span;
+        }
+
+        std::string get_name() { return m_name; }
+        void accept(NodeVisitor *visitor) override {}
+
+
+    private:
+        std::string m_name;
+    };
+
+    using SharedTypeNode = std::shared_ptr<TypeNode>;
+
+    class ListType : public TypeNode {
+    public:
+        ListType(const SharedSpan &span, const SharedTypeNode &type)
+                : TypeNode(span, "List"), m_type(type) {
+        }
+
+        void accept(NodeVisitor *visitor) override {}
+        SharedTypeNode get_type() { return m_type; }
+
+    private:
+        SharedTypeNode m_type;
+    };
+
+    class CompoundType : public TypeNode {
+    public:
+        CompoundType(const SharedSpan &span, std::vector<SharedTypeNode> types)
+                :TypeNode(span, "") {
+        }
+        void accept(NodeVisitor *visitor) override {}
+        std::vector<SharedTypeNode> get_types() { return m_types; }
+
+    private:
+        std::vector<SharedTypeNode> m_types;
+    };
+
+    class GenericType : public TypeNode {
+    public:
+        GenericType(const SharedSpan &span, std::string name, std::vector<SharedTypeNode> types)
+                :TypeNode(span, name), m_types(types) {
+        }
+        void accept(NodeVisitor *visitor) override {}
+        std::vector<SharedTypeNode> get_types() { return m_types; }
+
+    private:
+        std::vector<SharedTypeNode> m_types;
+
+    };
+
+    class FunctionType : public TypeNode {
+        public:
+        FunctionType(const SharedSpan &span, std::vector<SharedTypeNode> args, SharedTypeNode ret, bool is_err_func)
+                :TypeNode(span, "Function"), m_args(args), m_ret(ret), m_is_err_func(is_err_func) {
+        }
+        void accept(NodeVisitor *visitor) override {}
+        std::vector<SharedTypeNode> get_args() { return m_args; }
+        SharedTypeNode get_ret() { return m_ret; }
+        bool is_err_func() { return m_is_err_func; }
+
+        private:
+        std::vector<SharedTypeNode> m_args;
+        SharedTypeNode m_ret;
+        bool m_is_err_func {false};
+    };
+
+    class ResultType: public TypeNode{
+        public:
+        ResultType(const SharedSpan &span, SharedTypeNode ok, SharedTypeNode err)
+                :TypeNode(span, "Result"), m_ok(ok), m_err(err) {}
+
+        void accept(NodeVisitor *visitor) override {}
+        SharedTypeNode get_ok() { return m_ok; }
+        SharedTypeNode gat_err() { return m_err; }
+    private:
+        SharedTypeNode m_ok;
+        SharedTypeNode m_err;
+    };
+
+
     class BinaryOp : public Node {
     public:
         BinaryOp(SharedSpan &span, SharedNode &left, Token op, SharedNode &right);
@@ -136,7 +233,7 @@ namespace bond {
 
     class NewVar : public Node {
     public:
-        NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr);
+        NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, std::optional<SharedTypeNode> type = std::nullopt);
 
         void accept(NodeVisitor *visitor) override;
 
@@ -147,7 +244,7 @@ namespace bond {
     private:
         std::string m_name;
         SharedNode m_expr;
-
+        std::optional<SharedTypeNode> m_type;
     };
 
 
@@ -287,7 +384,6 @@ namespace bond {
     };
 
 
-
     class For : public Node {
     public:
         For(const SharedSpan &span, const std::string &name, const SharedNode &expr, const SharedNode &statement);
@@ -310,14 +406,14 @@ namespace bond {
     public:
         FuncDef(const SharedSpan &span,
                 const std::string &name,
-                const std::vector<std::pair<std::string, SharedSpan>> &params,
-                const SharedNode &body, bool can_error);
+                const std::vector<std::shared_ptr<Param>> &params,
+                const SharedNode &body, bool can_error, const std::optional<SharedTypeNode>& return_type);
 
         void accept(NodeVisitor *visitor) override;
 
         std::string get_name() { return m_name; }
 
-        std::vector<std::pair<std::string, SharedSpan>> get_params() { return m_params; }
+        std::vector<std::shared_ptr<Param>> get_params() { return m_params; }
 
         SharedNode get_body() { return m_body; }
 
@@ -325,7 +421,8 @@ namespace bond {
 
     private:
         std::string m_name;
-        std::vector<std::pair<std::string, SharedSpan>> m_params;
+        std::vector<std::shared_ptr<Param>> m_params;
+        std::optional<SharedTypeNode> m_return_type;
         SharedNode m_body;
         bool m_can_error;
     };
@@ -344,7 +441,8 @@ namespace bond {
 
     class ClosureDef : public Node {
     public:
-        ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def, bool is_expression);
+        ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def,
+                   bool is_expression);
 
         void accept(NodeVisitor *visitor) override;
 
@@ -423,7 +521,8 @@ namespace bond {
         std::string get_alias() { return m_alias; }
 
         std::string get_actual_path() { return actual_path; }
-        void set_actual_path(const std::string& path) { actual_path = path; }
+
+        void set_actual_path(const std::string &path) { actual_path = path; }
 
     private:
         std::string m_name;
@@ -501,7 +600,8 @@ namespace bond {
 
     class CallMethod : public Node {
     public:
-        CallMethod(const SharedSpan &span, const std::shared_ptr<GetAttribute>& get_attr, const std::vector<SharedNode> &args);
+        CallMethod(const SharedSpan &span, const std::shared_ptr<GetAttribute> &get_attr,
+                   const std::vector<SharedNode> &args);
 
         void accept(NodeVisitor *visitor) override;
 
@@ -540,5 +640,7 @@ namespace bond {
     private:
         std::vector<std::pair<SharedNode, SharedNode>> m_pairs;
     };
+
+
 
 }

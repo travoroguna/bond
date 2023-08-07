@@ -7,7 +7,6 @@
 #include "compiler/lexer.h"
 
 #include <filesystem>
-#include <array>
 
 
 namespace bond {
@@ -18,7 +17,7 @@ namespace bond {
         m_stop = false;
 
         auto func = FUNCTION_STRUCT->create_immortal<Function>("__main__",
-                                                               std::vector<std::pair<std::string, SharedSpan>>(), code);
+                                                               std::vector<std::shared_ptr<Param>>(), code);
 
         func->set_globals(m_globals);
         push(func);
@@ -26,8 +25,6 @@ namespace bond {
         exec();
     }
 
-
-    using VectorArgs = std::vector<std::pair<std::string, SharedSpan>>;
 
     void Vm::update_frame_pointer() {
         m_frame_pointer++;
@@ -61,7 +58,7 @@ namespace bond {
         auto local_args = MAP_STRUCT->create_instance<StringMap>();
 
         for (size_t i = 0; i < args.size(); i++) {
-            local_args->set(params[i].first, args[i]);
+            local_args->set(params[i]->name, args[i]);
         }
 
         if (locals) {
@@ -929,28 +926,32 @@ namespace bond {
                         runtime_error(fmt::format("method {} of {} does not exist", name, obj->str()),
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
-                    } else {
-                        auto o = obj->as<NativeInstance>();
-                        if (o->has_method(name)) {
-                            auto res = o->call_method(name, args);
-
-                            if (!res.has_value()) {
-                                runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()),
-                                              RuntimeError::GenericError,
-                                              m_current_frame->get_span());
-                                break;
-                            }
-                            push(res.value());
-                            break;
-                        }
                     }
 
+                    auto o = obj->as<NativeInstance>();
+                    if (o->has_method(name)) {
+                        auto res = o->call_method(name, args);
+
+                        if (!res.has_value()) {
+                            runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()));
+                            break;
+                        }
+                        push(res.value());
+                        break;
+                    }
 
                     if (obj->is<Instance>()) {
                         auto o = obj->as<Instance>();
                         auto meth = o->get_method(name);
 
                         if (!meth.has_value()) {
+                            auto attr = call_slot(Slot::GET_ATTR, obj, {make_string(name)});
+
+                            if (attr.has_value()) {
+                                call_object(attr.value(), args);
+                                break;
+                            }
+
                             runtime_error(fmt::format("attribute {} is not callable \n  {}", name, meth.error()));
                             break;
                         }

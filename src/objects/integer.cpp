@@ -144,6 +144,7 @@ namespace bond {
     }
 
     obj_result Int_hash(const GcPtr<Object>& self, const t_vector &args) {
+        TRY(parse_args(args));
         auto self_num = self->as<Int>();
         return make_int(std::hash<int64_t>{}(self_num->get_value()));
     }
@@ -167,8 +168,10 @@ namespace bond {
 
 
     GcPtr<Int> make_int(int64_t value) {
-        if (value > -1 and value < 256)
-            return int_cache[value];
+        if (value > -1 and value < 256) {
+            auto val = int_cache[value];
+            return val;
+        }
 
         return INT_STRUCT->create_instance<Int>(value);
     }

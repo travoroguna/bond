@@ -902,7 +902,7 @@ struct diagnostic_options {
     json to_json() const;
 
     named_mem(std::string, identifier) = "bond language server";
-    named_mem(bool, interFileDependencies) = true;
+    named_mem(bool, interFileDependencies) = false;
     named_mem(bool, workspaceDiagnostic) = false;
 };
 
@@ -1263,7 +1263,6 @@ struct document_diagnostic_params {
     named_mem(text_document_identifier, text_document);
     named_mem(std::optional<std::string>, identifier) = std::nullopt;
     named_mem(std::optional<std::string>, previous_result_id) = std::nullopt;
-
 };
 
 
@@ -1272,8 +1271,9 @@ struct document_diagnostic_report {
 
     json to_json() const;
 
-    named_mem(std::string, identifier);
-    named_mem(std::vector<publish_diagnostics_params>, diagnostics);
+    named_mem(std::vector<diagnostic>, items);
+    named_mem(std::string, kind) = "full";
+    named_mem(std::optional<std::string>, result_id) = std::nullopt;
 };
 
 #undef named_mem

@@ -305,8 +305,8 @@ namespace bond {
         generator.m_in_function = true;
 
         m_scopes->new_scope();
-        for (auto &[name, span]: stmnt->get_params()) {
-            m_scopes->declare(name, span, true, false);
+        for (auto &param: stmnt->get_params()) {
+            m_scopes->declare(param->name, param->span, true, false);
         }
 
         auto code = generator.generate_code(stmnt->get_body(), stmnt->can_error());
@@ -348,8 +348,8 @@ namespace bond {
         generator.m_in_function = true;
 
         m_scopes->new_scope();
-        for (auto &[name, span]: stmnt->get_params()) {
-            m_scopes->declare(name, span, true, false);
+        for (auto &param: stmnt->get_params()) {
+            m_scopes->declare(param->name, param->span, true, false);
         }
 
         bool is_expr = !instanceof<Block>(stmnt->get_body().get());

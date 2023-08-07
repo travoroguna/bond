@@ -33,8 +33,8 @@ fn test_all() {
 
     for mod in all_tests {
         for export in mod.get_exports() {
-            if core.is_function(export) {
-                collection.append(export);
+            if core.is_function(export[1]) {
+                collection.append(export[1]);
             }
         }
     }

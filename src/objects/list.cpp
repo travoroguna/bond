@@ -1,4 +1,6 @@
 #include "../object.h"
+#include "../api.h"
+
 #include <ranges>
 
 namespace bond {
@@ -106,6 +108,23 @@ namespace bond {
         return self->pop();
     }
 
+    obj_result List_contains(const GcPtr<Object> &Self, const t_vector &args) {
+        auto self = Self->as<List>();
+        Object *item;
+        TRY(parse_args(args, item));
+
+        auto vm = get_current_vm();
+
+        for (auto &element: self->get_elements()) {
+            auto res = vm->call_slot(Slot::EQ, element, {item});
+            TRY(res);
+            if (TO_BOOL(res.value())->as<Bool>()->get_value()) {
+                return OK(C_TRUE);
+            }
+        }
+        return C_FALSE;
+    }
+
     obj_result list_iterator_next(const GcPtr<Object> &Self, const t_vector &args) {
         auto self = Self->as<ListIterator>();
         TRY(parse_args(args));
@@ -140,6 +159,7 @@ namespace bond {
             {"append",      {List_append, "append(item: Any)\nappends an item to the end of the list"}},
             {"insert",      {List_insert, "insert(index: Int, item: Any)\ninserts an item at the given index"}},
             {"pop",         {List_pop,    "pop()\nremoves and returns the last item in the list"}},
+            {"contains",    {List_contains, "contains(item: Any)\nreturns true if the list contains the item"}},
     });
 
 

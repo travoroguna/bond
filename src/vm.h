@@ -97,6 +97,9 @@ namespace bond {
 
 #define FRAME_MAX 1024
 
+    using VectorArgs = std::vector<std::shared_ptr<Param>>;
+
+
     class Vm {
     public:
         explicit Vm(Context *ctx) {
@@ -207,11 +210,11 @@ namespace bond {
 
         void update_frame_pointer();
 
-        void check_argument_count(const t_vector &args, const std::vector<std::pair<std::string, SharedSpan>> &params);
+        void check_argument_count(const t_vector &args, const VectorArgs &params);
 
         static void
         set_local_arguments(Frame *frame, const t_vector &args,
-                            const std::vector<std::pair<std::string, SharedSpan>> &params,
+                            const VectorArgs &params,
                             const GcPtr <StringMap> &locals);
 
         void call_object(const GcPtr <Object> &func, t_vector &args);

@@ -127,7 +127,7 @@ namespace bond {
     };
 
 
-    class GcObject: public gc_cleanup {
+    class GcObject: public gc {
     public:
         GcObject() = default;
 

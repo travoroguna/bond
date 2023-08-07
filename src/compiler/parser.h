@@ -198,6 +198,14 @@ namespace bond {
         std::vector<std::pair<std::string, SharedSpan>> m_diagnostics;
 
         std::vector<std::pair<SharedNode, SharedNode>> key_value_pairs(TokenType end_token);
+
+        SharedTypeNode parse_type();
+
+        std::vector<SharedTypeNode> parse_type_list(TokenType end_token);
+
+        std::shared_ptr<Param> parse_parameter();
+
+        SharedTypeNode parse_return_type();
     };
 
     std::string split_at_last_occur(const std::string& str, char c);

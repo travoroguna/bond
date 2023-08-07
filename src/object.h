@@ -463,13 +463,13 @@ namespace bond {
 
     class Function : public NativeInstance {
     public:
-        Function(std::string name, std::vector<std::pair<std::string, SharedSpan>> arguments, const GcPtr<Code> &code)
+        Function(std::string name, std::vector<std::shared_ptr<Param>> arguments, const GcPtr<Code> &code)
                 : m_name(
                 std::move(name)), m_arguments(std::move(arguments)), m_code(code) {}
 
         [[nodiscard]] std::string get_name() const { return m_name; }
 
-        [[nodiscard]] std::vector<std::pair<std::string, SharedSpan>> &get_arguments() { return m_arguments; }
+        [[nodiscard]] std::vector<std::shared_ptr<Param>> &get_arguments() { return m_arguments; }
 
         [[nodiscard]] GcPtr<Code> get_code() const { return m_code; }
 
@@ -480,7 +480,7 @@ namespace bond {
 
     private:
         std::string m_name;
-        std::vector<std::pair<std::string, SharedSpan>> m_arguments;
+        std::vector<std::shared_ptr<Param>> m_arguments;
         GcPtr<Code> m_code;
         GcPtr<StringMap> m_globals;
     };

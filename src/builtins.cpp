@@ -86,8 +86,8 @@ namespace bond {
 
         std::vector<std::string> params;
 
-        for (auto const &[name, _]: function->get_arguments()) {
-            params.push_back(name);
+        for (auto const &param: function->get_arguments()) {
+            params.push_back(param->name);
         }
 
         help << fmt::format("{}", fmt::join(params, ", ")) << ")\n";

@@ -90,10 +90,11 @@ namespace bond {
         visitor->visit(this);
     }
 
-    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr) {
+    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, std::optional<SharedTypeNode> type){
         m_span = span;
         m_name = name;
         m_expr = expr;
+        m_type = type;
     }
 
     void NewVar::accept(NodeVisitor *visitor) {
@@ -215,13 +216,15 @@ namespace bond {
 
     FuncDef::FuncDef(const SharedSpan &span,
                      const std::string &name,
-                     const std::vector<std::pair<std::string, SharedSpan>> &params,
-                     const SharedNode &body, bool can_error) {
+                     const std::vector<std::shared_ptr<Param>> &params,
+                     const SharedNode &body, bool can_error,
+                     const std::optional<SharedTypeNode>& return_type) {
         m_span = span;
         m_name = name;
         m_params = params;
         m_body = body;
         m_can_error = can_error;
+        m_return_type = return_type;
     }
 
     void FuncDef::accept(NodeVisitor *visitor) {

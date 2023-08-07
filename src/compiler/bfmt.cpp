@@ -66,9 +66,9 @@ namespace bond{
         write_val<uint32_t>(stream, arguments.size());
         write_code_impl(stream, code);
 
-        for (auto& [name, spn] : arguments) {
-            write_val(stream, name);
-            write_span(stream, spn);
+        for (auto& param : arguments) {
+            write_val(stream, param->name);
+            write_span(stream, param->span);
         }
     }
 
@@ -78,13 +78,13 @@ namespace bond{
         auto code = read_code_impl(stream);
 
 
-        auto params = std::vector<std::pair<std::string, SharedSpan>>();
+        auto params = std::vector<std::shared_ptr<Param>>();
 
         for (int i = 0; i < arg_count; i++) {
             auto arg_name = read_val<std::string>(stream);
             auto arg_span = read_span(stream);
 
-            params.emplace_back(arg_name, arg_span);
+            params.emplace_back(std::make_shared<Param>(arg_name, std::nullopt, arg_span));
         }
 
         return FUNCTION_STRUCT->create_immortal<Function>(name, params, code);

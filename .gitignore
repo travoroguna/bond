@@ -4,5 +4,7 @@ build
 node_modules
 _deps
 .idea
+embuild
+cmake-build-gccb
 out.bond
 package-lock.json
