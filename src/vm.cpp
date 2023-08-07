@@ -212,9 +212,15 @@ namespace bond {
 
             auto right = pop()->as<NativeInstance>();
             auto left = pop()->as<NativeInstance>();
-            auto result = call_slot(slot, left, {right}, "unable to {} values of type {} and {}", op_name,
-                                    get_type_name(left), get_type_name(right));
-            push(result);
+            auto result = call_slot(slot, left, {right});
+
+            if (!result) {
+                runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
+                                          get_type_name(left), get_type_name(right)));
+                return;
+            }
+
+            push(result.value());
             return;
         }
 
