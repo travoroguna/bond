@@ -414,7 +414,12 @@ namespace bond {
 
     void CodeGenerator::visit(StructNode *stmnt) {
         auto var = m_scopes->get(stmnt->get_name());
-        auto _struct = STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), stmnt->get_params());
+        std::vector<std::string> params;
+        for (auto&param: stmnt->get_params()) {
+            params.push_back(param->name);
+        }
+
+        auto _struct = STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), params);
         auto idx = m_code->add_constant(_struct);
 
 

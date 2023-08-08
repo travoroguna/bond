@@ -41,7 +41,7 @@ CPMAddPackage(
         NAME bdwgc
         GITHUB_REPOSITORY ivmai/bdwgc
         GIT_TAG master
-        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug OFF" "enable_large_config OFF" "enable_threads OFF" "enable_dynamic_loading ON"
+        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug OFF" "enable_large_config OFF" "enable_threads ON" "enable_dynamic_loading ON"
         EXCLUDE_FROM_ALL YES
 )
 
@@ -63,6 +63,9 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         core/build.cpp
         core/build.h
         objects/hashmap.cpp
+
+        lsp/resolver.cpp
+        lsp/resolver.h
         )
 
 target_link_libraries(bond-lib gc gctba fmt::fmt-header-only nlohmann_json bnk)
@@ -70,7 +73,7 @@ target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" CO
 
 
 if (MSVC)
-#    target_link_libraries(gc atomic_ops)
+    target_link_libraries(gc atomic_ops)
 endif ()
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")

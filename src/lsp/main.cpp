@@ -5,6 +5,7 @@
 #include "../bond.h"
 #include "../core/core.h"
 #include "../import.h"
+#include "resolver.h"
 #include <filesystem>
 #include <thread>
 #include <deque>
@@ -13,6 +14,14 @@
 
 
 namespace lsp {
+#ifdef _WIN32
+    #define FILE_URI_PREFIX "file:///"
+    #define FILE_URI_PREFIX_LEN 8
+#else
+    #define FILE_URI_PREFIX "file://"
+    #define FILE_URI_PREFIX_LEN 7
+#endif
+
     std::string encode_uri_component(const std::string& input) {
         std::ostringstream oss;
         oss.fill('0');
@@ -56,8 +65,8 @@ namespace lsp {
     }
 
     std::string uri_to_file_path(const std::string& uri) {
-        if (uri.compare(0, 8, "file:///") == 0) {
-            std::string encodedPath = uri.substr(8);
+        if (uri.compare(0, FILE_URI_PREFIX_LEN, FILE_URI_PREFIX) == 0) {
+            std::string encodedPath = uri.substr(FILE_URI_PREFIX_LEN);
             std::string filePath = decode_uri_component(encodedPath);
             return filePath;
         }
@@ -170,7 +179,7 @@ namespace lsp {
 
             std::vector<std::pair<std::string, bond::SharedSpan>> diags;
 
-            if (!m_ctx->has_error()) {
+//            if (!m_ctx->has_error()) {
                 auto nodes = parser.parse();
 
                 for (auto &n : nodes) {
@@ -178,7 +187,18 @@ namespace lsp {
 
                     auto the_import = std::dynamic_pointer_cast<bond::ImportDef>(n);
 
+                    if (the_import->get_name().starts_with("core:")) {
+                        auto rest = the_import->get_name().substr(5);
+                        auto result = bond::core_module->get_attribute(rest);
+
+                        if (!result) {
+                            diags.emplace_back("core module does not have attribute " + rest, the_import->get_span());
+                        }
+                        continue;
+                    }
+
                     if (the_import->get_name().starts_with("core")) continue;
+
 
                     auto res = bond::path_resolver(m_ctx, the_import->get_name());
                     if (!res.has_value()) {
@@ -201,7 +221,20 @@ namespace lsp {
                 document->completion_items.insert(document->completion_items.end(), dot_list.begin(), dot_list.end());
                 document->completion_items.insert(document->completion_items.end(), m_c_items.begin(), m_c_items.end());
 
+
+//            }
+
+
+            auto resolver = bond::lsp::Resolver(m_ctx, nodes);
+            auto resolved = resolver.resolve();
+
+            if (!resolved.has_value()) {
+                auto err = resolved.error();
+                for (auto &e: err) {
+                    diags.emplace_back(e.m_message, e.m_span);
+                }
             }
+
 
             diags.insert(diags.end(), lexer.get_error_spans().begin(), lexer.get_error_spans().end());
             auto p_err = parser.get_diagnostics();
@@ -538,6 +571,7 @@ int main(int32_t argc, char **argv) {
 
     bond::init_caches();
     bond::build_core_module();
+    bond::lsp::init_symbols();
 
     auto server = lsp::BondLsp(lib_path);
     lsp::start_langserver(server, std::cin, std::cout);

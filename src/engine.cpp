@@ -4,6 +4,7 @@
 
 #include "engine.h"
 #include "import.h"
+#include "lsp/resolver.h"
 
 
 namespace bond {
@@ -71,6 +72,19 @@ namespace bond {
 
         if (m_context.has_error()) return;
 
+        if (m_check) {
+            auto resolver = bond::lsp::Resolver(&m_context, nodes);
+            auto res = resolver.resolve();
+
+            if (!res) {
+                for (auto &err: res.error()) {
+                    m_context.error(err.m_span, err.m_message);
+                }
+            }
+
+            m_context.reset_error();
+        }
+
         auto codegen = bond::CodeGenerator(&m_context, parser.get_scopes());
 
         auto bytecode = codegen.generate_code(nodes);
@@ -110,6 +124,7 @@ namespace bond {
 
         bond::init_caches();
         bond::build_core_module();
+        bond::lsp::init_symbols();
 
         return std::make_unique<Engine>(lib_path, args);
     }

@@ -23,6 +23,7 @@ namespace bond {
         std::string m_lib_path;
         std::vector<std::string, gc_allocator<std::string>> m_args;
         Context m_context;
+        bool m_check{false};
 
 
     public:
@@ -36,6 +37,7 @@ namespace bond {
         void execute_source(std::string &source, const char *path, bond::Vm &vm);
         void run_file(const std::string &path);
         static void add_core_module(const GcPtr<Module>& mod);
+        void set_checker(bool check) { m_check = check; }
     };
 
     std::unique_ptr<Engine> create_engine(const std::string& lib_path, const std::vector<std::string, gc_allocator<std::string>>& args);

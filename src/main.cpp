@@ -14,10 +14,10 @@ int main(int32_t argc, char **argv) {
 #endif
 
     auto args = std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
-    auto engine = bond::create_engine(lib_path, args);
 
     std::string file;
     bool build;
+    bool experimental_type_checker;
 
     using namespace argumentum;
     auto parser = argument_parser{};
@@ -27,7 +27,12 @@ int main(int32_t argc, char **argv) {
     params.add_parameter(build, "--build-archive", "-b")
             .nargs(0)
             .help("Build archive from file");
+    params.add_parameter(experimental_type_checker, "--experimental-type-checker", "-c")
+            .nargs(0)
+            .help("turn on experimental type checking");
 
+
+    auto engine = bond::create_engine(lib_path, args);
 
     if (argc == 1) {
         engine->run_repl();
@@ -37,6 +42,8 @@ int main(int32_t argc, char **argv) {
     if (!parser.parse_args(argc, argv, 1)) {
         return 1;
     }
+
+    engine->set_checker(experimental_type_checker);
 
     if (!std::filesystem::exists(file)) {
         fmt::print("File not found: {}\n", file);

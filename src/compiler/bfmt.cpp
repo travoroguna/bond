@@ -7,7 +7,7 @@
 
 
 #define BOND_MAGIC_NUMBER 0x424F4E44
-#define BOND_VERSION 0x00000001
+#define BOND_BAR_VERSION 0x00000001
 
 
 namespace bond{
@@ -202,7 +202,7 @@ namespace bond{
         }
 
         write_val<uint32_t>(stream, BOND_MAGIC_NUMBER);
-        write_val<uint32_t>(stream, BOND_VERSION);
+        write_val<uint32_t>(stream, BOND_BAR_VERSION);
         write_val<uint32_t>(stream, units.size());
 
         size_t i = 1;
@@ -281,7 +281,7 @@ namespace bond{
         }
 
         auto version = read_val<uint32_t>(stream);
-        if (version != BOND_VERSION) {
+        if (version != BOND_BAR_VERSION) {
             return std::unexpected(fmt::format("Invalid version, expected {}, got {}", BOND_VERSION, version));
         }
 
@@ -307,6 +307,6 @@ namespace bond{
         auto magic_number = read_val<uint32_t>(stream);
         auto version = read_val<uint32_t>(stream);
 
-        return magic_number == BOND_MAGIC_NUMBER and version == BOND_VERSION;
+        return magic_number == BOND_MAGIC_NUMBER and version == BOND_BAR_VERSION;
     }
 }

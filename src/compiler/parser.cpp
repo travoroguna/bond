@@ -126,42 +126,33 @@ namespace bond {
         }
 
         m_scopes->declare(id.get_lexeme(), id.get_span(), false);
-
         m_scopes->new_scope();
 
 
         consume(TokenType::LEFT_BRACE, peek().get_span(), "Expected '{' after struct name");
 
         //capture instance variables
-        std::vector<std::string> instance_variables;
-
-
-//        if (check(TokenType::VAR)) {
-//            consume(TokenType::VAR, peek().get_span(), "");
-//
-//            if (!check(TokenType::SEMICOLON)) {
-//                do {
-//
-//                } while (match({TokenType::SEMICOLON}));
-//            }
-//            consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variables");
-//        }
-
-        // match example
-        // var a;
-        // var b;
-        // var c;
+        std::vector<std::shared_ptr<Param>> instance_variables;
 
         while (check(TokenType::VAR)) {
             consume(TokenType::VAR, peek().get_span(), "");
 
             auto var = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected instance variable name");
-            auto exists = std::find(instance_variables.begin(), instance_variables.end(), var.get_lexeme());
+            auto exists = std::find_if(instance_variables.begin(), instance_variables.end(), [&var](const auto &param) {
+                return param->name == var.get_lexeme();
+            });
 
             if (exists != instance_variables.end()) {
                 throw ParserError(fmt::format("Instance Variable {} is already declared", var.get_lexeme()), var.get_span());
             }
-            instance_variables.push_back(var.get_lexeme());
+
+            std::optional<std::shared_ptr<TypeNode>> type = std::nullopt;
+
+            if (match({TokenType::COLON})) {
+                type = parse_type();
+            }
+
+            instance_variables.push_back(std::make_shared<Param>(var.get_lexeme(), type, var.get_span()));
 
             consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variable declaration");
         }
@@ -364,7 +355,7 @@ namespace bond {
         m_scopes->declare(id.get_lexeme(), id.get_span(), true);
 
         return std::make_shared<NewVar>(span_from_spans(id.get_span(), previous().get_span()), id.get_lexeme(),
-                                        initializer);
+                                        initializer, type);
     }
 
     SharedTypeNode Parser::parse_type() {

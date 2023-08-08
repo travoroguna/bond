@@ -95,8 +95,6 @@ namespace bond {
 
         void visit(DictLiteral *expr) override;
 
-
-
         bool m_in_function = false;
         bool m_in_closure = false;
 
