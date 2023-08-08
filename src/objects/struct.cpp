@@ -6,7 +6,7 @@ namespace bond {
         return INSTANCE_STRUCT->create_instance<Instance>(this, fields);
     }
 
-    void Struct::set_globals(const GcPtr<Map> &globals) {
+    void Struct::set_globals(const GcPtr<StringMap> &globals) {
         m_globals = globals;
 
         for (auto const &[_, value]: m_methods) {

@@ -5,30 +5,19 @@
 #include "vm.h"
 #include "import.h"
 #include "compiler/lexer.h"
-#include "compiler/parser.h"
-#include "compiler/codegen.h"
 
 #include <filesystem>
-#include <array>
 
-#ifdef _WIN32
-
-#include <Windows.h>
-
-#else
-#include <dlfcn.h>
-#endif
 
 namespace bond {
 
 #define TODO() runtime_error("not implemented", RuntimeError::GenericError, m_current_frame->get_span())
-#define TO_BOOL(X) BOOL_STRUCT->create({(X)}).value()->as<Bool>();
 
     void Vm::run(const GcPtr<Code> &code) {
         m_stop = false;
 
         auto func = FUNCTION_STRUCT->create_immortal<Function>("__main__",
-                                                               std::vector<std::pair<std::string, SharedSpan>>(), code);
+                                                               std::vector<std::shared_ptr<Param>>(), code);
 
         func->set_globals(m_globals);
         push(func);
@@ -37,39 +26,39 @@ namespace bond {
     }
 
 
-    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<Map> &locals) {
-
-        auto frame = &m_frames[m_frame_pointer];
+    void Vm::update_frame_pointer() {
         m_frame_pointer++;
 
-
         if (m_frame_pointer >= FRAME_MAX) {
+            const char *stack_overflow_error = "stack overflow";
             if (m_current_frame != nullptr) {
-                runtime_error("stack overflow", RuntimeError::GenericError, m_current_frame->get_span());
+                runtime_error(stack_overflow_error, RuntimeError::GenericError, m_current_frame->get_span());
             } else {
-                runtime_error("stack overflow", RuntimeError::GenericError);
+                runtime_error(stack_overflow_error, RuntimeError::GenericError);
             }
             return;
         }
-        auto params = function->get_arguments();
+    }
 
+    void Vm::check_argument_count(const t_vector &args, const VectorArgs &params) {
         if (args.size() != params.size()) {
+            auto error_message = fmt::format("expected {} arguments, got {}", params.size(), args.size());
             if (m_current_frame != nullptr) {
-                runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
-                              RuntimeError::GenericError,
-                              m_current_frame->get_span());
+                runtime_error(error_message, RuntimeError::GenericError, m_current_frame->get_span());
             } else {
-                runtime_error(fmt::format("expected {} arguments, got {}", params.size(), args.size()),
-                              RuntimeError::GenericError);
+                runtime_error(error_message, RuntimeError::GenericError);
             }
 
             return;
         }
+    }
 
-        auto local_args = MAP_STRUCT->create_instance<Map>();
+    void Vm::set_local_arguments(Frame *frame, const t_vector &args, const VectorArgs &params,
+                                 const GcPtr<StringMap> &locals) {
+        auto local_args = MAP_STRUCT->create_instance<StringMap>();
 
         for (size_t i = 0; i < args.size(); i++) {
-            local_args->set(params[i].first, args[i]);
+            local_args->set(params[i]->name, args[i]);
         }
 
         if (locals) {
@@ -78,12 +67,32 @@ namespace bond {
             }
         }
 
+
+        frame->set_locals(local_args);
+    }
+
+    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<StringMap> &locals) {
+
+        auto frame = &m_frames[m_frame_pointer];
+
+        update_frame_pointer();
+
+        auto params = function->get_arguments();
+
+        check_argument_count(args, params);
+
+        if (m_stop) {
+            return;
+        }
+
+        set_local_arguments(frame, args, params, locals);
+
         frame->set_function(function);
         frame->set_globals(function->get_globals());
-        frame->set_locals(local_args);
 
         m_current_frame = frame;
     }
+
 
     void Vm::setup_bound_call(const GcPtr<Object> &instance, const GcPtr<Function> &function, t_vector &args) {
         auto params = function->get_arguments();
@@ -104,6 +113,18 @@ namespace bond {
         setup_bound_call(bound_method->get_instance(), method, args);
     }
 
+
+    /**
+ * \fn void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args)
+ * \brief Creates an instance of a given struct with the provided arguments.
+ *
+ * This function takes a reference to a struct and a vector of arguments and creates an instance of the struct
+ * with the provided arguments. The number of arguments must match the number of fields in the struct. If the
+ * number of arguments does not match, a runtime error is thrown and the function returns.
+ *
+ * \param _struct Reference to the struct to create an instance of.
+ * \param args Vector of arguments.
+ */
 
     void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args) {
         auto variables = _struct->get_fields();
@@ -173,14 +194,33 @@ namespace bond {
         push(make_string(error));
     }
 
+    /**
+ * @brief Performs a binary operation on the top two values on the stack.
+ *
+ * This function performs a binary operation specified by the provided slot on the top two values on the stack.
+ * The operation is performed according to the value types of the top two values on the stack. If both values are
+ * instances of the NativeInstance class, the operation is performed using the specified slot, and the result is
+ * pushed back onto the stack. If the values are not instances of the NativeInstance class, a runtime error is
+ * raised with an appropriate error message.
+ *
+ * @param slot The slot to call for the binary operation.
+ * @param op_name The name of the binary operation.
+ */
+
     void Vm::bin_op(Slot slot, const std::string &op_name) {
         if (peek(1)->is<NativeInstance>() and peek()->is<NativeInstance>()) {
 
             auto right = pop()->as<NativeInstance>();
             auto left = pop()->as<NativeInstance>();
-            auto result = call_slot(slot, left, {right}, "unable to {} values of type {} and {}", op_name,
-                                    get_type_name(left), get_type_name(right));
-            push(result);
+            auto result = call_slot(slot, left, {right});
+
+            if (!result) {
+                runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
+                                          get_type_name(left), get_type_name(right)));
+                return;
+            }
+
+            push(result.value());
             return;
         }
 
@@ -188,6 +228,24 @@ namespace bond {
         runtime_error(fmt::format("unable to {} values of type {} and {}", op_name, peek(1).type_name(),
                                   peek().type_name()), RuntimeError::TypeError);
     }
+
+    /**
+ * @brief Performs a comparison operation on two values.
+ *
+ * This function compares the values of the top two slots on the stack.
+ * The comparison operation is specified by the provided op_name parameter.
+ *
+ * @param slot The slot to perform the comparison operation on.
+ * @param op_name The name of the comparison operation.
+ *
+ * @throws RuntimeError If the values on the stack are not of type NativeInstance.
+ * @throws RuntimeError If the left value does not have the specified slot.
+ *
+ * @see Vm::peek()
+ * @see Vm::pop()
+ * @see NativeInstance::as()
+ * @see Vm::call_slot()
+ */
 
     void Vm::compare_op(Slot slot, const std::string &op_name) {
         if (!peek(1)->is<NativeInstance>() or !peek()->is<NativeInstance>()) {
@@ -208,6 +266,18 @@ namespace bond {
                                 get_type_name(left), get_type_name(right));
         push(result);
     }
+
+    /**
+ * \brief Calls the specified slot on the given instance with the provided arguments.
+ *
+ * \tparam T Variadic template parameter for formatting arguments.
+ * \param slot The slot to call.
+ * \param instance The instance to call the slot on.
+ * \param args The arguments to pass to the slot.
+ * \param fmt The format string for runtime errors.
+ * \param fmt_args The formatting arguments for the format string.
+ * \return A GcPtr<Object> representing the result of the slot call, or nullptr if there was an error.
+ */
 
     template<typename ...T>
     [[nodiscard]] GcPtr<Object>
@@ -254,47 +324,99 @@ namespace bond {
         return *result;
     }
 
+
+    bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
+        call_object(obj, args);
+        exec(m_frame_pointer);
+        return had_error();
+    }
+
+    std::expected<GcPtr<Object>, std::string>
+    Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args) {
+        if (!instance->is<NativeInstance>()) {
+            return std::unexpected(fmt::format("unable to call slot {} on value of type {}", Slot_to_string(slot),
+                                               get_type_name(instance)));
+        }
+
+        if (instance->is<Instance>() and slot != Slot::GET_ATTR and slot != Slot::SET_ATTR) {
+            auto res = instance->as<Instance>()->call_slot(slot, {});
+            TRY(res);
+
+            auto args_ = const_cast<t_vector &>(args);
+            setup_bound_call(instance, res.value()->as<Function>(), args_);
+            exec(m_frame_pointer);
+
+            if (m_stop) {
+                return std::unexpected("");
+            }
+
+            return pop();
+        }
+
+        auto res = instance->as<NativeInstance>()->call_slot(slot, args);
+        TRY(res);
+
+        return *res;
+    }
+
     void Vm::call_object(const GcPtr<Object> &func, t_vector &args) {
         if (func->is<NativeFunction>()) {
-            auto f = func->as<NativeFunction>();
-
-            auto result = f->get_function()(args);
-
-            if (result.has_value()) {
-                push(result.value());
-                return;
-            }
-            runtime_error(result.error());
-            return;
-
+            call_native_function(func, args);
         } else if (func->is<Function>()) {
-            auto f = func->as<Function>();
-            call_function(f, args);
-            return;
+            call_script_function(func, args);
         } else if (func->is<Struct>()) {
-            auto st = func->as<Struct>();
-            create_instance(st, args);
-            return;
+            call_struct(func, args);
         } else if (func->is<BoundMethod>()) {
-            auto bm = func->as<BoundMethod>();
-            call_bound_method(bm, args);
-            return;
+            call_bound_method(func, args);
         } else if (func->is<NativeStruct>()) {
-            auto st = func->as<NativeStruct>();
-            auto res = st->get_constructor()(args);
-
-            if (res.has_value()) {
-                push(res.value());
-                return;
-            }
-            runtime_error(res.error());
-            return;
+            call_native_struct(func, args);
         } else if (func->is<Closure>()) {
-            auto cl = func->as<Closure>();
-            call_function(cl->get_function(), args, cl->get_up_values());
-            return;
+            call_closure(func, args);
+        } else {
+            runtime_error(fmt::format("{} is not callable", func->str()));
         }
-        runtime_error(fmt::format("{} is not callable", func->str()));
+    }
+
+    void Vm::call_native_function(const GcPtr<Object> &func, t_vector &args) {
+        auto f = func->as<NativeFunction>();
+        auto result = f->get_function()(args);
+
+        if (result.has_value()) {
+            push(result.value());
+        } else {
+            runtime_error(result.error());
+        }
+    }
+
+    void Vm::call_script_function(const GcPtr<Object> &func, t_vector &args) {
+        auto f = func->as<Function>();
+        call_function(f, args);
+    }
+
+    void Vm::call_struct(const GcPtr<Object> &func, t_vector &args) {
+        auto st = func->as<Struct>();
+        create_instance(st, args);
+    }
+
+    void Vm::call_bound_method(const GcPtr<Object> &func, t_vector &args) {
+        auto bm = func->as<BoundMethod>();
+        call_bound_method(bm, args);
+    }
+
+    void Vm::call_native_struct(const GcPtr<Object> &func, t_vector &args) {
+        auto st = func->as<NativeStruct>();
+        auto res = st->get_constructor()(args);
+
+        if (res.has_value()) {
+            push(res.value());
+        } else {
+            runtime_error(res.error());
+        }
+    }
+
+    void Vm::call_closure(const GcPtr<Object> &func, t_vector &args) {
+        auto cl = func->as<Closure>();
+        call_function(cl->get_function(), args, cl->get_up_values());
     }
 
 
@@ -314,8 +436,20 @@ namespace bond {
                     push(func);
                     break;
                 }
-                case Opcode::IMPORT: {
 
+                case Opcode::IMPORT_PRE_COMPILED: {
+                    auto id = m_current_frame->get_oprand();
+                    auto alias = pop()->as<String>()->get_value();
+                    auto module = Import::instance().get_pre_compiled(id);
+                    if (!module.has_value()) {
+                        runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
+                        continue;
+                    }
+                    m_current_frame->set_global(alias, module.value());
+                    break;
+                }
+
+                case Opcode::IMPORT: {
                     auto path = pop()->as<String>()->get_value();
                     auto constant = m_current_frame->get_constant();
                     auto alias = constant->as<String>()->get_value();
@@ -444,9 +578,7 @@ namespace bond {
                 }
 
                 case Opcode::CREATE_LOCAL: {
-
-
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();;
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
                     auto expr = pop();
 
                     m_current_frame->set_local(name, expr);
@@ -454,7 +586,7 @@ namespace bond {
                 }
 
                 case Opcode::STORE_FAST: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();;
+                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
                     auto expr = peek();
 
                     m_current_frame->set_local(name, expr);
@@ -626,9 +758,7 @@ namespace bond {
                     if (!jump_condition->get_value()) {
                         m_current_frame->jump_absolute(jump_pos);
                     }
-
                     break;
-
                 }
 
                 case Opcode::CALL: {
@@ -668,8 +798,15 @@ namespace bond {
                             }
                         }
                     }
-                    push(call_slot(Slot::GET_ATTR, obj, {attr}, "unable to get attribute {} of {}", attr->str(),
-                                   obj->str()));
+
+
+                    auto call_res = call_slot(Slot::GET_ATTR, obj, {attr});
+
+                    if (!call_res.has_value()) {
+                        runtime_error(fmt::format("unable to get attribute {} of {}", attr->str(), obj->str()));
+                        continue;
+                    }
+                    push(call_res.value());
                     break;
                 }
                 case Opcode::SET_ATTRIBUTE: {
@@ -796,28 +933,31 @@ namespace bond {
                                       RuntimeError::GenericError,
                                       m_current_frame->get_span());
                     }
-                    else {
-                        auto o = obj->as<NativeInstance>();
-                        if (o->has_method(name)) {
-                            auto res = o->call_method(name, args);
 
-                            if (!res.has_value()) {
-                                runtime_error(fmt::format("unable to call method\n  {}", name, res.error()),
-                                              RuntimeError::GenericError,
-                                              m_current_frame->get_span());
-                                break;
-                            }
-                            push(res.value());
+                    auto o = obj->as<NativeInstance>();
+                    if (o->has_method(name)) {
+                        auto res = o->call_method(name, args);
+
+                        if (!res.has_value()) {
+                            runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()));
                             break;
                         }
+                        push(res.value());
+                        break;
                     }
-
 
                     if (obj->is<Instance>()) {
                         auto o = obj->as<Instance>();
                         auto meth = o->get_method(name);
 
                         if (!meth.has_value()) {
+                            auto attr = call_slot(Slot::GET_ATTR, obj, {make_string(name)});
+
+                            if (attr.has_value()) {
+                                call_object(attr.value(), args);
+                                break;
+                            }
+
                             runtime_error(fmt::format("attribute {} is not callable \n  {}", name, meth.error()));
                             break;
                         }
@@ -852,6 +992,7 @@ namespace bond {
                                   m_current_frame->get_span());
                     break;
                 }
+
 
                 case Opcode::UNPACK_SEQ: {
                     auto obj = pop();
@@ -927,12 +1068,44 @@ namespace bond {
                     auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
                                                                             m_current_frame->get_locals());
                     m_current_frame->set_local(func->get_name(), closure);
+                    break;
                 }
 
+                case Opcode::CREATE_CLOSURE_EX: {
+                    auto func = m_current_frame->get_constant()->as<Function>();
+                    func->set_globals(m_current_frame->get_globals());
+                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
+                                                                            m_current_frame->get_locals());
+                    push(closure);
+                    break;
+                }
+
+                case Opcode::BUILD_DICT: {
+                    auto count = m_current_frame->get_oprand();
+                    auto dict = HASHMAP_STRUCT->create_instance<HashMap>();
+
+                    for (int i = 0; i < count; i++) {
+                        auto value = pop();
+                        auto key = pop();
+                        auto res = dict->set(key, value);
+
+                        if (!res.has_value()) {
+                            runtime_error(fmt::format("unable to build dict\n  {}", res.error()));
+                            break;
+                        }
+                    }
+                    push(dict);
+                    break;
+                }
+
+                case Opcode::MAKE_ASYNC:
+                case Opcode::AWAIT:
+                    runtime_error("async/await is not implemented");
             }
 
 //            collect_if_needed();
         }
     }
 
-}; // bond
+
+} // bond

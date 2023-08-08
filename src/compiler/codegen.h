@@ -21,7 +21,9 @@ namespace bond {
 
         GcPtr<Code> generate_code(const std::vector<std::shared_ptr<Node>> &nodes);
 
-        GcPtr<Code> generate_code(const std::shared_ptr<Node> &node, bool can_error);
+        GcPtr<Code> generate_code(const std::shared_ptr<Node> &node, bool can_error, bool f_generation = true);
+
+        void set_mode_repl() { m_is_repl = true; }
 
         void visit(BinaryOp *expr) override;
 
@@ -91,6 +93,7 @@ namespace bond {
 
         void visit(ResultStatement *expr) override;
 
+        void visit(DictLiteral *expr) override;
 
         bool m_in_function = false;
         bool m_in_closure = false;
@@ -100,6 +103,7 @@ namespace bond {
         GcPtr<Code> m_code;
         Context *m_ctx;
         Scopes *m_scopes;
+        bool m_is_repl = false;
 
         void finish_generation(bool can_error);
 

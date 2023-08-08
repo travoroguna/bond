@@ -32,8 +32,14 @@ uint32_t Context::new_module(std::string const &path) {
 void Context::error(const std::shared_ptr<Span> &span, const std::basic_string<char> &err) {
     m_has_error = true;
 
-    if (m_modules[span->module_id]=="<repl>") {
+    if (m_modules[span->module_id]=="<repl>" ) {
         fmt::print("Error: {}\n", err);
+        return;
+    }
+
+    if (!std::filesystem::exists(m_modules[span->module_id])) {
+        fmt::print("Error at: {}:{}:{}\n", span->module_id, span->line, span->end);
+        fmt::print("  {}\n", err);
         return;
     }
 

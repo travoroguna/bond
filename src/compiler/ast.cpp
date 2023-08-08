@@ -14,7 +14,6 @@ namespace bond {
         m_span = span;
         m_left = left;
         m_right = right;
-        m_type = NodeType::BinOp;
     }
 
     void BinaryOp::accept(NodeVisitor *visitor) {
@@ -25,7 +24,6 @@ namespace bond {
             : m_op(std::move(op)) {
         m_span = span;
         m_expr = expr;
-        m_type = NodeType::Unary;
     }
 
     void Unary::accept(NodeVisitor *visitor) {
@@ -34,7 +32,6 @@ namespace bond {
 
     FalseLiteral::FalseLiteral(const SharedSpan &span) {
         m_span = span;
-        m_type = NodeType::FalseLit;
     }
 
     void FalseLiteral::accept(NodeVisitor *visitor) {
@@ -43,7 +40,6 @@ namespace bond {
 
     TrueLiteral::TrueLiteral(const SharedSpan &span) {
         m_span = span;
-        m_type = NodeType::TrueLit;
     }
 
     void TrueLiteral::accept(NodeVisitor *visitor) {
@@ -52,7 +48,6 @@ namespace bond {
 
     NilLiteral::NilLiteral(const SharedSpan &span) {
         m_span = span;
-        m_type = NodeType::NilLit;
     }
 
     void NilLiteral::accept(NodeVisitor *visitor) {
@@ -62,7 +57,6 @@ namespace bond {
     NumberLiteral::NumberLiteral(const SharedSpan &span, const std::string &lexeme, bool is_int) {
         m_span = span;
         m_value = lexeme;
-        m_type = NodeType::NumLit;
         m_is_int = is_int;
     }
 
@@ -73,7 +67,6 @@ namespace bond {
     StringLiteral::StringLiteral(const SharedSpan &span, const std::string &lexeme) {
         m_span = span;
         m_value = lexeme;
-        m_type = NodeType::StringLit;
     }
 
     void StringLiteral::accept(NodeVisitor *visitor) {
@@ -90,10 +83,11 @@ namespace bond {
         visitor->visit(this);
     }
 
-    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr) {
+    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, std::optional<SharedTypeNode> type){
         m_span = span;
         m_name = name;
         m_expr = expr;
+        m_type = std::move(type);
     }
 
     void NewVar::accept(NodeVisitor *visitor) {
@@ -215,13 +209,15 @@ namespace bond {
 
     FuncDef::FuncDef(const SharedSpan &span,
                      const std::string &name,
-                     const std::vector<std::pair<std::string, SharedSpan>> &params,
-                     const SharedNode &body, bool can_error) {
+                     const std::vector<std::shared_ptr<Param>> &params,
+                     const SharedNode &body, bool can_error,
+                     const std::optional<SharedTypeNode>& return_type) {
         m_span = span;
         m_name = name;
         m_params = params;
         m_body = body;
         m_can_error = can_error;
+        m_return_type = return_type;
     }
 
     void FuncDef::accept(NodeVisitor *visitor) {
@@ -237,10 +233,11 @@ namespace bond {
         visitor->visit(this);
     }
 
-    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def) {
+    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def, bool is_expression) {
         m_span = span;
         m_name = name;
         m_func_def = func_def;
+        m_is_expression = is_expression;
     }
 
     void ClosureDef::accept(NodeVisitor *visitor) {
@@ -249,7 +246,7 @@ namespace bond {
 
     StructNode::StructNode(const SharedSpan &span,
                            const std::string &name,
-                           const std::vector<std::string> &params,
+                           const  std::vector<std::shared_ptr<Param>> &params,
                            const std::vector<SharedNode> &methods) {
         m_span = span;
         m_name = name;
@@ -355,6 +352,15 @@ namespace bond {
     }
 
     void ResultStatement::accept(NodeVisitor *visitor) {
+        visitor->visit(this);
+    }
+
+    DictLiteral::DictLiteral(const SharedSpan &span, const std::vector<std::pair<SharedNode, SharedNode>> &pairs) {
+        m_span = span;
+        m_pairs = pairs;
+    }
+
+    void DictLiteral::accept(NodeVisitor *visitor) {
         visitor->visit(this);
     }
 }

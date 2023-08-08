@@ -105,13 +105,20 @@ namespace bond {
         return AS_BOOL(self_str->get_value() != other->get_value());
     }
 
+    obj_result String_hash(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        TRY(parse_args(args));
+        return make_int(std::hash<std::string>{}(self_str->get_value()));
+    }
+
     GcPtr<NativeStruct> STRING_STRUCT = make_immortal<NativeStruct>("String", "String(value)", String_construct, method_map {
             {"__add__", {String_add, "__add__(other: String) -> String"}},
             {"__iter__", {String_iter, "__iter__() -> StringIterator"}},
-            {"__getitem__", {String_get_item, "get_item(index: Int) -> String"}},
+            {"__getitem__", {String_get_item, "__get_item__(index: Int) -> String"}},
             {"__eq__", {String_eq, "__eq__(other: String) -> Bool"}},
             {"__ne__", {String_neq, "__neq__(other: String) -> Bool"}},
             {"size", {String_size, "size() -> Int"}},
+            {"__hash__", {String_hash, "__hash__() -> Int"}},
             {"join", {String_join, "join(*args: List<Any>) -> String"}},
             {"sub_string", {String_sub_string, "sub_string(start: Int, end: Int) -> String"}},
     });

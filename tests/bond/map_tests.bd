@@ -1,0 +1,81 @@
+import "core";
+import "assert";
+
+
+fn map_test_create() ! {
+    var map = {};
+    try assert.assert_eq(map.size(), 0, "test map size 0");
+}
+
+fn map_test_set() ! {
+    var map = {};
+    map["hello"] = "world";
+    map[1] = 2;
+    map[12.2] = 12.2;
+
+    try assert.assert_eq(map.size(), 3, "test map size 3");
+    try assert.assert_eq(map["hello"], "world", "test map set/get string");
+    try assert.assert_eq(map[1], 2, "test map set/get int");
+    try assert.assert_eq(map[12.2], 12.2, "test map set/get float");
+}
+
+struct Point {
+    var x;
+    var y;
+
+    fn new(x, y) {
+        return Point(x, y);
+    }
+
+    fn __eq__(self, other) {
+        return self.x == other.x and self.y == other.y;
+    }
+
+    fn __hash__(self) {
+        return self.x * 100 + self.y;
+    }
+}
+
+fn map_test_set_object() ! {
+    var map = {};
+    map[Point.new(1, 2)] = "hello";
+    map[Point.new(3, 4)] = "world";
+
+    try assert.assert_eq(map.size(), 2, "test map size 2");
+    try assert.assert_eq(map[Point.new(1, 2)], "hello", "test map set/get object");
+    try assert.assert_eq(map[Point.new(3, 4)], "world", "test map set/get object");
+}
+
+struct UnhashablePoint {
+    var x;
+    var y;
+
+    fn new(x, y) {
+        return UnhashablePoint(x, y);
+    }
+
+    fn __eq__(self, other) {
+        return self.x == other.x and self.y == other.y;
+    }
+}
+
+fn map_test_set_1() ! {
+    var map = {};
+    var res_0 = map.set("hello", "world");
+    try assert.assert(res_0.is_ok(), "test map set 1 has error");
+
+
+    var res_1 = map.set(UnhashablePoint.new(1, 2), 2);
+    try assert.assert(res_1.is_error(), "test map set 1 has no error");
+}
+
+fn map_test_get_1() ! {
+    var map = {};
+    var res_0 = map.get("hello");
+    try assert.assert(res_0.is_error(), "test map get 1 has error");
+
+    map["hello"] = "world";
+    var res_1 = map.get("hello");
+    try assert.assert(res_1.is_ok(), "test map get 1 has no error");
+    try assert.assert_eq(res_1.value(), "world", "test map get 1 value");
+}

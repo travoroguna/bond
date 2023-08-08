@@ -35,7 +35,6 @@ function activate(context) {
 		options: { shell: true },
 		transport: vscode_languageclient.TransportKind.stdio,
 	};
-	5;
 
 	var clientOptions = {
 		documentSelector: [{ scheme: "file", language: "bond" }],

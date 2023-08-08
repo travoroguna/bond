@@ -10,7 +10,7 @@ namespace bond {
     Module::Module(std::string path, const t_map &objects) {
         m_path = std::move(path);
 
-        m_globals = MAP_STRUCT->create_instance<Map>();
+        m_globals = MAP_STRUCT->create_instance<StringMap>();
         for (auto const &[name, object]: objects) {
             m_globals->set(name, object);
         }
@@ -47,14 +47,16 @@ namespace bond {
     }
 
     obj_result get_values(const GcPtr<Object> &Self, const t_vector &args) {
+        TRY(parse_args(args));
         auto self = Self->as<Module>();
-        auto list = LIST_STRUCT->create_instance<List>();
 
-        for (auto const &[_, value]: self->get_globals()->get_value()) {
-            list->append(value);
+        auto h_map = HASHMAP_STRUCT->create_instance<HashMap>();
+
+        for (auto const &[name, value]: self->get_globals()->get_value()) {
+            TRY(h_map->set(make_string(name), value));
         }
 
-        return OK(list);
+        return OK(h_map);
     }
 
 

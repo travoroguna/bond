@@ -9,7 +9,7 @@
 namespace bond {
 
     CodeGenerator::CodeGenerator(Context *ctx, Scopes *scopes)
-        : m_ctx(ctx), m_scopes(scopes) {}
+            : m_ctx(ctx), m_scopes(scopes) {}
 
 
     void CodeGenerator::finish_generation(bool can_error) {
@@ -142,7 +142,8 @@ namespace bond {
 
     void CodeGenerator::visit(ExprStmnt *stmnt) {
         stmnt->get_expr()->accept(this);
-        m_code->add_ins(Opcode::POP_TOP, stmnt->get_span());
+
+        if (!m_is_repl) m_code->add_ins(Opcode::POP_TOP, stmnt->get_span());
     }
 
     void CodeGenerator::visit(Identifier *expr) {
@@ -265,8 +266,10 @@ namespace bond {
     void CodeGenerator::visit(For *stmnt) {
         start_loop();
         m_scopes->new_scope();
+
         m_scopes->declare(stmnt->get_name(), stmnt->get_span(), true, false);
-        auto local_name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto local_name = m_code->add_constant(make_string(stmnt->get_name()));
+
         m_code->add_ins(Opcode::PUSH_NIL, stmnt->get_span());
         m_code->add_ins(Opcode::CREATE_LOCAL, local_name, stmnt->get_span());
 
@@ -302,15 +305,20 @@ namespace bond {
         generator.m_in_function = true;
 
         m_scopes->new_scope();
-        for (auto &[name, span]: stmnt->get_params()) {
-            m_scopes->declare(name, span, true, false);
+        for (auto &param: stmnt->get_params()) {
+            m_scopes->declare(param->name, param->span, true, false);
         }
 
         auto code = generator.generate_code(stmnt->get_body(), stmnt->can_error());
+
+        if (!instanceof<Block>(stmnt->get_body().get())) {
+            code->add_ins(Opcode::RETURN, stmnt->get_span());
+        }
+
         generator.m_in_function = false;
 
         m_scopes->end_scope();
-        auto fn = FUNCTION_STRUCT->create_immortal<Function>( stmnt->get_name(), stmnt->get_params(), code);
+        auto fn = FUNCTION_STRUCT->create_immortal<Function>(stmnt->get_name(), stmnt->get_params(), code);
         auto idx = m_code->add_constant(fn);
         auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
 
@@ -340,24 +348,33 @@ namespace bond {
         generator.m_in_function = true;
 
         m_scopes->new_scope();
-        for (auto &[name, span]: stmnt->get_params()) {
-            m_scopes->declare(name, span, true, false);
+        for (auto &param: stmnt->get_params()) {
+            m_scopes->declare(param->name, param->span, true, false);
         }
 
-        auto code = generator.generate_code(stmnt->get_body(), stmnt->can_error());
+        bool is_expr = !instanceof<Block>(stmnt->get_body().get());
+
+        auto code = generator.generate_code(stmnt->get_body(), stmnt->can_error(), !is_expr);
+
+        if (is_expr) {
+            code->add_ins(Opcode::RETURN, stmnt->get_span());
+        }
+
         generator.m_in_function = false;
 
         m_scopes->end_scope();
         m_in_function = false;
 
-        return FUNCTION_STRUCT->create_immortal<Function>( stmnt->get_name(), stmnt->get_params(), code);
+        return FUNCTION_STRUCT->create_immortal<Function>(stmnt->get_name(), stmnt->get_params(), code);
     }
 
-    GcPtr<Code> CodeGenerator::generate_code(const std::shared_ptr<Node> &node, bool can_error) {
+    GcPtr<Code> CodeGenerator::generate_code(const std::shared_ptr<Node> &node, bool can_error, bool f_generation) {
         try {
             m_code = CODE_STRUCT->create_immortal<Code>();
             node->accept(this);
-            finish_generation(can_error);
+            if (f_generation) {
+                finish_generation(can_error);
+            }
             return m_code;
         }
         catch (ParserError &err) {
@@ -382,16 +399,27 @@ namespace bond {
 
         //FIXME: for now copy all locals from parent scope
         auto func = create_function(stmnt->get_func_def().get());
-        m_scopes->declare(stmnt->get_name(), stmnt->get_span(), false, false);
         auto idx = m_code->add_constant(func);
-        m_code->add_ins(Opcode::CREATE_CLOSURE, idx, stmnt->get_span());
+
+        if (stmnt->is_expression()) {
+            m_code->add_ins(Opcode::CREATE_CLOSURE_EX, idx, stmnt->get_span());
+        }
+        else {
+            m_scopes->declare(stmnt->get_name(), stmnt->get_span(), false, false);
+            m_code->add_ins(Opcode::CREATE_CLOSURE, idx, stmnt->get_span());
+        }
 
         m_in_closure = prev;
     }
 
     void CodeGenerator::visit(StructNode *stmnt) {
         auto var = m_scopes->get(stmnt->get_name());
-        auto _struct = STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), stmnt->get_params());
+        std::vector<std::string> params;
+        for (auto&param: stmnt->get_params()) {
+            params.push_back(param->name);
+        }
+
+        auto _struct = STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), params);
         auto idx = m_code->add_constant(_struct);
 
 
@@ -426,6 +454,20 @@ namespace bond {
     }
 
     void CodeGenerator::visit(ImportDef *stmnt) {
+        auto a_path = stmnt->get_actual_path();
+
+        if (!a_path.empty()) {
+            // if get_actual path is set this means that a call to new_module
+            // has already been made and will return the same module id
+
+            auto pre_compiled_id = m_ctx->new_module(a_path);
+            auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
+
+            m_code->add_ins(Opcode::LOAD_CONST, alias, stmnt->get_span());
+            m_code->add_ins(Opcode::IMPORT_PRE_COMPILED, pre_compiled_id, stmnt->get_span());
+            return;
+        }
+
         auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
         auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
 
@@ -505,6 +547,12 @@ namespace bond {
             if (is_global) {
                 m_code->add_ins(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
             } else {
+                // TODO: this might be safe to do as the parser should have already
+                //  checked that the name is not already declared
+                // we do this for local variables as we did not keep track of the
+                // local variables in the scope
+                // in the future we should keep track of the local variables
+                m_scopes->declare(name, stmnt->get_span(), true);
                 m_code->add_ins(Opcode::CREATE_LOCAL, idx, stmnt->get_span());
             }
 
@@ -530,6 +578,14 @@ namespace bond {
         expr->get_expr()->accept(this);
         m_code->add_ins(expr->is_error() ? Opcode::MAKE_ERROR : Opcode::MAKE_OK, expr->get_span());
         m_code->add_ins(Opcode::RETURN, expr->get_span());
+    }
+
+    void CodeGenerator::visit(DictLiteral *expr) {
+        for (auto &e: expr->get_pairs()) {
+            e.first->accept(this);
+            e.second->accept(this);
+        }
+        m_code->add_ins(Opcode::BUILD_DICT, expr->get_pairs().size(), expr->get_span());
     }
 
 

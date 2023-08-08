@@ -1,5 +1,8 @@
 #pragma once
 
+// windows things
+#define NOMINMAX
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -14,22 +17,39 @@
 #include <cassert>
 #include <thread>
 
-
+#define DEBUG
 #define GC_BUILD
 
 #ifdef DEBUG
 #define GC_DEBUG
 #endif
 
+#define ALL_INTERIOR_POINTERS
+#define DBG_HDRS_ALL
+#define GC_THREADS
+
 #include <gc.h>
 #include <gc_cpp.h>
-#include <gc_allocator.h>
+#include <gc/gc_allocator.h>
 
 
 
 namespace bond {
 
     class GcObject;
+
+    /**
+ * @brief Determines if the given pointer is an instance of a specified base type.
+ *
+ * This function uses the dynamic_cast operator to check if the pointer `ptr` can be safely
+ * casted to a pointer of the base type `Base`. It returns true if the cast is successful and
+ * false otherwise.
+ *
+ * @tparam Base The base type.
+ * @tparam T The derived type.
+ * @param ptr The pointer to check.
+ * @return true if `ptr` is an instance of `Base`, false otherwise.
+ */
 
     template<typename Base, typename T>
     inline bool instanceof(const T *ptr) {
@@ -135,11 +155,12 @@ namespace bond {
             return GcPtr<T>(dynamic_cast<T *>(obj.get()));
         }
 
+        template<typename ...Args>
+        bool is_one_of() {
+            return (is<Args>() || ...);
+        }
+
         bool operator==(GcObject const &other) const { return this == &other; }
     };
-
-
-
-
 
 }

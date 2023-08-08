@@ -62,6 +62,10 @@ namespace bond {
 
         std::optional<std::shared_ptr<Variable>> get(const std::string &name);
 
+        bool has_globals() { return !m_scopes.empty(); }
+
+        void print();
+
     private:
         std::vector<std::unordered_map<std::string, std::shared_ptr<Variable>>> m_scopes;
         Context *m_ctx;
@@ -69,13 +73,15 @@ namespace bond {
 
     class Parser {
     public:
-        Parser(const std::vector<Token> &tokens, Context *context) : m_tokens(tokens), m_scopes(context) { ctx = context; }
+        Parser(const std::vector<Token> &tokens, Context *context);
+
+        ~Parser() { if (!m_managed_scope) delete m_scopes; }
 
         std::vector<std::shared_ptr<Node>> parse();
 
-        Scopes *get_scopes() { return &m_scopes; }
+        Scopes *get_scopes() { return m_scopes; }
 
-        void set_scopes(Scopes *scopes) { m_scopes = *scopes; }
+        void set_scopes(Scopes *scopes);
 
         void disable_reporting() { m_report = false; }
         std::vector<std::pair<std::string, SharedSpan>> &get_diagnostics() { return m_diagnostics; }
@@ -85,12 +91,13 @@ namespace bond {
 
     private:
 
-        Scopes m_scopes;
+        Scopes *m_scopes;
         std::vector<Token> m_tokens;
         Context *ctx;
         uint32_t m_current = 0;
         bool in_function = false;
         bool is_error_func = false;
+        bool m_managed_scope = false;
 
         std::shared_ptr<Node> expression();
 
@@ -154,13 +161,13 @@ namespace bond {
 
         std::shared_ptr<Node> block(bool create_scope);
 
-        std::shared_ptr<Node> closure_declaration();
+        std::shared_ptr<Node> closure_declaration(bool is_expression);
 
         std::shared_ptr<Node> return_statement();
 
         std::shared_ptr<Node> struct_declaration();
 
-        std::shared_ptr<Node> function_declaration(bool is_method);
+        std::shared_ptr<Node> function_declaration(bool is_method, bool is_expression);
 
         std::shared_ptr<Node> import_declaration();
 
@@ -190,6 +197,15 @@ namespace bond {
 
         std::vector<std::pair<std::string, SharedSpan>> m_diagnostics;
 
+        std::vector<std::pair<SharedNode, SharedNode>> key_value_pairs(TokenType end_token);
+
+        SharedTypeNode parse_type();
+
+        std::vector<SharedTypeNode> parse_type_list(TokenType end_token);
+
+        std::shared_ptr<Param> parse_parameter();
+
+        SharedTypeNode parse_return_type();
     };
 
     std::string split_at_last_occur(const std::string& str, char c);

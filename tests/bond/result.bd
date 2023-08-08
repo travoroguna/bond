@@ -17,5 +17,3 @@ fn test_result() ! {
     try assert.assert_eq(bad_result.is_error(), true, "result should be err");
     try assert.assert_eq(bad_result.error(), "division by zero", "result should be division by zero");
 }
-
-

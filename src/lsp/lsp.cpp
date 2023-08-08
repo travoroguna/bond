@@ -418,6 +418,7 @@ dynamic_registration(def(jw.opt<bool>("dynamicRegistration"), false))
                 return "region";
         }
         lsp_unreachable;
+        return "";
     }
 
 // WorkspaceFolder
@@ -1202,8 +1203,10 @@ dynamic_registration(def(jw.opt<bool>("dynamicRegistration"), false))
 
     json document_diagnostic_report::to_json() const {
         return jbuild()
-                .set("identifier", identifier())
-                .set("diagnostics", vector_to_json(diagnostics()))
+                .set("kind", kind())
+                .opt("resultId", result_id() | lift(any_to_json))
+                .set("items", vector_to_json(items()))
                 .get();
     }
+
 } /* namespace lsp */

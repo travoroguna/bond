@@ -13,7 +13,7 @@ namespace bond {
             {"and",      TokenType::AND},
             {"struct",   TokenType::STRUCT},
             {"else",     TokenType::ELSE},
-            {"false",    TokenType::FALSE},
+            {"false",    TokenType::FALSE_t},
             {"for",      TokenType::FOR},
             {"fn",       TokenType::FUN},
             {"if",       TokenType::IF},
@@ -22,17 +22,17 @@ namespace bond {
             {"return",   TokenType::RETURN},
             {"import",   TokenType::IMPORT},
             {"as",       TokenType::AS},
-            {"true",     TokenType::TRUE},
+            {"true",     TokenType::TRUE_t},
             {"var",      TokenType::VAR},
             {"while",    TokenType::WHILE},
-            {"in",       TokenType::IN},
+            {"in",       TokenType::IN_t},
             {"try",      TokenType::TRY},
             {"break",    TokenType::BREAK},
             {"continue", TokenType::CONTINUE},
             {"async",    TokenType::ASYNC},
             {"await",    TokenType::AWAIT},
             {"ok", TokenType::OK},
-            {"err", TokenType::ERROR}
+            {"err", TokenType::ERROR_t}
 
     };
 
@@ -117,22 +117,58 @@ namespace bond {
     }
 
     void Lexer::make_string() {
-        while (peek() != '"' && !is_at_end()) {
-            if (peek() == '\n') m_line++;
+        bool isEscaped = false;
+
+        while (peek() != '"' || isEscaped) {
+            if (peek() == '\n' && !isEscaped) m_line++;
+
+            if (peek() == '\\' && !isEscaped)
+            {
+                isEscaped = true;
+            } else {
+                isEscaped = false;
+            }
+
+            if (is_at_end()) {
+                report("Unterminated string.", make_span());
+                return;
+            }
             advance();
         }
 
-        if (is_at_end()) {
-            m_context->error(make_span(), "Unterminated string.");
+        // The closing '"'.
+        if (isEscaped) {
+            report("Unterminated escape character.", make_span());
             return;
         }
-
-        // The closing '"'.
         advance();
 
         // Trim the surrounding quotes.
         auto value = m_source.substr(m_start + 1, m_current - m_start - 2);
+        replaceEscapedSequences(value);
+
         new_token(TokenType::STRING, value);
+    }
+
+    std::unordered_map<char, char> replacement = {
+            {'n', '\n'},
+            {'t', '\t'},
+            {'r', '\r'},
+            {'0', '\0'},
+            {'\\', '\\'},
+            {'\'', '\''},
+            {'"', '"'}
+    };
+    void Lexer::replaceEscapedSequences(std::string& str) {
+        size_t position = 0;
+
+        for (auto [c, rep]: replacement) {
+            while ((position = str.find(fmt::format("\\{}", c), position)) != std::string::npos) {
+                str.replace(position, 2, fmt::format("{}", rep));
+                position += 1;
+            }
+            position = 0;
+        }
     }
 
     bool is_alpha(char c) {
@@ -199,6 +235,7 @@ namespace bond {
             ADD_TOKEN('|', TokenType::BITWISE_OR);
             ADD_TOKEN('&', TokenType::BITWISE_AND);
             ADD_TOKEN('^', TokenType::BITWISE_XOR);
+            ADD_TOKEN(':', TokenType::COLON);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);
@@ -231,9 +268,18 @@ namespace bond {
                     make_identifier();
                 } else {
                     auto span = make_span();
-                    m_context->error(span, fmt::format("unexpected character {}", c));
+                    report("unexpected character", span);
                 }
         }
 #undef ADD_TOKEN
+    }
+
+    void Lexer::report(const std::string &message, const std::shared_ptr<Span> &span) {
+        if (m_report) {
+            m_context->error(span, message);
+        }
+        else {
+            m_error_spans.emplace_back(message, span);
+        }
     }
 } // bond

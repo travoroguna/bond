@@ -131,6 +131,12 @@ namespace bond {
         return AS_BOOL(self_num->get_value() >= other->as<Float>()->get_value());
     }
 
+    obj_result Float_hash(const GcPtr<Object>& self, const t_vector &args) {
+        auto self_str = self->as<Float>();
+        TRY(parse_args(args));
+        return make_int(std::hash<double>{}(self_str->get_value()));
+    }
+
 
     GcPtr<NativeStruct> FLOAT_STRUCT = make_immortal<NativeStruct>("Float", "Float(value)", Float_construct, method_map{
             {"__add__", {Float_add, "add(other)"}},
@@ -143,6 +149,7 @@ namespace bond {
             {"__lt__", {Float_lt, "__lt__"}},
             {"__le__", {Float_le, "__le__"}},
             {"__ge__", {Float_ge, "__ge__"}},
+            {"__hash__", {Float_hash, "__hash__"}},
     });
 
 }

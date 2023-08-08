@@ -60,6 +60,7 @@ namespace bond {
 
     }
 
+
     GcPtr<NativeStruct> BOOL_STRUCT = make_immortal<NativeStruct>("Bool", "Bool(value)", Bool_construct, method_map{
         { "__eq__", {Bool_eq, "__eq__()"} },
         { "__ne__", {Bool_ne, "__ne__()"} },

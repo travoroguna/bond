@@ -12,11 +12,10 @@
 #include "span.h"
 
 namespace bond {
-
     enum class TokenType : int {
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
         COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
-        LEFT_SQ, RIGHT_SQ, IN, BITWISE_OR, BITWISE_AND,
+        LEFT_SQ, RIGHT_SQ, IN_t, BITWISE_OR, BITWISE_AND,
         BITWISE_XOR,
 
         BANG, BANG_EQUAL,
@@ -26,14 +25,16 @@ namespace bond {
 
         IDENTIFIER, STRING,
 
-        AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-        RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+        AND, STRUCT, ELSE, FALSE_t, FUN, FOR, IF, NIL, OR,
+        RETURN, SUPER, TRUE_t, VAR, WHILE,
 
         EndOfFile, IMPORT, AS, TRY, INTEGER, FLOAT, BREAK, CONTINUE,
 
         ASYNC, AWAIT,
 
-        OK, ERROR
+        OK, ERROR_t,
+
+        COLON
     };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {
@@ -71,9 +72,16 @@ namespace bond {
         std::vector<Token> m_tokens = {};
         uint32_t m_start, m_current, m_module, m_line;
         Context *m_context;
+        std::vector<std::pair<std::string, std::shared_ptr<Span>>> m_error_spans = {};
+        void report(const std::string &message, const std::shared_ptr<Span>& span);
 
     public:
+        bool m_report = true;
+
         Lexer(std::string source, Context *context, uint32_t module_id);
+        void disable_reporting() { m_report = false; }
+
+        std::vector<std::pair<std::string, std::shared_ptr<Span>>>& get_error_spans() { return m_error_spans; }
 
         std::vector<Token> &tokenize();
 
@@ -94,6 +102,8 @@ namespace bond {
         char peek_next();
 
         void make_identifier();
+
+        void replaceEscapedSequences(std::string &str);
     };
 
 } // bond

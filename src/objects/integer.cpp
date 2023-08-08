@@ -143,6 +143,12 @@ namespace bond {
         return AS_BOOL(self_num->get_value() >= other->as<Int>()->get_value());
     }
 
+    obj_result Int_hash(const GcPtr<Object>& self, const t_vector &args) {
+        TRY(parse_args(args));
+        auto self_num = self->as<Int>();
+        return make_int(std::hash<int64_t>{}(self_num->get_value()));
+    }
+
 
     GcPtr<NativeStruct> INT_STRUCT = make_immortal<NativeStruct>("Int", "Int(value)", Int_construct, method_map {
             {"__add__", {Int_add, "add(other)"}},
@@ -156,13 +162,16 @@ namespace bond {
             {"__gt__", {Int_gt, "__gt__(other)"}},
             {"__le__", {Int_le, "__le__(other)"}},
             {"__ge__", {Int_ge, "__ge__(other)"}},
+            {"__hash__", {Int_hash, "__hash__()"}}
     });
 
 
 
     GcPtr<Int> make_int(int64_t value) {
-        if (value > -1 and value < 256)
-            return int_cache[value];
+        if (value > -1 and value < 256) {
+            auto val = int_cache[value];
+            return val;
+        }
 
         return INT_STRUCT->create_instance<Int>(value);
     }

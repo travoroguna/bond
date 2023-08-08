@@ -55,6 +55,17 @@ namespace bond {
     };
 
     template<>
+    struct bond_traits<float> {
+        static double unwrap(const GcPtr<Object> &object) {
+            return object->as<Float>()->get_value();
+        }
+
+        static GcPtr<Object> wrap(const double &object) {
+            return make_float(object);
+        }
+    };
+
+    template<>
     struct bond_traits<std::string> {
         static std::string unwrap(const GcPtr<Object> &object) {
             return object->as<String>()->get_value();
@@ -85,12 +96,12 @@ namespace bond {
     template<>
     struct bond_traits<t_map> {
         static t_map unwrap(const GcPtr<Object> &object) {
-            auto obj = object->as<Map>();
+            auto obj = object->as<StringMap>();
             return obj->get_value();
         }
 
         static GcPtr<Object> wrap(const t_map &object) {
-            return MAP_STRUCT->create_instance<Map>(object);
+            return MAP_STRUCT->create_instance<StringMap>(object);
         }
     };
 
@@ -133,7 +144,7 @@ namespace bond {
             }
         };
 
-        GcPtr<Map> m_exports = MAP_STRUCT->create_instance<Map>();
+        GcPtr<StringMap> m_exports = MAP_STRUCT->create_instance<StringMap>();
         std::vector<std::shared_ptr<StructBuilder>> m_structs;
         std::string m_path;
 
@@ -171,6 +182,13 @@ namespace bond {
             return MODULE_STRUCT->create_instance<Module>(m_path, m_exports);
         }
 
+        /**
+ * Constructor for the struct_ class.
+ *
+ * @param name The name of the struct_.
+ * @param doc The documentation for the struct_.
+ */
+
         StructBuilder &struct_(const std::string &name, const std::string &doc) {
             auto builder = std::make_shared<StructBuilder>(name, doc);
             m_structs.push_back(builder);
@@ -195,4 +213,14 @@ namespace bond {
         }
 
     };
+
+    template<typename T>
+    inline GcPtr<Result> make_ok_t(T object) {
+        return make_ok(bond_traits<T>::wrap(object));
+    }
+
+    template<typename T>
+    inline GcPtr<Result> make_error_t(T object) {
+        return make_error(bond_traits<T>::wrap(object));
+    }
 }

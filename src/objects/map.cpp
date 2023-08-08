@@ -2,19 +2,19 @@
 
 
 namespace bond {
-    void Map::set(const std::string& key, const GcPtr<Object>& obj) {
+    void StringMap::set(const std::string& key, const GcPtr<Object>& obj) {
         m_value[key] = obj;
     }
-    std::optional<GcPtr<Object>> Map::get(const std::string& key) {
+    std::optional<GcPtr<Object>> StringMap::get(const std::string& key) {
         if (m_value.contains(key)) return m_value[key];
         return std::nullopt;
     }
-    GcPtr<Object> Map::get_unchecked(const std::string& key) {
+    GcPtr<Object> StringMap::get_unchecked(const std::string& key) {
         return m_value[key];
     }
 
     obj_result c_Map(const t_vector &args) {
-        Map* map;
+        StringMap* map;
         auto res = parse_args(args, map);
         TRY(res);
         return OK(args[0]);

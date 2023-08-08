@@ -7,7 +7,7 @@
 
 #include <typeinfo>
 #include "gc.h"
-#include "object.h"
+#include "vm.h"
 
 #ifdef _WIN32
 #define EXPORT extern "C" __declspec(dllexport)
@@ -16,8 +16,11 @@
 #endif
 
 namespace bond {
+    extern Vm* current_vm;
 
+    void set_current_vm(Vm* vm);
 
+    Vm* get_current_vm();
 }
 
 
