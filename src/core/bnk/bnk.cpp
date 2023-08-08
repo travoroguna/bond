@@ -14,6 +14,9 @@
 #include <GLFW/glfw3.h>
 #include <fmt/core.h>
 
+#define STBTT_malloc(x,u)    GC_MALLOC((x))
+#define STBTT_free(x,u)      GC_FREE((x))
+
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
