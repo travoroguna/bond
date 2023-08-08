@@ -466,7 +466,7 @@ namespace bond {
         else if (match({TokenType::BREAK})) return break_statement();
         else if (match({TokenType::CONTINUE})) return continue_statement();
         else if (match({TokenType::OK})) return ok_statement();
-        else if (match({TokenType::ERROR})) return err_statement();
+        else if (match({TokenType::ERROR_t})) return err_statement();
 
         return expr_stmnt();
     }
@@ -576,7 +576,7 @@ namespace bond {
 
         auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after for keyword");
 
-        consume(TokenType::IN, peek().get_span(), "Expected 'in' after variable name");
+        consume(TokenType::IN_t, peek().get_span(), "Expected 'in' after variable name");
         auto iterable = expression();
 
         m_scopes->new_scope();
@@ -931,8 +931,8 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::primary() {
-        if (match({TokenType::FALSE})) return std::make_shared<FalseLiteral>(previous().get_span());
-        if (match({TokenType::TRUE})) return std::make_shared<TrueLiteral>(previous().get_span());
+        if (match({TokenType::FALSE_t})) return std::make_shared<FalseLiteral>(previous().get_span());
+        if (match({TokenType::TRUE_t})) return std::make_shared<TrueLiteral>(previous().get_span());
         if (match({TokenType::NIL})) return std::make_shared<NilLiteral>(previous().get_span());
 
         if (match({TokenType::INTEGER}))

@@ -1,5 +1,8 @@
 #pragma once
 
+// windows things
+#define NOMINMAX
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>

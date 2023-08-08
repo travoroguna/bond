@@ -13,7 +13,7 @@ namespace bond {
             {"and",      TokenType::AND},
             {"struct",   TokenType::STRUCT},
             {"else",     TokenType::ELSE},
-            {"false",    TokenType::FALSE},
+            {"false",    TokenType::FALSE_t},
             {"for",      TokenType::FOR},
             {"fn",       TokenType::FUN},
             {"if",       TokenType::IF},
@@ -22,17 +22,17 @@ namespace bond {
             {"return",   TokenType::RETURN},
             {"import",   TokenType::IMPORT},
             {"as",       TokenType::AS},
-            {"true",     TokenType::TRUE},
+            {"true",     TokenType::TRUE_t},
             {"var",      TokenType::VAR},
             {"while",    TokenType::WHILE},
-            {"in",       TokenType::IN},
+            {"in",       TokenType::IN_t},
             {"try",      TokenType::TRY},
             {"break",    TokenType::BREAK},
             {"continue", TokenType::CONTINUE},
             {"async",    TokenType::ASYNC},
             {"await",    TokenType::AWAIT},
             {"ok", TokenType::OK},
-            {"err", TokenType::ERROR}
+            {"err", TokenType::ERROR_t}
 
     };
 

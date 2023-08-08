@@ -12,11 +12,10 @@
 #include "span.h"
 
 namespace bond {
-
     enum class TokenType : int {
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
         COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
-        LEFT_SQ, RIGHT_SQ, IN, BITWISE_OR, BITWISE_AND,
+        LEFT_SQ, RIGHT_SQ, IN_t, BITWISE_OR, BITWISE_AND,
         BITWISE_XOR,
 
         BANG, BANG_EQUAL,
@@ -26,14 +25,14 @@ namespace bond {
 
         IDENTIFIER, STRING,
 
-        AND, STRUCT, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-        RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+        AND, STRUCT, ELSE, FALSE_t, FUN, FOR, IF, NIL, OR,
+        RETURN, SUPER, TRUE_t, VAR, WHILE,
 
         EndOfFile, IMPORT, AS, TRY, INTEGER, FLOAT, BREAK, CONTINUE,
 
         ASYNC, AWAIT,
 
-        OK, ERROR,
+        OK, ERROR_t,
 
         COLON
     };
