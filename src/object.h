@@ -352,6 +352,8 @@ namespace bond {
 
         [[nodiscard]] std::string get_value() const { return m_value; }
 
+        [[nodiscard]] std::string &get_value_ref() { return m_value; }
+
         [[nodiscard]] std::string str() const override { return m_value; }
 
     private:

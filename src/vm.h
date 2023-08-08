@@ -123,7 +123,7 @@ namespace bond {
 
         void run(const GcPtr<Code> &code);
 
-        bool has_top() { return m_stack.size() > 0; }
+        bool has_top() { return m_stack_pointer > 0; }
 
         bool had_error() { return m_has_error; }
 
@@ -145,17 +145,21 @@ namespace bond {
         std::expected<GcPtr<Object>, std::string> call_slot(Slot slot, const GcPtr<Object>& instance, const t_vector & args);
 
 
+        inline GcPtr<Object> pop() { return stack[m_stack_pointer--]; }
+        inline void push(GcPtr<Object> const &obj) { stack[++m_stack_pointer] = obj; }
 
-        inline GcPtr<Object> pop() {
-            auto res = peek();
-            m_stack.pop_back();
-            return res;
-        }
+        inline GcPtr<Object> peek() { return stack[m_stack_pointer]; }
+        inline GcPtr<Object> peek(size_t rel_index) { return stack[m_stack_pointer - rel_index]; }
 
+
+//        t_vector m_stack;
         bool call_object_ex(const GcPtr <Object> &obj, t_vector &args);
 
 
     private:
+        GcPtr<Object> stack[1024];
+        int m_stack_pointer = -1;
+
         GcPtr<Bool> m_True;
         GcPtr<Bool> m_False;
         GcPtr<None> m_Nil;
@@ -184,15 +188,7 @@ namespace bond {
 
         void bin_op(Slot slot, const std::string &op_name);
 
-
         void setup_bound_call(const GcPtr<Object>& instance, const GcPtr<Function>& function, t_vector & args);
-
-        inline void push(GcPtr<Object> const &obj) { m_stack.push_back(obj); }
-
-        inline GcPtr<Object> peek() { return m_stack.back(); }
-        inline GcPtr<Object> peek(size_t rel_index) { return m_stack[m_stack.size() - 1 - rel_index]; }
-
-        t_vector m_stack;
 
         void compare_op(Slot slot, const std::string &op_name);
 
@@ -220,6 +216,7 @@ namespace bond {
         void call_object(const GcPtr <Object> &func, t_vector &args);
 
 
+        void bin_alt(const NativeMethodPtr &meth, const char *op_name);
     };
 
 };

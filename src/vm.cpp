@@ -13,7 +13,10 @@ namespace bond {
 
 #define TODO() runtime_error("not implemented", RuntimeError::GenericError, m_current_frame->get_span())
 
+    static t_vector alt;
+
     void Vm::run(const GcPtr<Code> &code) {
+        alt.resize(1);
         m_stop = false;
 
         auto func = FUNCTION_STRUCT->create_immortal<Function>("__main__",
@@ -194,6 +197,31 @@ namespace bond {
         push(make_string(error));
     }
 
+    auto i_add = INT_STRUCT->get_slot(Slot::BIN_ADD);
+    auto i_sub = INT_STRUCT->get_slot(Slot::BIN_SUB);
+    auto i_mul = INT_STRUCT->get_slot(Slot::BIN_MUL);
+    auto i_div = INT_STRUCT->get_slot(Slot::BIN_DIV);
+
+    auto f_add = FLOAT_STRUCT->get_slot(Slot::BIN_ADD);
+    auto f_sub = FLOAT_STRUCT->get_slot(Slot::BIN_SUB);
+    auto f_mul = FLOAT_STRUCT->get_slot(Slot::BIN_MUL);
+    auto f_div = FLOAT_STRUCT->get_slot(Slot::BIN_DIV);
+
+
+    void Vm::bin_alt(const NativeMethodPtr &meth, const char *op_name) {
+        alt[0] = peek();
+        auto res = meth(peek(1), alt);
+        if (!res.has_value()) {
+            runtime_error(fmt::format("unable to {} values of type {} and {}, {}", op_name,
+                                      get_type_name(peek(1)), get_type_name(peek()), res.error()));
+            m_stack_pointer-=2;
+            return;
+        }
+
+        m_stack_pointer-=2;
+        push(res.value());
+    }
+
     /**
  * @brief Performs a binary operation on the top two values on the stack.
  *
@@ -215,8 +243,8 @@ namespace bond {
             auto result = call_slot(slot, left, {right});
 
             if (!result) {
-                runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
-                                          get_type_name(left), get_type_name(right)));
+                runtime_error(fmt::format("unable to {} values of type {} and {}, ", op_name,
+                                          get_type_name(left), get_type_name(right), result.error()));
                 return;
             }
 
@@ -439,7 +467,7 @@ namespace bond {
 
                 case Opcode::IMPORT_PRE_COMPILED: {
                     auto id = m_current_frame->get_oprand();
-                    auto alias = pop()->as<String>()->get_value();
+                    auto &alias = pop()->as<String>()->get_value_ref();
                     auto module = Import::instance().get_pre_compiled(id);
                     if (!module.has_value()) {
                         runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
@@ -450,9 +478,9 @@ namespace bond {
                 }
 
                 case Opcode::IMPORT: {
-                    auto path = pop()->as<String>()->get_value();
+                    auto &path = pop()->as<String>()->get_value_ref();
                     auto constant = m_current_frame->get_constant();
-                    auto alias = constant->as<String>()->get_value();
+                    auto &alias = constant->as<String>()->get_value_ref();
 
 
                     auto module = Import::instance().import_module(m_ctx, path, alias);
@@ -467,18 +495,53 @@ namespace bond {
                     break;
                 }
                 case Opcode::BIN_ADD:
+                    if (peek(1)->is<Int>()) {
+                        bin_alt(i_add, "add");
+                        break;
+                    }
+
+                    if (peek(1)->is<Float>()) {
+                        bin_alt(f_add, "add");
+                        break;
+                    }
                     bin_op(Slot::BIN_ADD, "add");
                     break;
 
                 case Opcode::BIN_SUB:
+                    if (peek(1)->is<Int>()) {
+                        bin_alt(i_sub, "subtract");
+                        break;
+                    }
+                    if (peek(1)->is<Float>()) {
+                        bin_alt(f_sub, "subtract");
+                        break;
+                    }
                     bin_op(Slot::BIN_SUB, "subtract");
                     break;
 
                 case Opcode::BIN_MUL:
+                    if (peek(1)->is<Int>()) {
+                        bin_alt(i_mul, "multiply");
+                        break;
+                    }
+
+                    if (peek(1)->is<Float>()) {
+                        bin_alt(f_mul, "multiply");
+                        break;
+                    }
                     bin_op(Slot::BIN_MUL, "multiply");
                     break;
 
                 case Opcode::BIN_DIV:
+                    if (peek(1)->is<Int>()) {
+                        bin_alt(i_div, "divide");
+                        break;
+                    }
+
+                    if (peek(1)->is<Float>()) {
+                        bin_alt(f_div, "divide");
+                        break;
+                    }
                     bin_op(Slot::BIN_DIV, "divide");
                     break;
 
@@ -552,7 +615,7 @@ namespace bond {
                     push(m_Nil);
                     break;
                 case Opcode::LOAD_GLOBAL: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     if (!m_current_frame->has_global(name)) {
                         auto err = fmt::format("Global variable {} is not defined at this point",
                                                name);
@@ -564,13 +627,13 @@ namespace bond {
                     break;
                 }
                 case Opcode::CREATE_GLOBAL: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = pop();
                     m_current_frame->set_global(name, expr);
                     break;
                 }
                 case Opcode::STORE_GLOBAL: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = peek();
 
                     m_current_frame->set_global(name, expr);
@@ -578,7 +641,7 @@ namespace bond {
                 }
 
                 case Opcode::CREATE_LOCAL: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = pop();
 
                     m_current_frame->set_local(name, expr);
@@ -586,7 +649,7 @@ namespace bond {
                 }
 
                 case Opcode::STORE_FAST: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = peek();
 
                     m_current_frame->set_local(name, expr);
@@ -594,7 +657,7 @@ namespace bond {
                 }
 
                 case Opcode::LOAD_FAST: {
-                    auto name = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
 //        if (!m_current_frame->has_local(name)) {
 //          auto err = fmt::format("Local variable {} does not exist", name->as<String>()->get_value());
 //          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
@@ -741,7 +804,7 @@ namespace bond {
                     if (next.get() == nullptr) {
                         continue;
                     }
-                    auto local = m_current_frame->get_constant()->as<String>()->get_value();
+                    auto &local = m_current_frame->get_constant()->as<String>()->get_value_ref();
                     m_current_frame->set_local(local, next);
                     break;
                 }
@@ -764,10 +827,13 @@ namespace bond {
                 case Opcode::CALL: {
                     auto arg_count = m_current_frame->get_oprand();
                     m_args.clear();
+                    m_args.resize(arg_count);
 
-                    for (int i = 0; i < arg_count; i++) {
-                        m_args.insert(m_args.begin(), pop());
+                    for (int i = arg_count - 1; i >= 0; i--) {
+                        m_args[i] = pop();
                     }
+
+                    std::reverse(m_args.begin(), m_args.end());
 
                     call_object(pop(), m_args);
                     continue;
@@ -784,7 +850,7 @@ namespace bond {
                     auto obj = pop();
 
                     if (obj->is<NativeInstance>()) {
-                        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value());
+                        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value_ref());
                         if (result.has_value()) {
                             auto res = result.value();
                             if (res.has_value()) {
@@ -816,7 +882,7 @@ namespace bond {
                     auto obj = pop();
 
                     if (obj->is<NativeInstance>()) {
-                        auto result = obj->as<NativeInstance>()->set_attr(attr->as<String>()->get_value(), value);
+                        auto result = obj->as<NativeInstance>()->set_attr(attr->as<String>()->get_value_ref(), value);
                         if (result.has_value()) {
                             auto res = result.value();
                             if (res.has_value()) {
@@ -919,13 +985,15 @@ namespace bond {
 
                 case Opcode::CALL_METHOD: {
                     auto arg_size = m_current_frame->get_oprand();
+                    m_args.clear();
+                    m_args.resize(arg_size);
 
-                    t_vector args;
-                    for (size_t i = 0; i < arg_size; i++) {
-                        args.insert(args.begin(), pop());
+                    for (size_t i = arg_size; i > 0; i--) {
+                        m_args[i - 1] = pop();
                     }
 
-                    auto name = pop()->as<String>()->get_value();
+
+                    auto &name = pop()->as<String>()->get_value_ref();
                     auto obj = pop();
 
                     if (!obj->is<NativeInstance>()) {
@@ -936,7 +1004,7 @@ namespace bond {
 
                     auto o = obj->as<NativeInstance>();
                     if (o->has_method(name)) {
-                        auto res = o->call_method(name, args);
+                        auto res = o->call_method(name, m_args);
 
                         if (!res.has_value()) {
                             runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()));
@@ -954,7 +1022,7 @@ namespace bond {
                             auto attr = call_slot(Slot::GET_ATTR, obj, {make_string(name)});
 
                             if (attr.has_value()) {
-                                call_object(attr.value(), args);
+                                call_object(attr.value(), m_args);
                                 break;
                             }
 
@@ -962,7 +1030,7 @@ namespace bond {
                             break;
                         }
 
-                        setup_bound_call(o, meth.value()->as<Function>(), args);
+                        setup_bound_call(o, meth.value()->as<Function>(), m_args);
                         break;
                     } else if (obj->is<Struct>()) {
                         auto o = obj->as<Struct>();
@@ -973,7 +1041,7 @@ namespace bond {
                                     fmt::format("static method {} does not exist in struct {}", name, o->get_name()));
                             break;
                         }
-                        call_function(meth.value(), args);
+                        call_function(meth.value(), m_args);
                         break;
                     } else if (obj->is<Module>()) {
                         auto o = obj->as<Module>();
@@ -983,7 +1051,7 @@ namespace bond {
                             runtime_error(fmt::format("method {} does not exist in module {}", name, o->get_path()));
                             break;
                         }
-                        call_object(meth.value(), args);
+                        call_object(meth.value(), m_args);
                         break;
                     }
 

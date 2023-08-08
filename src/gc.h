@@ -17,7 +17,7 @@
 #include <cassert>
 #include <thread>
 
-#define DEBUG
+#undef DEBUG
 #define GC_BUILD
 
 #ifdef DEBUG
@@ -25,7 +25,6 @@
 #endif
 
 #define ALL_INTERIOR_POINTERS
-#define DBG_HDRS_ALL
 #define GC_THREADS
 
 #include <gc.h>

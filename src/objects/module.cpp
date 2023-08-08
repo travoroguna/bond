@@ -36,7 +36,7 @@ namespace bond {
         auto opt = parse_args(args, name);
         TRY(opt);
 
-        auto res = self->get_attribute(name->get_value());
+        auto res = self->get_attribute(name->get_value_ref());
 
         if (res.has_value()) {
             return OK(res.value());
