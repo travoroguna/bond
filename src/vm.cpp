@@ -3,24 +3,27 @@
 //
 
 #include "vm.h"
-#include "import.h"
 #include "compiler/lexer.h"
+#include "import.h"
+#include "object.h"
 
 #include <filesystem>
 
-
 namespace bond {
 
-#define TODO() runtime_error("not implemented", RuntimeError::GenericError, m_current_frame->get_span())
+#define TODO()                                                                 \
+  runtime_error("not implemented", RuntimeError::GenericError,                 \
+                m_current_frame->get_span())
 
     static t_vector alt;
 
     void Vm::run(const GcPtr<Code> &code) {
+        init_bin_funcs();
         alt.resize(1);
         m_stop = false;
 
-        auto func = FUNCTION_STRUCT->create_immortal<Function>("__main__",
-                                                               std::vector<std::shared_ptr<Param>>(), code);
+        auto func = FUNCTION_STRUCT->create_immortal<Function>(
+                "__main__", std::vector<std::shared_ptr<Param>>(), code);
 
         func->set_globals(m_globals);
         push(func);
@@ -28,14 +31,14 @@ namespace bond {
         exec();
     }
 
-
     void Vm::update_frame_pointer() {
         m_frame_pointer++;
 
         if (m_frame_pointer >= FRAME_MAX) {
             const char *stack_overflow_error = "stack overflow";
             if (m_current_frame != nullptr) {
-                runtime_error(stack_overflow_error, RuntimeError::GenericError, m_current_frame->get_span());
+                runtime_error(stack_overflow_error, RuntimeError::GenericError,
+                              m_current_frame->get_span());
             } else {
                 runtime_error(stack_overflow_error, RuntimeError::GenericError);
             }
@@ -45,9 +48,11 @@ namespace bond {
 
     void Vm::check_argument_count(const t_vector &args, const VectorArgs &params) {
         if (args.size() != params.size()) {
-            auto error_message = fmt::format("expected {} arguments, got {}", params.size(), args.size());
+            auto error_message = fmt::format("expected {} arguments, got {}",
+                                             params.size(), args.size());
             if (m_current_frame != nullptr) {
-                runtime_error(error_message, RuntimeError::GenericError, m_current_frame->get_span());
+                runtime_error(error_message, RuntimeError::GenericError,
+                              m_current_frame->get_span());
             } else {
                 runtime_error(error_message, RuntimeError::GenericError);
             }
@@ -56,7 +61,8 @@ namespace bond {
         }
     }
 
-    void Vm::set_local_arguments(Frame *frame, const t_vector &args, const VectorArgs &params,
+    void Vm::set_local_arguments(Frame *frame, const t_vector &args,
+                                 const VectorArgs &params,
                                  const GcPtr<StringMap> &locals) {
         auto local_args = MAP_STRUCT->create_instance<StringMap>();
 
@@ -70,11 +76,11 @@ namespace bond {
             }
         }
 
-
         frame->set_locals(local_args);
     }
 
-    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args, const GcPtr<StringMap> &locals) {
+    void Vm::call_function(const GcPtr<Function> &function, const t_vector &args,
+                           const GcPtr<StringMap> &locals) {
 
         auto frame = &m_frames[m_frame_pointer];
 
@@ -96,14 +102,13 @@ namespace bond {
         m_current_frame = frame;
     }
 
-
-    void Vm::setup_bound_call(const GcPtr<Object> &instance, const GcPtr<Function> &function, t_vector &args) {
+    void Vm::setup_bound_call(const GcPtr<Object> &instance,
+                              const GcPtr<Function> &function, t_vector &args) {
         auto params = function->get_arguments();
         if (params.size() - 1 != args.size()) {
-            runtime_error(fmt::format("expected {} arguments, got {}", params.size() - 1,
-                                      args.size()),
-                          RuntimeError::GenericError,
-                          m_current_frame->get_span());
+            runtime_error(fmt::format("expected {} arguments, got {}",
+                                      params.size() - 1, args.size()),
+                          RuntimeError::GenericError, m_current_frame->get_span());
             return;
         }
 
@@ -111,19 +116,21 @@ namespace bond {
         call_function(function, args);
     }
 
-    void Vm::call_bound_method(const GcPtr<BoundMethod> &bound_method, t_vector &args) {
+    void Vm::call_bound_method(const GcPtr<BoundMethod> &bound_method,
+                               t_vector &args) {
         auto method = bound_method->get_method()->as<Function>();
         setup_bound_call(bound_method->get_instance(), method, args);
     }
 
-
-    /**
- * \fn void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args)
- * \brief Creates an instance of a given struct with the provided arguments.
+/**
+ * \fn void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector
+ * &args) \brief Creates an instance of a given struct with the provided
+ * arguments.
  *
- * This function takes a reference to a struct and a vector of arguments and creates an instance of the struct
- * with the provided arguments. The number of arguments must match the number of fields in the struct. If the
- * number of arguments does not match, a runtime error is thrown and the function returns.
+ * This function takes a reference to a struct and a vector of arguments and
+ * creates an instance of the struct with the provided arguments. The number of
+ * arguments must match the number of fields in the struct. If the number of
+ * arguments does not match, a runtime error is thrown and the function returns.
  *
  * \param _struct Reference to the struct to create an instance of.
  * \param args Vector of arguments.
@@ -132,9 +139,9 @@ namespace bond {
     void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args) {
         auto variables = _struct->get_fields();
         if (variables.size() != args.size()) {
-            runtime_error(fmt::format("expected {} arguments, got {}", variables.size(), args.size()),
-                          RuntimeError::GenericError,
-                          m_current_frame->get_span());
+            runtime_error(fmt::format("expected {} arguments, got {}", variables.size(),
+                                      args.size()),
+                          RuntimeError::GenericError, m_current_frame->get_span());
             return;
         }
 
@@ -147,7 +154,8 @@ namespace bond {
         push(_struct->create_instance(fields));
     }
 
-    void Vm::runtime_error(const std::string &error, RuntimeError e, const SharedSpan &span) {
+    void Vm::runtime_error(const std::string &error, RuntimeError e,
+                           const SharedSpan &span) {
 
         std::string err;
         switch (e) {
@@ -170,15 +178,15 @@ namespace bond {
         m_stop = true;
         m_has_error = true;
 
-
         push(make_string(err));
 
         for (size_t i = 0; i < m_frame_pointer; i++) {
-            if (m_frames[i].get_function().get() == nullptr) continue;
+            if (m_frames[i].get_function().get() == nullptr)
+                continue;
             m_ctx->error(m_frames[i].get_span(), "");
         }
 
-//        m_ctx->error(span, err);
+        //        m_ctx->error(span, err);
         fmt::print(" {}\n", err);
     }
 
@@ -197,41 +205,53 @@ namespace bond {
         push(make_string(error));
     }
 
-    auto i_add = INT_STRUCT->get_slot(Slot::BIN_ADD);
-    auto i_sub = INT_STRUCT->get_slot(Slot::BIN_SUB);
-    auto i_mul = INT_STRUCT->get_slot(Slot::BIN_MUL);
-    auto i_div = INT_STRUCT->get_slot(Slot::BIN_DIV);
+    static NativeMethodPtr i_add;
+    static NativeMethodPtr i_sub;
+    static NativeMethodPtr i_mul;
+    static NativeMethodPtr i_div;
 
-    auto f_add = FLOAT_STRUCT->get_slot(Slot::BIN_ADD);
-    auto f_sub = FLOAT_STRUCT->get_slot(Slot::BIN_SUB);
-    auto f_mul = FLOAT_STRUCT->get_slot(Slot::BIN_MUL);
-    auto f_div = FLOAT_STRUCT->get_slot(Slot::BIN_DIV);
+    static NativeMethodPtr f_add;
+    static NativeMethodPtr f_sub;
+    static NativeMethodPtr f_mul;
+    static NativeMethodPtr f_div;
 
+    void Vm::init_bin_funcs() {
+        i_add = INT_STRUCT->get_slot(Slot::BIN_ADD);
+        i_sub = INT_STRUCT->get_slot(Slot::BIN_SUB);
+        i_mul = INT_STRUCT->get_slot(Slot::BIN_MUL);
+        i_div = INT_STRUCT->get_slot(Slot::BIN_DIV);
+
+        f_add = FLOAT_STRUCT->get_slot(Slot::BIN_ADD);
+        f_sub = FLOAT_STRUCT->get_slot(Slot::BIN_SUB);
+        f_mul = FLOAT_STRUCT->get_slot(Slot::BIN_MUL);
+        f_div = FLOAT_STRUCT->get_slot(Slot::BIN_DIV);
+    }
 
     void Vm::bin_alt(const NativeMethodPtr &meth, const char *op_name) {
         alt[0] = peek();
         auto res = meth(peek(1), alt);
         if (!res.has_value()) {
-            runtime_error(fmt::format("unable to {} values of type {} and {}, {}", op_name,
-                                      get_type_name(peek(1)), get_type_name(peek()), res.error()));
-            m_stack_pointer-=2;
+            runtime_error(fmt::format("unable to {} values of type {} and {}, {}",
+                                      op_name, get_type_name(peek(1)),
+                                      get_type_name(peek()), res.error()));
+            m_stack_pointer -= 2;
             return;
         }
 
-        m_stack_pointer-=2;
+        m_stack_pointer -= 2;
         push(res.value());
     }
 
-    /**
+/**
  * @brief Performs a binary operation on the top two values on the stack.
  *
- * This function performs a binary operation specified by the provided slot on the top two values on the stack.
- * The operation is performed according to the value types of the top two values on the stack. If both values are
- * instances of the NativeInstance class, the operation is performed using the specified slot, and the result is
- * pushed back onto the stack. If the values are not instances of the NativeInstance class, a runtime error is
- * raised with an appropriate error message.
+ * This function performs a binary operation specified by the provided slot on
+ * the top two values on the stack. The operation is performed according to the
+ * value types of the top two values on the stack. If both values are instances
+ * of the NativeInstance class, the operation is performed using the specified
+ * slot, and the result is pushed back onto the stack. If the values are not
  *
- * @param slot The slot to call for the binary operation.
+ * @aram slot The slot to call for the binary operation.
  * @param op_name The name of the binary operation.
  */
 
@@ -243,8 +263,9 @@ namespace bond {
             auto result = call_slot(slot, left, {right});
 
             if (!result) {
-                runtime_error(fmt::format("unable to {} values of type {} and {}, ", op_name,
-                                          get_type_name(left), get_type_name(right), result.error()));
+                runtime_error(fmt::format("unable to {} values of type {} and {}, ",
+                                          op_name, get_type_name(left),
+                                          get_type_name(right), result.error()));
                 return;
             }
 
@@ -252,12 +273,13 @@ namespace bond {
             return;
         }
 
-        //TODO: better error reporting
-        runtime_error(fmt::format("unable to {} values of type {} and {}", op_name, peek(1).type_name(),
-                                  peek().type_name()), RuntimeError::TypeError);
+        // TODO: better error reporting
+        runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
+                                  peek(1).type_name(), peek().type_name()),
+                      RuntimeError::TypeError);
     }
 
-    /**
+/**
  * @brief Performs a comparison operation on two values.
  *
  * This function compares the values of the top two slots on the stack.
@@ -266,7 +288,8 @@ namespace bond {
  * @param slot The slot to perform the comparison operation on.
  * @param op_name The name of the comparison operation.
  *
- * @throws RuntimeError If the values on the stack are not of type NativeInstance.
+ * @throws RuntimeError If the values on the stack are not of type
+ * NativeInstance.
  * @throws RuntimeError If the left value does not have the specified slot.
  *
  * @see Vm::peek()
@@ -277,26 +300,30 @@ namespace bond {
 
     void Vm::compare_op(Slot slot, const std::string &op_name) {
         if (!peek(1)->is<NativeInstance>() or !peek()->is<NativeInstance>()) {
-            runtime_error(fmt::format("unable to {} values of type {} and {}", op_name, peek(1).type_name(),
-                                      peek().type_name()), RuntimeError::TypeError);
+            runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
+                                      peek(1).type_name(), peek().type_name()),
+                          RuntimeError::TypeError);
             return;
         }
 
         auto right = pop()->as<NativeInstance>();
         auto left = pop()->as<NativeInstance>();
         if (left->has_slot(slot)) {
-            auto result = call_slot(slot, left, {right}, "unable to {} values of type {} and {}", op_name,
-                                    get_type_name(left), get_type_name(right));
+            auto result =
+                    call_slot(slot, left, {right}, "unable to {} values of type {} and {}",
+                              op_name, get_type_name(left), get_type_name(right));
             push(result);
             return;
         }
-        auto result = call_slot(slot, right, {left}, "unable to {} values of type {} and {}", op_name,
-                                get_type_name(left), get_type_name(right));
+        auto result =
+                call_slot(slot, right, {left}, "unable to {} values of type {} and {}",
+                          op_name, get_type_name(left), get_type_name(right));
         push(result);
     }
 
-    /**
- * \brief Calls the specified slot on the given instance with the provided arguments.
+/**
+ * \brief Calls the specified slot on the given instance with the provided
+ * arguments.
  *
  * \tparam T Variadic template parameter for formatting arguments.
  * \param slot The slot to call.
@@ -304,20 +331,22 @@ namespace bond {
  * \param args The arguments to pass to the slot.
  * \param fmt The format string for runtime errors.
  * \param fmt_args The formatting arguments for the format string.
- * \return A GcPtr<Object> representing the result of the slot call, or nullptr if there was an error.
+ * \return A GcPtr<Object> representing the result of the slot call, or nullptr
+ * if there was an error.
  */
 
-    template<typename ...T>
+    template<typename... T>
     [[nodiscard]] GcPtr<Object>
-    Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args, fmt::format_string<T...> fmt,
-                  T &&... fmt_args) {
+    Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args,
+                  fmt::format_string<T...> fmt, T &&...fmt_args) {
         if (!instance->is<NativeInstance>()) {
             runtime_error(vformat(fmt, fmt::make_format_args(fmt_args...)));
             m_stop = true;
             return nullptr;
         }
 
-        if (instance->is<Instance>() and slot != Slot::GET_ATTR and slot != Slot::SET_ATTR) {
+        if (instance->is<Instance>() and slot != Slot::GET_ATTR and
+            slot != Slot::SET_ATTR) {
             auto result = instance->as<Instance>()->call_slot(slot, {});
 
             if (!result.has_value()) {
@@ -344,14 +373,15 @@ namespace bond {
 
         if (!result.has_value()) {
             auto error = vformat(fmt, fmt::make_format_args(fmt_args...));
-            runtime_error(fmt::format("{}  \nError {} {}", error,
-                                      instance->as<NativeInstance>()->get_native_struct()->get_name(), result.error()));
+            runtime_error(fmt::format(
+                    "{}  \nError {} {}", error,
+                    instance->as<NativeInstance>()->get_native_struct()->get_name(),
+                    result.error()));
             return nullptr;
         }
 
         return *result;
     }
-
 
     bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
         call_object(obj, args);
@@ -362,11 +392,13 @@ namespace bond {
     std::expected<GcPtr<Object>, std::string>
     Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args) {
         if (!instance->is<NativeInstance>()) {
-            return std::unexpected(fmt::format("unable to call slot {} on value of type {}", Slot_to_string(slot),
-                                               get_type_name(instance)));
+            return std::unexpected(
+                    fmt::format("unable to call slot {} on value of type {}",
+                                Slot_to_string(slot), get_type_name(instance)));
         }
 
-        if (instance->is<Instance>() and slot != Slot::GET_ATTR and slot != Slot::SET_ATTR) {
+        if (instance->is<Instance>() and slot != Slot::GET_ATTR and
+            slot != Slot::SET_ATTR) {
             auto res = instance->as<Instance>()->call_slot(slot, {});
             TRY(res);
 
@@ -447,9 +479,9 @@ namespace bond {
         call_function(cl->get_function(), args, cl->get_up_values());
     }
 
-
     void Vm::exec(uint32_t stop_frame) {
-        if (m_frame_pointer == 0) return;
+        if (m_frame_pointer == 0)
+            return;
         while (!m_stop) {
 
             auto opcode = m_current_frame->get_opcode();
@@ -470,7 +502,8 @@ namespace bond {
                     auto &alias = pop()->as<String>()->get_value_ref();
                     auto module = Import::instance().get_pre_compiled(id);
                     if (!module.has_value()) {
-                        runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
+                        runtime_error(module.error(), RuntimeError::GenericError,
+                                      m_current_frame->get_span());
                         continue;
                     }
                     m_current_frame->set_global(alias, module.value());
@@ -482,15 +515,16 @@ namespace bond {
                     auto constant = m_current_frame->get_constant();
                     auto &alias = constant->as<String>()->get_value_ref();
 
-
                     auto module = Import::instance().import_module(m_ctx, path, alias);
 
                     if (!module.has_value()) {
-                        runtime_error(module.error(), RuntimeError::GenericError, m_current_frame->get_span());
+                        runtime_error(module.error(), RuntimeError::GenericError,
+                                      m_current_frame->get_span());
                         continue;
                     }
 
-                    if (m_ctx->has_error()) m_stop = true;
+                    if (m_ctx->has_error())
+                        m_stop = true;
                     m_current_frame->set_global(alias, module.value());
                     break;
                 }
@@ -573,7 +607,8 @@ namespace bond {
                         auto jmp = m_current_frame->get_oprand();
                         if (result->has_error()) {
                             if (m_frame_pointer == 1) {
-                                runtime_error(result->str(), RuntimeError::GenericError, m_current_frame->get_span());
+                                runtime_error(result->str(), RuntimeError::GenericError,
+                                              m_current_frame->get_span());
                                 break;
                             }
                             push(result);
@@ -584,8 +619,8 @@ namespace bond {
                             break;
                         }
                     }
-                    runtime_error("try statement expects a Result", RuntimeError::GenericError,
-                                  m_current_frame->get_span());
+                    runtime_error("try statement expects a Result",
+                                  RuntimeError::GenericError, m_current_frame->get_span());
                     break;
                 }
                 case Opcode::RETURN: {
@@ -615,11 +650,13 @@ namespace bond {
                     push(m_Nil);
                     break;
                 case Opcode::LOAD_GLOBAL: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     if (!m_current_frame->has_global(name)) {
-                        auto err = fmt::format("Global variable {} is not defined at this point",
-                                               name);
-                        runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
+                        auto err = fmt::format(
+                                "Global variable {} is not defined at this point", name);
+                        runtime_error(err, RuntimeError::GenericError,
+                                      m_current_frame->get_span());
                         continue;
                     }
                     push(m_current_frame->get_global(name));
@@ -627,13 +664,15 @@ namespace bond {
                     break;
                 }
                 case Opcode::CREATE_GLOBAL: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = pop();
                     m_current_frame->set_global(name, expr);
                     break;
                 }
                 case Opcode::STORE_GLOBAL: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = peek();
 
                     m_current_frame->set_global(name, expr);
@@ -641,7 +680,8 @@ namespace bond {
                 }
 
                 case Opcode::CREATE_LOCAL: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = pop();
 
                     m_current_frame->set_local(name, expr);
@@ -649,7 +689,8 @@ namespace bond {
                 }
 
                 case Opcode::STORE_FAST: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     auto expr = peek();
 
                     m_current_frame->set_local(name, expr);
@@ -657,12 +698,14 @@ namespace bond {
                 }
 
                 case Opcode::LOAD_FAST: {
-                    auto &name = m_current_frame->get_constant()->as<String>()->get_value_ref();
-//        if (!m_current_frame->has_local(name)) {
-//          auto err = fmt::format("Local variable {} does not exist", name->as<String>()->get_value());
-//          runtime_error(err, RuntimeError::GenericError, m_current_frame->get_span());
-//          continue;
-//        }
+                    auto &name =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    //        if (!m_current_frame->has_local(name)) {
+                    //          auto err = fmt::format("Local variable {} does not exist",
+                    //          name->as<String>()->get_value()); runtime_error(err,
+                    //          RuntimeError::GenericError, m_current_frame->get_span());
+                    //          continue;
+                    //        }
                     push(m_current_frame->get_local(name));
                     break;
                 }
@@ -670,8 +713,7 @@ namespace bond {
                 case Opcode::POP_TOP: {
                     if (peek()->is<Result>()) {
                         runtime_error(fmt::format("result must be handled: {}", pop()->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                                      RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
                     pop();
@@ -679,7 +721,6 @@ namespace bond {
                     break;
 
                 case Opcode::BUILD_LIST: {
-
 
                     auto size = m_current_frame->get_oprand();
                     auto list = LIST_STRUCT->create_instance<List>();
@@ -704,7 +745,8 @@ namespace bond {
                     auto index = pop();
                     auto list = pop();
 
-                    push(call_slot(Slot::SET_ITEM, list, {index, value}, "unable to set item"));
+                    push(call_slot(Slot::SET_ITEM, list, {index, value},
+                                   "unable to set item"));
                     break;
                 }
 
@@ -728,7 +770,6 @@ namespace bond {
 
                 case Opcode::OR: {
 
-
                     auto right = pop();
                     auto left = pop();
 
@@ -743,7 +784,6 @@ namespace bond {
                 }
 
                 case Opcode::AND: {
-
 
                     auto right = pop();
                     auto left = pop();
@@ -765,8 +805,9 @@ namespace bond {
                 case Opcode::ITER: {
                     auto expr = pop();
 
-                    auto iter = call_slot(Slot::ITER, expr, {},
-                                          "unable to iterate over expression\n  __iter__ is not defined");
+                    auto iter = call_slot(
+                            Slot::ITER, expr, {},
+                            "unable to iterate over expression\n  __iter__ is not defined");
 
                     if (iter.get() == nullptr) {
                         continue;
@@ -774,24 +815,27 @@ namespace bond {
 
                     auto iterator = iter->as<NativeInstance>();
                     if (iterator.get() == nullptr) {
-                        runtime_error(fmt::format("unable to iterate over {}\n  iterator is not an instance",
-                                                  iterator->str()));
+                        runtime_error(fmt::format(
+                                "unable to iterate over {}\n  iterator is not an instance",
+                                iterator->str()));
                         continue;
                     }
 
                     if (!iterator->has_slot(Slot::NEXT)) {
                         runtime_error(
-                                fmt::format("unable to iterate over {}, __next__ is not implemented", iterator->str()),
-                                RuntimeError::GenericError,
-                                m_current_frame->get_span());
+                                fmt::format(
+                                        "unable to iterate over {}, __next__ is not implemented",
+                                        iterator->str()),
+                                RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
                     if (!iterator->has_slot(Slot::HAS_NEXT)) {
-                        runtime_error(fmt::format("unable to iterate over {}, __has_next__ is not implemented",
-                                                  iterator->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                        runtime_error(
+                                fmt::format(
+                                        "unable to iterate over {}, __has_next__ is not implemented",
+                                        iterator->str()),
+                                RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
@@ -804,14 +848,16 @@ namespace bond {
                     if (next.get() == nullptr) {
                         continue;
                     }
-                    auto &local = m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &local =
+                            m_current_frame->get_constant()->as<String>()->get_value_ref();
                     m_current_frame->set_local(local, next);
                     break;
                 }
 
                 case Opcode::ITER_END: {
-                    auto next = call_slot(Slot::HAS_NEXT, peek(), {}, "unable to get next item on {}",
-                                          get_type_name(peek()));
+                    auto next =
+                            call_slot(Slot::HAS_NEXT, peek(), {}, "unable to get next item on {}",
+                                      get_type_name(peek()));
                     if (next.get() == nullptr) {
                         continue;
                     }
@@ -833,11 +879,8 @@ namespace bond {
                         m_args[i] = pop();
                     }
 
-                    std::reverse(m_args.begin(), m_args.end());
-
                     call_object(pop(), m_args);
                     continue;
-
                 }
                 case Opcode::CREATE_STRUCT: {
                     auto st = m_current_frame->get_constant();
@@ -850,26 +893,26 @@ namespace bond {
                     auto obj = pop();
 
                     if (obj->is<NativeInstance>()) {
-                        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value_ref());
+                        auto result = obj->as<NativeInstance>()->get_attr(
+                                attr->as<String>()->get_value_ref());
                         if (result.has_value()) {
                             auto res = result.value();
                             if (res.has_value()) {
                                 push(res.value());
                                 break;
                             } else {
-                                runtime_error(
-                                        fmt::format("unable to get attribute {} of {}\n  {}", attr->str(), obj->str(),
-                                                    res.error()));
+                                runtime_error(fmt::format("unable to get attribute {} of {}\n  {}",
+                                                          attr->str(), obj->str(), res.error()));
                                 continue;
                             }
                         }
                     }
 
-
                     auto call_res = call_slot(Slot::GET_ATTR, obj, {attr});
 
                     if (!call_res.has_value()) {
-                        runtime_error(fmt::format("unable to get attribute {} of {}", attr->str(), obj->str()));
+                        runtime_error(fmt::format("unable to get attribute {} of {}",
+                                                  attr->str(), obj->str()));
                         continue;
                     }
                     push(call_res.value());
@@ -882,21 +925,22 @@ namespace bond {
                     auto obj = pop();
 
                     if (obj->is<NativeInstance>()) {
-                        auto result = obj->as<NativeInstance>()->set_attr(attr->as<String>()->get_value_ref(), value);
+                        auto result = obj->as<NativeInstance>()->set_attr(
+                                attr->as<String>()->get_value_ref(), value);
                         if (result.has_value()) {
                             auto res = result.value();
                             if (res.has_value()) {
                                 push(res.value());
                                 break;
                             } else {
-                                runtime_error(
-                                        fmt::format("unable to set attribute {} of {}\n  {}", attr->str(), obj->str(),
-                                                    res.error()));
+                                runtime_error(fmt::format("unable to set attribute {} of {}\n  {}",
+                                                          attr->str(), obj->str(), res.error()));
                                 continue;
                             }
                         }
                     }
-                    push(call_slot(Slot::SET_ATTR, obj, {attr, value}, "unable to set attribute {} of {}", attr->str(),
+                    push(call_slot(Slot::SET_ATTR, obj, {attr, value},
+                                   "unable to set attribute {} of {}", attr->str(),
                                    obj->str()));
                     break;
                 }
@@ -924,8 +968,7 @@ namespace bond {
                     }
 
                     runtime_error(fmt::format("unable to apply unary - to {}", obj->str()),
-                                  RuntimeError::GenericError,
-                                  m_current_frame->get_span());
+                                  RuntimeError::GenericError, m_current_frame->get_span());
                     continue;
                 }
                 case Opcode::NOT: {
@@ -940,9 +983,9 @@ namespace bond {
                     auto left = pop();
 
                     if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply | to {} and {}", left->str(), right->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                        runtime_error(fmt::format("unable to apply | to {} and {}", left->str(),
+                                                  right->str()),
+                                      RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
@@ -956,9 +999,9 @@ namespace bond {
                     auto left = pop();
 
                     if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply & to {} and {}", left->str(), right->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                        runtime_error(fmt::format("unable to apply & to {} and {}", left->str(),
+                                                  right->str()),
+                                      RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
@@ -972,9 +1015,9 @@ namespace bond {
                     auto left = pop();
 
                     if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(), right->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                        runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(),
+                                                  right->str()),
+                                      RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
@@ -992,14 +1035,13 @@ namespace bond {
                         m_args[i - 1] = pop();
                     }
 
-
                     auto &name = pop()->as<String>()->get_value_ref();
                     auto obj = pop();
 
                     if (!obj->is<NativeInstance>()) {
-                        runtime_error(fmt::format("method {} of {} does not exist", name, obj->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                        runtime_error(
+                                fmt::format("method {} of {} does not exist", name, obj->str()),
+                                RuntimeError::GenericError, m_current_frame->get_span());
                     }
 
                     auto o = obj->as<NativeInstance>();
@@ -1007,7 +1049,8 @@ namespace bond {
                         auto res = o->call_method(name, m_args);
 
                         if (!res.has_value()) {
-                            runtime_error(fmt::format("unable to call method {}\n  {}", name, res.error()));
+                            runtime_error(
+                                    fmt::format("unable to call method {}\n  {}", name, res.error()));
                             break;
                         }
                         push(res.value());
@@ -1026,7 +1069,8 @@ namespace bond {
                                 break;
                             }
 
-                            runtime_error(fmt::format("attribute {} is not callable \n  {}", name, meth.error()));
+                            runtime_error(fmt::format("attribute {} is not callable \n  {}", name,
+                                                      meth.error()));
                             break;
                         }
 
@@ -1038,7 +1082,8 @@ namespace bond {
 
                         if (!meth.has_value()) {
                             runtime_error(
-                                    fmt::format("static method {} does not exist in struct {}", name, o->get_name()));
+                                    fmt::format("static method {} does not exist in struct {}", name,
+                                                o->get_name()));
                             break;
                         }
                         call_function(meth.value(), m_args);
@@ -1048,29 +1093,29 @@ namespace bond {
                         auto meth = o->get_attribute(name);
 
                         if (!meth.has_value()) {
-                            runtime_error(fmt::format("method {} does not exist in module {}", name, o->get_path()));
+                            runtime_error(fmt::format("method {} does not exist in module {}",
+                                                      name, o->get_path()));
                             break;
                         }
                         call_object(meth.value(), m_args);
                         break;
                     }
 
-                    runtime_error(fmt::format("method {} of type {} does not exist", name, get_type_name(obj)),
+                    runtime_error(fmt::format("method {} of type {} does not exist", name,
+                                              get_type_name(obj)),
                                   RuntimeError::AttributeNotFound,
                                   m_current_frame->get_span());
                     break;
                 }
 
-
                 case Opcode::UNPACK_SEQ: {
                     auto obj = pop();
                     auto count = m_current_frame->get_oprand();
 
-                    //check if instance
+                    // check if instance
                     if (!obj->is<NativeInstance>()) {
                         runtime_error(fmt::format("unable to unpack {}", obj->str()),
-                                      RuntimeError::GenericError,
-                                      m_current_frame->get_span());
+                                      RuntimeError::GenericError, m_current_frame->get_span());
                         continue;
                     }
 
@@ -1078,33 +1123,38 @@ namespace bond {
 
                     // check iter
                     if (!o->has_slot(Slot::ITER)) {
-                        runtime_error(fmt::format("object of type {} is not iterable", get_type_name(o)));
+                        runtime_error(
+                                fmt::format("object of type {} is not iterable", get_type_name(o)));
                         continue;
                     }
 
-                    auto iter = call_slot(Slot::ITER, o, {}, "unable to unpack object of type {}", get_type_name(obj));
+                    auto iter =
+                            call_slot(Slot::ITER, o, {}, "unable to unpack object of type {}",
+                                      get_type_name(obj));
 
                     if (iter.get() == nullptr) {
-                        runtime_error(fmt::format("object of type {} is not iterable", get_type_name(obj)));
+                        runtime_error(fmt::format("object of type {} is not iterable",
+                                                  get_type_name(obj)));
                         return;
                     }
 
                     auto the_iterator = iter->as<NativeInstance>();
 
-                    //check next and has_next
-                    if (!the_iterator->has_slot(Slot::NEXT) or !the_iterator->has_slot(Slot::HAS_NEXT)) {
-                        runtime_error(fmt::format(
-                                "object of type {} is not iterable, __next__ or __has_next__ is not defined",
-                                get_type_name(obj)));
+                    // check next and has_next
+                    if (!the_iterator->has_slot(Slot::NEXT) or
+                        !the_iterator->has_slot(Slot::HAS_NEXT)) {
+                        runtime_error(fmt::format("object of type {} is not iterable, __next__ "
+                                                  "or __has_next__ is not defined",
+                                                  get_type_name(obj)));
                         continue;
                     }
 
                     // unpack
                     size_t i = 0;
                     while (true) {
-                        auto has_next = call_slot(Slot::HAS_NEXT, the_iterator, {},
-                                                  "unable to unpack object of type {}",
-                                                  get_type_name(obj));
+                        auto has_next =
+                                call_slot(Slot::HAS_NEXT, the_iterator, {},
+                                          "unable to unpack object of type {}", get_type_name(obj));
                         if (has_next.get() == nullptr) {
                             break;
                         }
@@ -1114,8 +1164,9 @@ namespace bond {
                             break;
                         }
 
-                        auto next = call_slot(Slot::NEXT, the_iterator, {}, "unable to unpack object of type {}",
-                                              get_type_name(obj));
+                        auto next =
+                                call_slot(Slot::NEXT, the_iterator, {},
+                                          "unable to unpack object of type {}", get_type_name(obj));
                         if (next.get() == nullptr) {
                             break;
                         }
@@ -1125,16 +1176,17 @@ namespace bond {
                     }
 
                     if (i != count) {
-                        runtime_error(fmt::format("unable to unpack object of type {}, expected {} elements, got {}",
-                                                  get_type_name(obj), count, i));
+                        runtime_error(fmt::format(
+                                "unable to unpack object of type {}, expected {} elements, got {}",
+                                get_type_name(obj), count, i));
                     }
                     break;
                 }
                 case Opcode::CREATE_CLOSURE: {
                     auto func = m_current_frame->get_constant()->as<Function>();
                     func->set_globals(m_current_frame->get_globals());
-                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
-                                                                            m_current_frame->get_locals());
+                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(
+                            func->as<Function>(), m_current_frame->get_locals());
                     m_current_frame->set_local(func->get_name(), closure);
                     break;
                 }
@@ -1142,8 +1194,8 @@ namespace bond {
                 case Opcode::CREATE_CLOSURE_EX: {
                     auto func = m_current_frame->get_constant()->as<Function>();
                     func->set_globals(m_current_frame->get_globals());
-                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(func->as<Function>(),
-                                                                            m_current_frame->get_locals());
+                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(
+                            func->as<Function>(), m_current_frame->get_locals());
                     push(closure);
                     break;
                 }
@@ -1171,9 +1223,8 @@ namespace bond {
                     runtime_error("async/await is not implemented");
             }
 
-//            collect_if_needed();
+            //            collect_if_needed();
         }
     }
 
-
-} // bond
+} // namespace bond

@@ -1,19 +1,20 @@
-#include "engine.h"
+#include "api.h"
 #include "conv.hpp"
 #include "core/build.h"
+#include "engine.h"
 #include "import.h"
-#include "api.h"
 #include <argumentum/argparse-h.h>
-
 
 int main(int32_t argc, char **argv) {
 #ifdef _WIN32
-    auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
+    auto lib_path =
+            std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
 #else
     auto lib_path = "/usr/local/libraries/bond/";
 #endif
 
-    auto args = std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
+    auto args =
+            std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
 
     std::string file;
     bool build;
@@ -27,10 +28,11 @@ int main(int32_t argc, char **argv) {
     params.add_parameter(build, "--build-archive", "-b")
             .nargs(0)
             .help("Build archive from file");
-    params.add_parameter(experimental_type_checker, "--experimental-type-checker", "-c")
+    params
+            .add_parameter(experimental_type_checker, "--experimental-type-checker",
+                           "-c")
             .nargs(0)
             .help("turn on experimental type checking");
-
 
     auto engine = bond::create_engine(lib_path, args);
 
@@ -77,7 +79,8 @@ int main(int32_t argc, char **argv) {
     }
 
     if (is_archive) {
-        auto res = bond::Import::instance().import_archive(engine->get_context(), full_path);
+        auto res = bond::Import::instance().import_archive(engine->get_context(),
+                                                           full_path);
         if (!res) {
             fmt::print("Failed to load archive: {}\n", res.error());
             return 1;
@@ -91,11 +94,8 @@ int main(int32_t argc, char **argv) {
 
         bond::set_current_vm(pre);
         return vm.had_error() or engine->get_context()->has_error() ? 1 : 0;
-    }
-
-    else {
+    } else {
         engine->run_file(full_path);
         return engine->get_context()->has_error() ? 1 : 0;
     }
-
 }
