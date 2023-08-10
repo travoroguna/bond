@@ -161,7 +161,7 @@ namespace bond{
             }
             else if(instanceof<Float>(constant.get())) {
                 write_val<uint8_t>(stream, 2);
-                write_val<float>(stream, constant->as<Float>()->get_value());
+                write_val<double>(stream, constant->as<Float>()->get_value());
             }
             else if(instanceof<Function>(constant.get())){
                 auto function = constant->as<Function>();
