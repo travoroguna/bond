@@ -304,7 +304,7 @@ namespace bond {
 
         std::expected<bool, std::string> has(const GcPtr<Object> &key);
 
-        size_t size();
+        size_t size() const;
 
         size_t capacity() { return m_entries.size(); }
 
@@ -319,7 +319,7 @@ namespace bond {
 
         std::expected<void, std::string> set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value);
 
-        std::expected<size_t, std::string> hash_key(const GcPtr<bond::Object> &key);
+        static std::expected<size_t, std::string> hash_key(const GcPtr<bond::Object> &key);
     };
 
     class Int : public NativeInstance {

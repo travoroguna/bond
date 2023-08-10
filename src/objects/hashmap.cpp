@@ -208,7 +208,7 @@ namespace bond {
         return {};
     }
 
-    size_t HashMap::size() {
+    size_t HashMap::size() const {
         return m_size;
     }
 
@@ -279,7 +279,7 @@ namespace bond {
         return OK();
     }
 
-    obj_result HashMap_len(const GcPtr<Object> &Self, const t_vector &args) {
+    obj_result HashMap_len(const GcPtr<Object> &Self, [[maybe_unused]] const t_vector &args) {
         auto self = Self->as<HashMap>();
         return OK(make_int(self->size()));
     }
@@ -344,7 +344,7 @@ namespace bond {
             get_next();
         };
 
-        bool has_next() {
+        bool has_next() const {
             return !at_end;
         }
 

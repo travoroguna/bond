@@ -40,11 +40,10 @@ namespace bond::bnk {
         fmt::print("Error {}: {}\n", e, d);
     }
 
-    static struct nk_glfw glfw = {0};
+    static struct nk_glfw glfw = {nullptr};
     static GLFWwindow *window;
     static struct nk_context *ctx;
     static struct nk_colorf bg;
-    static bool is_initiated = false;
 
     std::expected<void, std::string> init(int width, int height, const std::string &title) {
         glfwSetErrorCallback(error_callback);
@@ -83,7 +82,6 @@ namespace bond::bnk {
             nk_glfw3_font_stash_end(&glfw);
         }
 
-        is_initiated = true;
         bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
         return {};
     }
