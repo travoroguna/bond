@@ -137,6 +137,7 @@ namespace bond {
 
         void call_function(const GcPtr<Function> &function, const t_vector &args,
                            const GcPtr<StringMap> &locals = nullptr);
+        GcPtr <Object> call_function_ex(const GcPtr <Function> &function, const t_vector &args);
 
         void exec(uint32_t stop_frame = 0);
 
@@ -232,6 +233,7 @@ namespace bond {
         void call_object(const GcPtr<Object> &func, t_vector &args);
 
         void bin_alt(const NativeMethodPtr &meth, const char *op_name);
+
     };
 
 }; // namespace bond

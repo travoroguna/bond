@@ -102,6 +102,13 @@ namespace bond {
         m_current_frame = frame;
     }
 
+
+    GcPtr<Object> Vm::call_function_ex(const GcPtr<Function> &function, const t_vector &args) {
+        call_function(function, args);
+        exec(m_frame_pointer);
+        return pop();
+    }
+
     void Vm::setup_bound_call(const GcPtr<Object> &instance,
                               const GcPtr<Function> &function, t_vector &args) {
         auto params = function->get_arguments();
