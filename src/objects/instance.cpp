@@ -1,15 +1,16 @@
 #include "../object.h"
+#include "../runtime.h"
 
 namespace bond {
-    obj_result Instance::bind_method(const std::string &name) {
+    obj_result Instance::bind_method(const t_string &name) {
         auto meth = m_type->get_method(name);
         if (!meth)
             return ERR("Method " + name + " not found");
-        auto m = BOUND_METHOD_STRUCT->create_instance<BoundMethod>(this, *meth);
+        auto m = Runtime::ins()->make_bound_method(this, *meth);
         return OK(m);
     }
 
-    obj_result Instance::get_method(const std::string &name) {
+    obj_result Instance::get_method(const t_string &name) {
         if (m_type == nullptr) {
             return ERR("Type not set");
         }
@@ -20,14 +21,14 @@ namespace bond {
         return OK(*meth);
     }
 
-    obj_result Instance::get_field(const std::string &name) {
+    obj_result Instance::get_field(const t_string &name) {
         if (m_fields.contains(name)) {
             return OK(m_fields[name]);
         }
         return ERR("Field " + name + " not found");
     }
 
-    obj_result Instance::set_field(const std::string &name, const GcPtr<Object> &value) {
+    obj_result Instance::set_field(const t_string &name, const GcPtr<Object> &value) {
         if (m_fields.contains(name)) {
             m_fields[name] = value;
             return OK(value);
@@ -42,8 +43,8 @@ namespace bond {
         return OK(m_type);
     }
 
-    std::string Instance::str() const {
-        std::vector<std::string> fields;
+    t_string Instance::str() const {
+        std::vector<t_string> fields;
         for (auto const &[key, value]: m_fields) {
             if (value.get() == this)
                 fields.push_back(key + ": <self>");
@@ -111,7 +112,7 @@ namespace bond {
     //    NEXT,
     //    HAS_NEXT,
 
-    auto slot_wrapper(const std::string &slot_name) -> NativeMethodPtr {
+    auto slot_wrapper(const t_string &slot_name) -> NativeMethodPtr {
         return [slot_name](const GcPtr<Object> &Self, const t_vector &args) -> obj_result {
             auto self = Self->as<Instance>();
             TRY(parse_args(args));
@@ -123,33 +124,36 @@ namespace bond {
         };
     }
 
-    auto constructor = c_Default<Instance>;
-    GcPtr<NativeStruct> INSTANCE_STRUCT = make_immortal<NativeStruct>("Instance", "Instance(type: Type, fields: Map)",
-                                                                      constructor, method_map{
-                    {"__getattr__", {I_get_attribute, "__getattr__(name: String)"}},
-                    {"__setattr__", {I_set_attribute, "__setattr__(name: String, value: Object)"}},
-                    {"get_type", {get_type, "get_type()"}},
-                    {"__eq__", {slot_wrapper("__eq__"), "__eq__(other: Object)"}},
-                    {"__ne__", {slot_wrapper("__ne__"), "__ne__(other: Object)"}},
-                    {"__lt__", {slot_wrapper("__lt__"), "__lt__(other: Object)"}},
-                    {"__le__", {slot_wrapper("__le__"), "__le__(other: Object)"}},
-                    {"__gt__", {slot_wrapper("__gt__"), "__gt__(other: Object)"}},
-                    {"__ge__", {slot_wrapper("__ge__"), "__ge__(other: Object)"}},
-                    {"__add__", {slot_wrapper("__add__"), "__add__(other: Object)"}},
-                    {"__sub__", {slot_wrapper("__sub__"), "__sub__(other: Object)"}},
-                    {"__mul__", {slot_wrapper("__mul__"), "__mul__(other: Object)"}},
-                    {"__div__", {slot_wrapper("__div__"), "__div__(other: Object)"}},
-                    {"__mod__", {slot_wrapper("__mod__"), "__mod__(other: Object)"}},
-                    {"__neg__", {slot_wrapper("__neg__"), "__neg__()"}},
-                    {"__getitem__", {slot_wrapper("__getitem__"), "__getitem__(key: Object)"}},
-                    {"__setitem__", {slot_wrapper("__setitem__"), "__setitem__(key: Object, value: Object)"}},
-                    {"__iter__", {slot_wrapper("__iter__"), "__iter__()"}},
-                    {"__next__", {slot_wrapper("__next__"), "__next__()"}},
-                    {"__has_next__", {slot_wrapper("__has_next__"), "__has_next__()"}},
-                    {"__hash__", {slot_wrapper("__hash__"), "__hash__()"}},
-            });
+    void init_instance_method() {
+        auto constructor = c_Default<Instance>;
+        Runtime::ins()->INSTANCE_STRUCT = make_immortal<NativeStruct>("Instance",
+                                                                          "Instance(type: Type, fields: Map)",
+                                                                          constructor, method_map{
+                        {"__getattr__",  {I_get_attribute,              "__getattr__(name: String)"}},
+                        {"__setattr__",  {I_set_attribute,              "__setattr__(name: String, value: Object)"}},
+                        {"get_type",     {get_type,                     "get_type()"}},
+                        {"__eq__",       {slot_wrapper("__eq__"),       "__eq__(other: Object)"}},
+                        {"__ne__",       {slot_wrapper("__ne__"),       "__ne__(other: Object)"}},
+                        {"__lt__",       {slot_wrapper("__lt__"),       "__lt__(other: Object)"}},
+                        {"__le__",       {slot_wrapper("__le__"),       "__le__(other: Object)"}},
+                        {"__gt__",       {slot_wrapper("__gt__"),       "__gt__(other: Object)"}},
+                        {"__ge__",       {slot_wrapper("__ge__"),       "__ge__(other: Object)"}},
+                        {"__add__",      {slot_wrapper("__add__"),      "__add__(other: Object)"}},
+                        {"__sub__",      {slot_wrapper("__sub__"),      "__sub__(other: Object)"}},
+                        {"__mul__",      {slot_wrapper("__mul__"),      "__mul__(other: Object)"}},
+                        {"__div__",      {slot_wrapper("__div__"),      "__div__(other: Object)"}},
+                        {"__mod__",      {slot_wrapper("__mod__"),      "__mod__(other: Object)"}},
+                        {"__neg__",      {slot_wrapper("__neg__"),      "__neg__()"}},
+                        {"__getitem__",  {slot_wrapper("__getitem__"),  "__getitem__(key: Object)"}},
+                        {"__setitem__",  {slot_wrapper("__setitem__"),  "__setitem__(key: Object, value: Object)"}},
+                        {"__iter__",     {slot_wrapper("__iter__"),     "__iter__()"}},
+                        {"__next__",     {slot_wrapper("__next__"),     "__next__()"}},
+                        {"__has_next__", {slot_wrapper("__has_next__"), "__has_next__()"}},
+                        {"__hash__",     {slot_wrapper("__hash__"),     "__hash__()"}},
+                });
 
-    GcPtr<NativeStruct> BOUND_METHOD_STRUCT = make_immortal<NativeStruct>("BoundMethod", "BoundMethod(instance: Instance, method: Function)",
-                                                                          c_Default<BoundMethod>);
-
+        Runtime::ins()->BOUND_METHOD_STRUCT = make_immortal<NativeStruct>("BoundMethod",
+                                                                              "BoundMethod(instance: Instance, method: Function)",
+                                                                              c_Default<BoundMethod>);
+    }
 };

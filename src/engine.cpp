@@ -12,7 +12,7 @@ namespace bond {
         fmt::print("bond {} on {}\n", BOND_VERSION, COMPILER_VERSION);
         auto id = m_context.new_module(std::string("<repl>"));
 
-        auto globals = MAP_STRUCT->create_instance<StringMap>();
+        auto globals = Runtime::ins()->MAP_STRUCT->create_instance<StringMap>();
         Scopes scopes(&m_context);
 
         while (true) {
@@ -78,7 +78,7 @@ namespace bond {
 
             if (!res) {
                 for (auto &err: res.error()) {
-                    m_context.error(err.m_span, err.m_message);
+                    m_context.error(err.m_span, err.m_message.c_str());
                 }
             }
 
@@ -91,6 +91,7 @@ namespace bond {
 
         if (m_context.has_error()) return;
 
+        fmt::print("{}\n", bytecode->disassemble());
 
         auto file = std::ofstream("out.bond");
         file << bytecode->disassemble();
@@ -101,35 +102,30 @@ namespace bond {
 
     void Engine::run_file(const std::string &path) {
         auto src = bond::Context::read_file(std::string(path));
-        auto vm = bond::Vm(&m_context);
-        auto pre_vm = get_current_vm();
-        set_current_vm(&vm);
-
-        execute_source(src, path.c_str(), vm);
-
-        set_current_vm(pre_vm);
+        execute_source(src, path.c_str(), *get_current_vm());
     }
 
     void Engine::add_core_module(const GcPtr<Module> &mod) {
         core_module->add_module(mod->get_path(), mod);
     }
 
-
-    std::unique_ptr<Engine> create_engine(const std::string &lib_path, const std::vector<std::string, gc_allocator<std::string>> &args) {
+    Engine* create_engine(const std::string &lib_path, const std::vector<std::string, gc_allocator<std::string>> &args) {
         GC_INIT();
+
+        GC_set_all_interior_pointers(1);
 
         GC_set_warn_proc([](char *msg, GC_word arg) {
             fmt::print("{} {}\n", msg, arg);
         });
 
-        bond::init_caches();
+        Runtime::ins()->init();
         bond::build_core_module();
         bond::lsp::init_symbols();
 
-        return std::make_unique<Engine>(lib_path, args);
+        return new (GC) Engine(lib_path, args);
     }
 
-    std::unique_ptr<Engine> create_engine(const std::string &lib_path) {
+    Engine* create_engine(const std::string &lib_path) {
         return create_engine(lib_path, std::vector<std::string, gc_allocator<std::string>>());
     }
 }

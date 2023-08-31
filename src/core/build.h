@@ -20,15 +20,15 @@
 namespace bond {
     class Build {
     public:
-        Build(const std::string &lib_path, const std::string &main_file);
+        Build(const t_string &lib_path, const t_string &main_file);
         Context *get_context() { return &context; }
-        std::expected<std::string, std::string> build();
+        std::expected<t_string, t_string> build();
 
     private:
-        std::string main_file;
+        t_string main_file;
         Context context;
-        std::unordered_map<std::string, std::shared_ptr<Unit>> units;
-        std::expected<void, std::string> find_deps(const std::string &path);
+        std::unordered_map<t_string, std::shared_ptr<Unit>> units;
+        std::expected<void, t_string> find_deps(const t_string &path);
     };
 
 }

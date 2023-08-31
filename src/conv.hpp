@@ -5,6 +5,7 @@
 #pragma once
 
 #include "object.h"
+#include "runtime.h"
 
 namespace bond {
     template<typename R, typename = void>
@@ -66,12 +67,23 @@ namespace bond {
     };
 
     template<>
-    struct bond_traits<std::string> {
-        static std::string unwrap(const GcPtr<Object> &object) {
-            return object->as<String>()->get_value();
+    struct bond_traits<t_string> {
+        static t_string unwrap(const GcPtr<Object> &object) {
+            return object->as<String>()->get_value().c_str();
         }
 
-        static GcPtr<Object> wrap(const std::string &object) {
+        static GcPtr<Object> wrap(const t_string &object) {
+            return make_string(object);
+        }
+    };
+
+    template<>
+    struct bond_traits<std::string> {
+        static std::string unwrap(const GcPtr<Object> &object) {
+            return object->as<String>()->get_value().c_str();
+        }
+
+        static GcPtr<Object> wrap(const t_string &object) {
             return make_string(object);
         }
     };
@@ -89,7 +101,7 @@ namespace bond {
             if (object.has_value()) {
                 return object.value();
             }
-            return C_NONE;
+            return Runtime::ins()->C_NONE;
         }
     };
 
@@ -101,7 +113,7 @@ namespace bond {
         }
 
         static GcPtr<Object> wrap(const t_map &object) {
-            return MAP_STRUCT->create_instance<StringMap>(object);
+            return Runtime::ins()->make_string_map(object);
         }
     };
 
@@ -113,22 +125,35 @@ namespace bond {
         }
 
         static GcPtr<Object> wrap(const t_vector &object) {
-            return LIST_STRUCT->create_instance<List>(object);
+            return Runtime::ins()->make_list(object);
         }
     };
+
+    template<>
+    struct bond_traits<const char *> {
+        static t_string unwrap(const GcPtr<Object> &object) {
+            auto obj = object->as<String>();
+            return obj->get_value();
+        }
+
+        static GcPtr<Object> wrap(const char *object) {
+            return make_string(object);
+        }
+    };
+
 
     class Mod {
         class StructBuilder {
         public:
             method_map m_methods;
-            std::unordered_map<std::string, std::pair<getter, setter>> m_fields;
-            std::string m_name;
-            std::string m_doc;
+            std::unordered_map<t_string, std::pair<getter, setter>> m_fields;
+            t_string m_name;
+            t_string m_doc;
             NativeFunctionPtr m_constructor;
 
-            StructBuilder(const std::string &name, const std::string &doc) : m_name(name), m_doc(doc) {}
+            StructBuilder(const t_string &name, const t_string &doc) : m_name(name), m_doc(doc) {}
 
-            StructBuilder &method(const std::string &name, const NativeMethodPtr &value, const std::string &doc) {
+            StructBuilder &method(const t_string &name, const NativeMethodPtr &value, const t_string &doc) {
                 m_methods[name] = {value, doc};
                 return *this;
             }
@@ -138,18 +163,18 @@ namespace bond {
                 return *this;
             }
 
-            StructBuilder &field(const std::string &name, const getter &get, const setter &set) {
+            StructBuilder &field(const t_string &name, const getter &get, const setter &set) {
                 m_fields[name] = {get, set};
                 return *this;
             }
         };
 
-        GcPtr<StringMap> m_exports = MAP_STRUCT->create_instance<StringMap>();
+        GcPtr<StringMap> m_exports = Runtime::ins()->make_string_map();
         std::vector<std::shared_ptr<StructBuilder>> m_structs;
-        std::string m_path;
+        t_string m_path;
 
     public:
-        explicit Mod(std::string path) : m_path(std::move(path)) {}
+        explicit Mod(t_string path) : m_path(std::move(path)) {}
 
         GcPtr<Module> build() {
             for (auto &builder: m_structs) {
@@ -179,7 +204,7 @@ namespace bond {
 
                 m_exports->set(builder->m_name, struct_);
             }
-            return MODULE_STRUCT->create_instance<Module>(m_path, m_exports);
+            return Runtime::ins()->make_module(m_path, m_exports);
         }
 
         /**
@@ -189,25 +214,25 @@ namespace bond {
  * @param doc The documentation for the struct_.
  */
 
-        StructBuilder &struct_(const std::string &name, const std::string &doc) {
+        StructBuilder &struct_(const t_string &name, const t_string &doc) {
             auto builder = std::make_shared<StructBuilder>(name, doc);
             m_structs.push_back(builder);
             return *builder.get();
         }
 
         template<typename T>
-        Mod &add(const std::string &name, const T &value) {
+        Mod &add(const t_string &name, const T &value) {
             m_exports->set(name, bond_traits<T>::wrap(value));
             return *this;
         }
 
-        Mod &add(const std::string &name, const GcPtr<Object> &value) {
+        Mod &add(const t_string &name, const GcPtr<Object> &value) {
             m_exports->set(name, value);
             return *this;
         }
 
-        Mod &function(const std::string &name, const NativeFunctionPtr &value, const std::string &doc) {
-            auto fn = NATIVE_FUNCTION_STRUCT->create_instance<NativeFunction>(name, doc, value);
+        Mod &function(const t_string &name, const NativeFunctionPtr &value, const t_string &doc) {
+            auto fn = Runtime::ins()->make_native_function(name, doc, value);
             m_exports->set(name, fn);
             return *this;
         }

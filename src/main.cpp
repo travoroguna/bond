@@ -9,6 +9,12 @@ int main(int32_t argc, char **argv) {
 #ifdef _WIN32
     auto lib_path =
             std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
+
+    if (!std::filesystem::exists(lib_path)) {
+        lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/";
+    }
+
+    fmt::print("lib_path: {}\n", lib_path);
 #else
     auto lib_path = "/usr/local/libraries/bond/";
 #endif
@@ -78,6 +84,11 @@ int main(int32_t argc, char **argv) {
         return 0;
     }
 
+    int exit_code;
+
+    auto vm = bond::Vm(engine->get_context());
+    bond::set_current_vm(&vm);
+
     if (is_archive) {
         auto res = bond::Import::instance().import_archive(engine->get_context(),
                                                            full_path);
@@ -86,16 +97,12 @@ int main(int32_t argc, char **argv) {
             return 1;
         }
 
-        auto pre = bond::get_current_vm();
-        auto vm = bond::Vm(engine->get_context());
-        bond::set_current_vm(&vm);
-
-        vm.run(res.value());
-
-        bond::set_current_vm(pre);
-        return vm.had_error() or engine->get_context()->has_error() ? 1 : 0;
+        exit_code = vm.had_error() or engine->get_context()->has_error() ? 1 : 0;
     } else {
         engine->run_file(full_path);
-        return engine->get_context()->has_error() ? 1 : 0;
+        exit_code = engine->get_context()->has_error() ? 1 : 0;
     }
+
+    bond::Runtime::ins()->exit();
+    return exit_code;
 }

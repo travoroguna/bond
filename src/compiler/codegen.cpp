@@ -5,6 +5,7 @@
 #include "codegen.h"
 #include "../object.h"
 #include "parser.h"
+#include "../runtime.h"
 
 namespace bond {
 
@@ -19,14 +20,16 @@ namespace bond {
 //        }
 
         //TODO: the above code sometimes does not work
+
         m_code->add_ins(Opcode::PUSH_NIL, std::make_shared<Span>(0, 0, 0, 0));
-        if (can_error) m_code->add_ins(Opcode::MAKE_OK, std::make_shared<Span>(0, 0, 0, 0));
+        if (can_error)
+            m_code->add_ins(Opcode::MAKE_OK, std::make_shared<Span>(0, 0, 0, 0));
         m_code->add_ins(Opcode::RETURN, std::make_shared<Span>(0, 0, 0, 0));
     }
 
     GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes) {
         try {
-            m_code = CODE_STRUCT->create_immortal<Code>();
+            m_code = Runtime::ins()->make_code();
 
             for (const auto &node: nodes) {
                 node->accept(this);
@@ -124,14 +127,14 @@ namespace bond {
     void CodeGenerator::visit(NumberLiteral *expr) {
         size_t idx = 0;
 
-        if (expr->is_int()) idx = m_code->add_constant(INT_STRUCT->create_immortal<Int>(std::stoi(expr->get_value())));
-        else idx = m_code->add_constant(FLOAT_STRUCT->create_immortal<Float>(std::stof(expr->get_value())));
+        if (expr->is_int()) idx = m_code->add_constant(Runtime::ins()->make_int(std::stoi(expr->get_value())));
+        else idx = m_code->add_constant(Runtime::ins()->make_float(std::stof(expr->get_value())));
 
         m_code->add_ins(Opcode::LOAD_CONST, idx, expr->get_span());
     }
 
     void CodeGenerator::visit(StringLiteral *expr) {
-        auto idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(expr->get_value()));
+        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_value()));
         m_code->add_ins(Opcode::LOAD_CONST, idx, expr->get_span());
 
     }
@@ -148,7 +151,7 @@ namespace bond {
 
     void CodeGenerator::visit(Identifier *expr) {
         auto var = m_scopes->get(expr->get_name());
-        auto idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(expr->get_name()));
+        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
 
         if (var.has_value()) {
             auto v = var.value();
@@ -167,7 +170,7 @@ namespace bond {
     void CodeGenerator::visit(NewVar *stmnt) {
         stmnt->get_expr()->accept(this);
         auto var = m_scopes->get(stmnt->get_name());
-        auto idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (var.has_value()) {
             m_code->add_ins(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
@@ -181,7 +184,7 @@ namespace bond {
     void CodeGenerator::visit(Assign *stmnt) {
         stmnt->get_expr()->accept(this);
         auto var = m_scopes->get(stmnt->get_name());
-        auto idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (var.has_value()) {
             auto v = var.value();
@@ -297,6 +300,7 @@ namespace bond {
     }
 
     void CodeGenerator::func_def(FuncDef *stmnt, bool is_async) {
+//        auto pre_is_async = m_is_async;
         m_in_function = true;
 
         auto var = m_scopes->get(stmnt->get_name());
@@ -318,9 +322,9 @@ namespace bond {
         generator.m_in_function = false;
 
         m_scopes->end_scope();
-        auto fn = FUNCTION_STRUCT->create_immortal<Function>(stmnt->get_name(), stmnt->get_params(), code);
+        auto fn = Runtime::ins()->make_function(stmnt->get_name(), stmnt->get_params(), code);
         auto idx = m_code->add_constant(fn);
-        auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (is_async) {
             m_code->add_ins(Opcode::MAKE_ASYNC, idx, stmnt->get_span());
@@ -330,10 +334,10 @@ namespace bond {
 
         if (var.has_value()) {
             m_code->add_ins(Opcode::CREATE_GLOBAL, name, stmnt->get_span());
+            m_in_function = false;
             return;
         }
         m_code->add_ins(Opcode::STORE_FAST, name, stmnt->get_span());
-
         m_in_function = false;
 
 //        finish_generation(stmnt->can_error());
@@ -365,12 +369,12 @@ namespace bond {
         m_scopes->end_scope();
         m_in_function = false;
 
-        return FUNCTION_STRUCT->create_immortal<Function>(stmnt->get_name(), stmnt->get_params(), code);
+        return Runtime::ins()->make_function(stmnt->get_name(), stmnt->get_params(), code);
     }
 
     GcPtr<Code> CodeGenerator::generate_code(const std::shared_ptr<Node> &node, bool can_error, bool f_generation) {
         try {
-            m_code = CODE_STRUCT->create_immortal<Code>();
+            m_code = Runtime::ins()->make_code();
             node->accept(this);
             if (f_generation) {
                 finish_generation(can_error);
@@ -414,12 +418,12 @@ namespace bond {
 
     void CodeGenerator::visit(StructNode *stmnt) {
         auto var = m_scopes->get(stmnt->get_name());
-        std::vector<std::string> params;
+        std::vector<t_string> params;
         for (auto&param: stmnt->get_params()) {
-            params.push_back(param->name);
+            params.emplace_back(param->name);
         }
 
-        auto _struct = STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), params);
+        auto _struct = Runtime::ins()->STRUCT_STRUCT->create_immortal<Struct>(stmnt->get_name(), params);
         auto idx = m_code->add_constant(_struct);
 
 
@@ -430,7 +434,7 @@ namespace bond {
         }
 
         m_code->add_ins(Opcode::CREATE_STRUCT, idx, stmnt->get_span());
-        auto struct_idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
+        auto struct_idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (var.has_value()) {
             m_code->add_ins(Opcode::CREATE_GLOBAL, struct_idx, stmnt->get_span());
@@ -441,13 +445,13 @@ namespace bond {
 
     void CodeGenerator::visit(GetAttribute *expr) {
         expr->get_expr()->accept(this);
-        auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(expr->get_name()));
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
         m_code->add_ins(Opcode::GET_ATTRIBUTE, name, expr->get_span());
     }
 
     void CodeGenerator::visit(SetAttribute *expr) {
         expr->get_expr()->accept(this);
-        auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(expr->get_name()));
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
         expr->get_value()->accept(this);
         m_code->add_ins(Opcode::SET_ATTRIBUTE, name, expr->get_span());
 
@@ -461,15 +465,15 @@ namespace bond {
             // has already been made and will return the same module id
 
             auto pre_compiled_id = m_ctx->new_module(a_path);
-            auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
+            auto alias = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_alias()));
 
             m_code->add_ins(Opcode::LOAD_CONST, alias, stmnt->get_span());
             m_code->add_ins(Opcode::IMPORT_PRE_COMPILED, pre_compiled_id, stmnt->get_span());
             return;
         }
 
-        auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_name()));
-        auto alias = m_code->add_constant(STRING_STRUCT->create_immortal<String>(stmnt->get_alias()));
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
+        auto alias = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_alias()));
 
         m_code->add_ins(Opcode::LOAD_CONST, name, stmnt->get_span());
         m_code->add_ins(Opcode::IMPORT, alias, stmnt->get_span());
@@ -519,14 +523,11 @@ namespace bond {
 
     void CodeGenerator::visit(AsyncDef *stmnt) {
         func_def(dynamic_cast<FuncDef *>(stmnt->get_function().get()), true);
-        m_ctx->error(stmnt->get_span(), "async def incomplete implementation");
     }
 
     void CodeGenerator::visit(Await *expr) {
         expr->get_expr()->accept(this);
         m_code->add_ins(Opcode::AWAIT, expr->get_span());
-        m_ctx->error(expr->get_span(), "await incomplete implementation");
-
     }
 
     void CodeGenerator::visit(StructuredAssign *stmnt) {
@@ -542,7 +543,7 @@ namespace bond {
         m_code->add_ins(Opcode::UNPACK_SEQ, targets.size(), stmnt->get_span());
 
         for (auto &[name, is_global]: std::ranges::reverse_view(targets)) {
-            auto idx = m_code->add_constant(STRING_STRUCT->create_immortal<String>(name));
+            auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(name));
 
             if (is_global) {
                 m_code->add_ins(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
@@ -564,7 +565,7 @@ namespace bond {
         auto get_attr = expr->get_node();
         get_attr->get_expr()->accept(this);
 
-        auto name = m_code->add_constant(STRING_STRUCT->create_immortal<String>(get_attr->get_name()));
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(get_attr->get_name()));
         m_code->add_ins(Opcode::LOAD_CONST, name, expr->get_span());
 
         for (auto &arg: expr->get_args()) {

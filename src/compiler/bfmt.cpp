@@ -4,6 +4,7 @@
 
 #include "bfmt.h"
 #include "../md5.h"
+#include "../runtime.h"
 
 
 #define BOND_MAGIC_NUMBER 0x424F4E44
@@ -15,12 +16,12 @@ namespace bond{
     auto read_code_impl(std::ifstream &stream) -> GcPtr<Code>;
 
     template <>
-    auto write_val(std::ofstream &stream, std::string value) -> void{
+    auto write_val(std::ofstream &stream, t_string value) -> void{
         stream.write(value.c_str(), value.size() + 1);
     }
 
     template <>
-    auto read_val(std::ifstream& stream) -> std::string {
+    auto read_val(std::ifstream& stream) -> t_string {
         std::vector<char> buff;
         char mini_buf[1];
 
@@ -34,7 +35,7 @@ namespace bond{
             buff.push_back(*mini_buf);
         }
 
-        return {buff.begin(), buff.end()};
+        return std::string(buff.begin(), buff.end());
     }
 
 
@@ -73,7 +74,7 @@ namespace bond{
     }
 
     auto read_function(std::ifstream& stream) -> GcPtr<Function> {
-        auto name = read_val<std::string>(stream);
+        auto name = read_val<t_string>(stream);
         auto arg_count = read_val<uint32_t>(stream);
         auto code = read_code_impl(stream);
 
@@ -81,13 +82,13 @@ namespace bond{
         auto params = std::vector<std::shared_ptr<Param>>();
 
         for (int i = 0; i < arg_count; i++) {
-            auto arg_name = read_val<std::string>(stream);
+            auto arg_name = read_val<t_string>(stream);
             auto arg_span = read_span(stream);
 
-            params.emplace_back(std::make_shared<Param>(arg_name, std::nullopt, arg_span));
+            params.emplace_back(std::make_shared<Param>(arg_name.c_str(), std::nullopt, arg_span));
         }
 
-        return FUNCTION_STRUCT->create_immortal<Function>(name, params, code);
+        return Runtime::ins()->make_function(name, params, code);
     }
 
 
@@ -118,22 +119,22 @@ namespace bond{
     }
 
     auto read_struct(std::ifstream& stream) -> GcPtr<Struct> {
-        auto name = read_val<std::string>(stream);
+        auto name = read_val<t_string>(stream);
 
         auto field_count = read_val<uint32_t>(stream);
         auto method_count = read_val<uint32_t>(stream);
 
-        auto fields = std::vector<std::string>();
+        auto fields = std::vector<t_string>();
 
         for (int i = 0; i < field_count; i++){
-            auto field_name = read_val<std::string>(stream);
+            auto field_name = read_val<t_string>(stream);
             fields.push_back(field_name);
         }
 
-        auto s = STRUCT_STRUCT->create_instance<Struct>(name, fields);
+        auto s = Runtime::ins()->STRUCT_STRUCT->create_instance<Struct>(name, fields);
 
         for (int i = 0; i < method_count; i++){
-            std::string method_name = read_val<std::string>(stream);
+            t_string method_name = read_val<t_string>(stream);
             auto method = read_function(stream);
             s->add_method(method_name, method);
         }
@@ -157,7 +158,7 @@ namespace bond{
             }
             else if(instanceof<String>(constant.get())) {
                 write_val<uint8_t>(stream, 1);
-                write_val<std::string>(stream, std::string(constant->as<String>()->get_value()));
+                write_val<t_string>(stream, t_string(constant->as<String>()->get_value()));
             }
             else if(instanceof<Float>(constant.get())) {
                 write_val<uint8_t>(stream, 2);
@@ -187,15 +188,15 @@ namespace bond{
 
     }
 
-    auto write_archive(const std::string &path, const std::unordered_map<std::string, std::shared_ptr<Unit>>& units) -> std::expected<void, std::string> {
-        if (std::filesystem::exists(path)) {
-            std::filesystem::remove(path);
+    auto write_archive(const t_string &path, const std::unordered_map<t_string, std::shared_ptr<Unit>>& units) -> std::expected<void, t_string> {
+        if (std::filesystem::exists(path.c_str())) {
+            std::filesystem::remove(path.c_str());
             fmt::print("Removed existing archive {}\n", path);
         }
 
         fmt::print("Writing archive to {}\n", path);
 
-        std::ofstream stream(path, std::ios::binary);
+        std::ofstream stream(path.c_str(), std::ios::binary);
 
         if (!stream) {
             return std::unexpected("Could not open file");
@@ -233,7 +234,7 @@ namespace bond{
                 constants.emplace_back(make_int(value));
             }
             else if (type == 1) {
-                std::string value = read_val<std::string>(stream);
+                t_string value = read_val<t_string>(stream);
                 constants.emplace_back(make_string(value));
             }
             else if (type == 2) {
@@ -266,11 +267,11 @@ namespace bond{
             spans.emplace_back(read_span(stream));
         }
 
-        return CODE_STRUCT->create_instance<Code>(instructions, spans, constants);
+        return Runtime::ins()->CODE_STRUCT->create_instance<Code>(instructions, spans, constants);
     }
 
-    auto read_archive(const std::string &path) -> std::expected<std::unordered_map<uint32_t, GcPtr<Code>>, std::string>{
-        std::ifstream stream(path, std::ios::binary);
+    auto read_archive(const t_string &path) -> std::expected<std::unordered_map<uint32_t, GcPtr<Code>>, t_string>{
+        std::ifstream stream(path.c_str(), std::ios::binary);
         if (!stream) {
             return std::unexpected("Could not open file");
         }
@@ -282,7 +283,7 @@ namespace bond{
 
         auto version = read_val<uint32_t>(stream);
         if (version != BOND_BAR_VERSION) {
-            return std::unexpected(fmt::format("Invalid version, expected {}, got {}", BOND_VERSION, version));
+            return std::unexpected(fmt::format("Invalid version, expected {}, got {}", BOND_BAR_VERSION, version));
         }
 
         auto module_count = read_val<uint32_t>(stream);
@@ -298,8 +299,8 @@ namespace bond{
         return modules;
     }
 
-    auto may_be_bar_file(const std::string &path) -> bool {
-        std::ifstream stream(path, std::ios::binary);
+    auto may_be_bar_file(const t_string &path) -> bool {
+        std::ifstream stream(path.c_str(), std::ios::binary);
         if (!stream) {
             return false;
         }

@@ -53,7 +53,7 @@ namespace bond {
         }
 
         std::string get_name() { return m_name; }
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
 
 
     private:
@@ -68,7 +68,7 @@ namespace bond {
                 : TypeNode(span, "List"), m_type(std::move(type)) {
         }
 
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
         SharedTypeNode get_type() { return m_type; }
 
     private:
@@ -79,8 +79,9 @@ namespace bond {
     public:
         CompoundType(const SharedSpan &span, const std::vector<SharedTypeNode>& types)
                 :TypeNode(span, "") {
+            m_types = types;
         }
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
         std::vector<SharedTypeNode> get_types() { return m_types; }
 
     private:
@@ -92,7 +93,7 @@ namespace bond {
         GenericType(const SharedSpan &span, std::string name, std::vector<SharedTypeNode> types)
                 :TypeNode(span, std::move(name)), m_types(std::move(types)) {
         }
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
         std::vector<SharedTypeNode> get_types() { return m_types; }
 
     private:
@@ -105,7 +106,7 @@ namespace bond {
         FunctionType(const SharedSpan &span, std::vector<SharedTypeNode> args, SharedTypeNode ret, bool is_err_func)
                 :TypeNode(span, "Function"), m_args(std::move(args)), m_ret(std::move(ret)), m_is_err_func(is_err_func) {
         }
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
         std::vector<SharedTypeNode> get_args() { return m_args; }
         SharedTypeNode get_ret() { return m_ret; }
         bool is_err_func() { return m_is_err_func; }
@@ -121,7 +122,7 @@ namespace bond {
         ResultType(const SharedSpan &span, SharedTypeNode ok, SharedTypeNode err)
                 :TypeNode(span, "Result"), m_ok(std::move(ok)), m_err(std::move(err)) {}
 
-        void accept(NodeVisitor *visitor) override {}
+        void accept([[maybe_unused]] NodeVisitor *visitor) override {}
         SharedTypeNode get_ok() { return m_ok; }
         SharedTypeNode get_err() { return m_err; }
     private:

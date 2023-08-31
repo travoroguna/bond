@@ -1,4 +1,5 @@
 #include "../object.h"
+#include "../runtime.h"
 
 
 namespace bond {
@@ -18,13 +19,13 @@ namespace bond {
         auto opt = parse_args(args, other);
         TRY(opt);
 
-        return make_string(self_num->get_value() + other->get_value());
+        return make_string(fmt::format("{}{}", self_num->get_value().c_str(), other->get_value().c_str()));
     }
 
     obj_result String_join(const GcPtr<Object>& self, const t_vector &args) {
         auto self_str = self->as<String>();
 
-        std::vector<std::string> strings;
+        std::vector<t_string> strings;
 
         for (auto& item : args) {
             strings.push_back(item->str());
@@ -65,7 +66,8 @@ namespace bond {
             return ERR(fmt::format("Index {} out of range", end->get_value()));
         }
 
-        return make_string(self_str->get_value().substr(start->get_value(), end->get_value()));
+        t_string sub = self_str->get_value_ref().substr(start->get_value(), end->get_value());
+        return make_string(sub);
     }
 
     obj_result String_it_next(const GcPtr<Object>& self, const t_vector &args) {
@@ -108,19 +110,22 @@ namespace bond {
     obj_result String_hash(const GcPtr<Object>& self, const t_vector &args) {
         auto self_str = self->as<String>();
         TRY(parse_args(args));
-        return make_int(std::hash<std::string>{}(self_str->get_value()));
+        return make_int(std::hash<t_string>{}(self_str->get_value()));
     }
 
-    GcPtr<NativeStruct> STRING_STRUCT = make_immortal<NativeStruct>("String", "String(value)", String_construct, method_map {
-            {"__add__", {String_add, "__add__(other: String) -> String"}},
-            {"__iter__", {String_iter, "__iter__() -> StringIterator"}},
-            {"__getitem__", {String_get_item, "__get_item__(index: Int) -> String"}},
-            {"__eq__", {String_eq, "__eq__(other: String) -> Bool"}},
-            {"__ne__", {String_neq, "__neq__(other: String) -> Bool"}},
-            {"size", {String_size, "size() -> Int"}},
-            {"__hash__", {String_hash, "__hash__() -> Int"}},
-            {"join", {String_join, "join(*args: List<Any>) -> String"}},
-            {"sub_string", {String_sub_string, "sub_string(start: Int, end: Int) -> String"}},
-    });
+    void init_string() {
+        Runtime::ins()->STRING_STRUCT = make_immortal<NativeStruct>("String", "String(value)", String_construct,
+                                                                        method_map{
+                                                                                {"__add__",     {String_add,        "__add__(other: String) -> String"}},
+                                                                                {"__iter__",    {String_iter,       "__iter__() -> StringIterator"}},
+                                                                                {"__getitem__", {String_get_item,   "__get_item__(index: Int) -> String"}},
+                                                                                {"__eq__",      {String_eq,         "__eq__(other: String) -> Bool"}},
+                                                                                {"__ne__",      {String_neq,        "__neq__(other: String) -> Bool"}},
+                                                                                {"size",        {String_size,       "size() -> Int"}},
+                                                                                {"__hash__",    {String_hash,       "__hash__() -> Int"}},
+                                                                                {"join",        {String_join,       "join(*args: List<Any>) -> String"}},
+                                                                                {"sub_string",  {String_sub_string, "sub_string(start: Int, end: Int) -> String"}},
+                                                                        });
+    }
 
 };

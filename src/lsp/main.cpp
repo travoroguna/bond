@@ -11,6 +11,8 @@
 #include <deque>
 #include <cctype>
 #include <iomanip>
+#include <string>
+#include <sstream>
 
 
 namespace lsp {
@@ -22,7 +24,7 @@ namespace lsp {
     #define FILE_URI_PREFIX_LEN 7
 #endif
 
-    std::string encode_uri_component(const std::string& input) {
+    t_string encode_uri_component(const t_string& input) {
         std::ostringstream oss;
         oss.fill('0');
         oss << std::hex;
@@ -38,12 +40,12 @@ namespace lsp {
         return oss.str();
     }
 
-    std::string file_path_to_uri(const std::string& filePath) {
-        std::string encodedPath = encode_uri_component(filePath);
+    t_string file_path_to_uri(const t_string& filePath) {
+        t_string encodedPath = encode_uri_component(filePath);
         return "file:///" + encodedPath;
     }
 
-    std::string decode_uri_component(const std::string& input) {
+    t_string decode_uri_component(const t_string& input) {
         std::ostringstream decoded;
         std::istringstream iss(input);
         iss >> std::hex;
@@ -64,17 +66,17 @@ namespace lsp {
         return decoded.str();
     }
 
-    std::string uri_to_file_path(const std::string& uri) {
+    t_string uri_to_file_path(const t_string& uri) {
         if (uri.compare(0, FILE_URI_PREFIX_LEN, FILE_URI_PREFIX) == 0) {
-            std::string encodedPath = uri.substr(FILE_URI_PREFIX_LEN);
-            std::string filePath = decode_uri_component(encodedPath);
+            t_string encodedPath = uri.substr(FILE_URI_PREFIX_LEN);
+            t_string filePath = decode_uri_component(encodedPath);
             return filePath;
         }
         return "";
     }
 
-    std::string build_signature(bond::FuncDef *def) {
-        std::string sig = "fn " + def->get_name() + "(";
+    t_string build_signature(bond::FuncDef *def) {
+        t_string sig = "fn " + def->get_name() + "(";
 
         for (size_t i = 0; i < def->get_params().size(); i++) {
             auto param = def->get_params()[i];
@@ -98,7 +100,7 @@ namespace lsp {
         auto contents = bond::Context::read_file(f_name);
 
         auto line_start = contents.rfind('\n', span->start);
-        if (line_start==std::string::npos) line_start = 0;
+        if (line_start==t_string::npos) line_start = 0;
 
         auto line_end = contents.find('\n', span->start);
         if (line_end > contents.length() - 1) line_end = contents.length() - 1;
@@ -108,7 +110,7 @@ namespace lsp {
     }
 
     struct Document{
-        std::string uri;
+        t_string uri;
         std::vector<diagnostic> diagnostics;
         std::vector<completion_item> completion_items;
         bool is_dirty = false;
@@ -118,7 +120,7 @@ namespace lsp {
     class Workspace {
     public:
         Workspace(bond::Context *ctx) : m_ctx(ctx) {
-            auto globs = bond::MAP_STRUCT->create_instance<bond::StringMap>();
+            auto globs = bond::Runtime::ins()->MAP_STRUCT->create_instance<bond::StringMap>();
             bond::add_builtins_to_globals(globs);
 
             for (auto &[k, val]: globs->get_value()) {
@@ -140,7 +142,7 @@ namespace lsp {
             }
         }
 
-        void create_document(const std::string &uri_str) {
+        void create_document(const t_string &uri_str) {
             if (!m_documents.contains(uri_str)) {
                 m_documents[uri_str] = std::make_shared<Document>();
                 m_documents[uri_str]->is_dirty = true;
@@ -148,12 +150,12 @@ namespace lsp {
             }
         }
 
-        void set_dirty(const std::string &uri_str) {
+        void set_dirty(const t_string &uri_str) {
             create_document(uri_str);
             m_documents[uri_str]->is_dirty = true;
         }
 
-        void update_document(const std::string &uri_str) {
+        void update_document(const t_string &uri_str) {
             std::cerr << "Updating document " << uri_str << std::endl;
             create_document(uri_str);
             auto document = m_documents[uri_str];
@@ -163,21 +165,21 @@ namespace lsp {
             m_ctx->reset_error();
             auto path = uri_to_file_path(uri_str);
 
-            if (!std::filesystem::exists(path)) {
+            if (!std::filesystem::exists(path.c_str())) {
                 std::cerr << "file not found " << path << std::endl;
                 return;
             }
 
             // inline for now
-            auto text = bond::Context::read_file(path);
-            auto id = m_ctx->new_module(path);
+            auto text = bond::Context::read_file(path.c_str());
+            auto id = m_ctx->new_module(path.c_str());
             auto lexer = bond::Lexer(text, m_ctx, id);
             lexer.disable_reporting();
 
             auto parser = bond::Parser(lexer.tokenize(), m_ctx);
             parser.disable_reporting();
 
-            std::vector<std::pair<std::string, bond::SharedSpan>> diags;
+            std::vector<std::pair<t_string, bond::SharedSpan>> diags;
 
 //            if (!m_ctx->has_error()) {
                 auto nodes = parser.parse();
@@ -258,13 +260,13 @@ namespace lsp {
             document->is_dirty = false;
         }
 
-        std::vector<completion_item> get_completion_list(const std::string &uri_link) {
+        std::vector<completion_item> get_completion_list(const t_string &uri_link) {
             m_loaded.clear();
 
-            auto path = uri(uri_link).get_path();
+            auto path = uri(uri_link.c_str()).get_path();
 
             int index;
-            while ((index = path.find("%3A")) != std::string::npos) {
+            while ((index = path.find("%3A")) != t_string::npos) {
                 path.replace(index, 3, ":");
             }
 
@@ -284,11 +286,11 @@ namespace lsp {
         }
 
 
-        std::vector<completion_item> get_dot_list(const std::string &uri_link) {
-            auto path = uri(uri_link).get_path();
+        std::vector<completion_item> get_dot_list(const t_string &uri_link) {
+            auto path = uri(uri_link.c_str()).get_path();
 
             int index;
-            while ((index = path.find("%3A")) != std::string::npos) {
+            while ((index = path.find("%3A")) != t_string::npos) {
                 path.replace(index, 3, ":");
             }
 
@@ -415,18 +417,18 @@ namespace lsp {
                 return cmp;
             }
 
-            auto id = m_ctx->new_module(path.value());
-            auto mod = parse(id, bond::Context::read_file(path.value()));
+            auto id = m_ctx->new_module(path.value().c_str());
+            auto mod = parse(id, bond::Context::read_file(path.value().c_str()));
             return get_completion_items(mod);
         }
 
-        std::vector<completion_item> get_lib_items(const std::string &filename) {
+        std::vector<completion_item> get_lib_items(const t_string &filename) {
             //TODO: use import library
             return {};
         }
 
-        std::vector<std::shared_ptr<bond::Node>> parse(uint32_t id, const std::string &text) {
-            auto lexer = bond::Lexer(text, m_ctx, id);
+        std::vector<std::shared_ptr<bond::Node>> parse(uint32_t id, const t_string &text) {
+            auto lexer = bond::Lexer(text.c_str(), m_ctx, id);
             auto parser = bond::Parser(lexer.tokenize(), m_ctx);
             parser.disable_reporting();
             return parser.parse();
@@ -436,7 +438,7 @@ namespace lsp {
             return !m_loading.empty();
         }
 
-        std::vector<diagnostic> &get_diagnostics(const std::string &uri) {
+        std::vector<diagnostic> &get_diagnostics(const t_string &uri) {
             if (!m_documents.contains(uri)) {
                 update_document(uri);
             }
@@ -449,7 +451,7 @@ namespace lsp {
             return doc->diagnostics;
         }
 
-        std::vector<completion_item> &get_completion_items(const std::string &uri) {
+        std::vector<completion_item> &get_completion_items(const t_string &uri) {
             if (!m_documents.contains(uri)) {
                 update_document(uri);
             }
@@ -468,19 +470,19 @@ namespace lsp {
 
     private:
         bond::Context *m_ctx;
-        std::unordered_map<std::string, std::vector<completion_item>> m_compiled_library_cache;
+        std::unordered_map<t_string, std::vector<completion_item>> m_compiled_library_cache;
         std::recursive_mutex m_mutex;
         std::vector<bool> m_loading;
-        std::unordered_set<std::string> m_loaded;
+        std::unordered_set<t_string> m_loaded;
         std::vector<completion_item> m_c_items;
-        std::unordered_map<std::string, std::shared_ptr<Document>> m_documents;
+        std::unordered_map<t_string, std::shared_ptr<Document>> m_documents;
         std::vector<std::shared_ptr<Document>> m_changed_documents;
     };
 
 
     class BondLsp : public lsp::langserver {
     public:
-        explicit BondLsp(const std::string &path) : m_ctx(path) {}
+        explicit BondLsp(const t_string &path) : m_ctx(path.c_str()) {}
 
         initialize_result initialize(initialize_params const &params) override {
             auto root_path = params.root_path();
@@ -505,7 +507,7 @@ namespace lsp {
         void publish_all_diagnostics() {
             for (auto &doc : m_workspace.get_changed_documents()) {
                 auto diags = m_workspace.get_diagnostics(doc->uri);
-                publish_diagnostics(doc->uri, diags);
+                publish_diagnostics(doc->uri.c_str(), diags);
             }
             m_workspace.get_changed_documents().clear();
         }
@@ -558,8 +560,8 @@ namespace lsp {
         bond::Context m_ctx;
         Workspace m_workspace{&m_ctx};
         std::vector<completion_list> m_imports;
-        std::string m_current;
-        std::deque<std::string> m_changed_files;
+        t_string m_current;
+        std::deque<t_string> m_changed_files;
     };
 
 }
@@ -569,7 +571,7 @@ int main(int32_t argc, char **argv) {
     GC_init();
     auto lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
 
-    bond::init_caches();
+    bond::Runtime::ins()->init();
     bond::build_core_module();
     bond::lsp::init_symbols();
 

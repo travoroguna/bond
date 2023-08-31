@@ -1,7 +1,6 @@
 #include "../object.h"
 #include "../api.h"
 
-#include <ranges>
 
 namespace bond {
     List::List(const t_vector &elements) {
@@ -74,8 +73,8 @@ namespace bond {
     }
 
 
-    std::string List::str() const {
-        std::vector<std::string> strs;
+    t_string List::str() const {
+        std::vector<t_string> strs;
         for (auto &item: m_elements) {
             strs.push_back(item->str());
         }
@@ -119,10 +118,10 @@ namespace bond {
             auto res = vm->call_slot(Slot::EQ, element, {item});
             TRY(res);
             if (TO_BOOL(res.value())->as<Bool>()->get_value()) {
-                return OK(C_TRUE);
+                return OK(Runtime::ins()->C_TRUE);
             }
         }
-        return C_FALSE;
+        return Runtime::ins()->C_FALSE;
     }
 
     obj_result list_iterator_next(const GcPtr<Object> &Self, const t_vector &args) {
@@ -151,16 +150,17 @@ namespace bond {
     }
 
 
-    GcPtr<NativeStruct> LIST_STRUCT = make_immortal<NativeStruct>("List", "List(object)", c_Default<List>, method_map{
-            {"__iter__",    {list_iter, "__iter__()"}},
-            {"__getitem__", {get_item,  "__getitem__(index: Int)"}},
-            {"__setitem__", {set_item,  "__setitem__(index: Int, value: Any)"}},
-            {"size",        {size,      "size()\ngets the size of the list\nreturns Int"}},
-            {"append",      {List_append, "append(item: Any)\nappends an item to the end of the list"}},
-            {"insert",      {List_insert, "insert(index: Int, item: Any)\ninserts an item at the given index"}},
-            {"pop",         {List_pop,    "pop()\nremoves and returns the last item in the list"}},
-            {"contains",    {List_contains, "contains(item: Any)\nreturns true if the list contains the item"}},
-    });
-
+    void init_list() {
+        Runtime::ins()->LIST_STRUCT = make_immortal<NativeStruct>("List", "List(object)", c_Default<List>, method_map{
+                {"__iter__",    {list_iter,     "__iter__()"}},
+                {"__getitem__", {get_item,      "__getitem__(index: Int)"}},
+                {"__setitem__", {set_item,      "__setitem__(index: Int, value: Any)"}},
+                {"size",        {size,          "size()\ngets the size of the list\nreturns Int"}},
+                {"append",      {List_append,   "append(item: Any)\nappends an item to the end of the list"}},
+                {"insert",      {List_insert,   "insert(index: Int, item: Any)\ninserts an item at the given index"}},
+                {"pop",         {List_pop,      "pop()\nremoves and returns the last item in the list"}},
+                {"contains",    {List_contains, "contains(item: Any)\nreturns true if the list contains the item"}},
+        });
+    }
 
 }

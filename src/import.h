@@ -18,12 +18,12 @@ namespace bond {
             return instance;
         }
 
-        std::expected<GcPtr<Object>, std::string>
-        import_module(Context *ctx, const std::string &path, std::string &alias);
+        std::expected<GcPtr<Object>, t_string>
+        import_module(Context *ctx, const t_string &path, t_string &alias);
 
-        std::expected<GcPtr<Code>, std::string> import_archive(Context *ctx, const std::string &path);
+        std::expected<GcPtr<Code>, t_string> import_archive(Context *ctx, const t_string &path);
 
-        std::expected<GcPtr<Module>, std::string> get_pre_compiled(uint32_t id);
+        std::expected<GcPtr<Module>, t_string> get_pre_compiled(uint32_t id);
 
 
     private:
@@ -34,9 +34,9 @@ namespace bond {
 
     };
 
-    std::expected<std::string, std::string> path_resolver(Context *ctx, const std::string &path);
+    std::expected<t_string, t_string> path_resolver(Context *ctx, const t_string &path);
 
-    obj_result resolve_core(const std::string &path);
+    obj_result resolve_core(const t_string &path);
 }
 
 

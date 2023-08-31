@@ -1,4 +1,5 @@
 #include "../object.h"
+#include "../runtime.h"
 
 
 namespace bond {
@@ -31,11 +32,13 @@ namespace bond {
         return AS_BOOL(!other->is<None>());
     }
 
-    GcPtr<NativeStruct> NONE_STRUCT = make_immortal<NativeStruct>("None", "None()", None_construct,
-      method_map {
-              {"__eq__", {None_eq, "eq(other)"}},
-              {"__ne__", {None_ne, "ne(other)"}},
-         }
-       );
-    GcPtr<None> C_NONE = NONE_STRUCT->create({}).value()->as<None>();
+    void init_none() {
+        Runtime::ins()->NONE_STRUCT = make_immortal<NativeStruct>("None", "None()", None_construct,
+                                                                      method_map{
+                                                                              {"__eq__", {None_eq, "eq(other)"}},
+                                                                              {"__ne__", {None_ne, "ne(other)"}},
+                                                                      }
+        );
+        Runtime::ins()->C_NONE = Runtime::ins()->NONE_STRUCT->create({}).value()->as<None>();
+    }
 }

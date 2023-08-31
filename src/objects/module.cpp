@@ -3,20 +3,21 @@
 //
 
 #include "../object.h"
+#include "../runtime.h"
 
 
 namespace bond {
 
-    Module::Module(std::string path, const t_map &objects) {
+    Module::Module(t_string path, const t_map &objects) {
         m_path = std::move(path);
 
-        m_globals = MAP_STRUCT->create_instance<StringMap>();
+        m_globals = Runtime::ins()->make_string_map();
         for (auto const &[name, object]: objects) {
             m_globals->set(name, object);
         }
     }
 
-    obj_result Module::get_attribute(const std::string &name) {
+    obj_result Module::get_attribute(const t_string &name) {
         auto res = m_globals->get(name);
         if (res.has_value()) {
             return OK(res.value());
@@ -25,7 +26,7 @@ namespace bond {
         }
     }
 
-    void Module::add_module(const std::string &name, const GcPtr<Module> &mod) {
+    void Module::add_module(const t_string &name, const GcPtr<Module> &mod) {
         m_globals->set(name, mod);
     }
 
@@ -50,7 +51,7 @@ namespace bond {
         TRY(parse_args(args));
         auto self = Self->as<Module>();
 
-        auto h_map = HASHMAP_STRUCT->create_instance<HashMap>();
+        auto h_map = Runtime::ins()->make_hash_map();
 
         for (auto const &[name, value]: self->get_globals()->get_value()) {
             TRY(h_map->set(make_string(name), value));
@@ -59,11 +60,13 @@ namespace bond {
         return OK(h_map);
     }
 
+    void init_module() {
+        Runtime::ins()->MODULE_STRUCT = make_immortal<NativeStruct>("Module", "Module(path: String, globals: Map)",
+                                                                        c_Default<Module>, method_map{
+                        {"__getattr__", {get_attribute, "getattr(name)"}},
+                        {"get_exports", {get_values,    "get_values()"}}
+                });
 
-    GcPtr<NativeStruct> MODULE_STRUCT = make_immortal<NativeStruct>("Module", "Module(path: String, globals: Map)",
-                                                                    c_Default<Module>, method_map{
-                    {"__getattr__", {get_attribute, "getattr(name)"}},
-                    {"get_exports", {get_values, "get_values()"}}
-            });
+    }
 
 }

@@ -45,7 +45,7 @@ namespace bond::bnk {
     static struct nk_context *ctx;
     static struct nk_colorf bg;
 
-    std::expected<void, std::string> init(int width, int height, const std::string &title) {
+    std::expected<void, t_string> init(int width, int height, const t_string &title) {
         glfwSetErrorCallback(error_callback);
         if (!glfwInit()) {
             return std::unexpected("Failed to init GLFW");
@@ -121,7 +121,7 @@ namespace bond::bnk {
 
         auto res = init(width->get_value(), height->get_value(), title->get_value());
         if (res) {
-            return make_ok(C_NONE);
+            return make_ok(Runtime::ins()->C_NONE);
         } else {
             return make_error(make_string(res.error()));
         }
@@ -130,28 +130,28 @@ namespace bond::bnk {
     obj_result bnk_new_frame(const t_vector &args) {
         TRY(parse_args(args));
         new_frame();
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_end_a(const t_vector &args) {
         TRY(parse_args(args));
 
         bnk_end();
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_render_a(const t_vector &args) {
         TRY(parse_args(args));
 
         bnk_render();
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_de_init_a(const t_vector &args) {
         TRY(parse_args(args));
 
         de_init();
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_should_close_a(const t_vector &args) {
@@ -164,7 +164,7 @@ namespace bond::bnk {
 //        TRY(parse_args(args, should_close));
 //
 //        glfwSetWindowShouldClose(window, should_close->get_value());
-//        return C_NONE;
+//        return Runtime::ins()->C_NONE;
 //    }
 
     // "enum"
@@ -249,7 +249,7 @@ namespace bond::bnk {
         TRY(parse_args(args, height, cols));
 
         nk_layout_row_dynamic(ctx, height->get_value(), cols->get_value());
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_layout_row_static(const t_vector &args) {
@@ -259,7 +259,7 @@ namespace bond::bnk {
         TRY(parse_args(args, height, item_width, cols));
 
         nk_layout_row_static(ctx, height->get_value(), item_width->get_value(), cols->get_value());
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     obj_result bnk_begin(const t_vector &args) {
@@ -285,13 +285,13 @@ namespace bond::bnk {
         Int *align;
         TRY(parse_args(args, label, align));
         nk_label(ctx, label->get_value().c_str(), align->get_value());
-        return C_NONE;
+        return Runtime::ins()->C_NONE;
     }
 
     GcPtr<Module> build_bnk_module() {
 #define ENUM_VALUE(name) {make_string(#name), bond_traits<decltype(name)>::wrap(name)}
 #define ENUM_INT(name) {#name, make_int(name)}
-#define ENUM_SUB(name, sub) { std::string(#name).substr(sub), make_int(name) }
+#define ENUM_SUB(name, sub) { t_string(#name).substr(sub), make_int(name) }
 
         t_map nk_enum = {
                 // panel flags

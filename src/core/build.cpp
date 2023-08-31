@@ -7,13 +7,13 @@
 #include "../import.h"
 
 namespace bond{
-    std::expected<void, std::string> Unit::find_dependencies() {
-        if (std::filesystem::is_directory(path)) {
+    std::expected<void, t_string> Unit::find_dependencies() {
+        if (std::filesystem::is_directory(path.c_str())) {
             return std::unexpected(fmt::format("can not import directory {} as a module", path));
         }
 
-        auto src = Context::read_file(path);
-        unit_id = context->new_module(path);
+        auto src = Context::read_file(path.c_str());
+        unit_id = context->new_module(path.c_str());
         auto lexer = Lexer(src, context, unit_id);
         auto tokens = lexer.tokenize();
 
@@ -22,7 +22,7 @@ namespace bond{
         scopes = std::make_shared<Scopes>(*parser.get_scopes());
 
         auto pre_cwd = std::filesystem::current_path();
-        std::filesystem::current_path(std::filesystem::path(path).parent_path());
+        std::filesystem::current_path(std::filesystem::path(path.c_str()).parent_path());
 
         for (auto &node : nodes) {
             if (instanceof<ImportDef>(node.get())) {
@@ -47,7 +47,7 @@ namespace bond{
                     return std::unexpected(res.error());
                 }
 
-                import_def->set_actual_path(res.value());
+                import_def->set_actual_path(res.value().c_str());
 
                 dependencies.push_back(res.value());
             }
@@ -56,19 +56,19 @@ namespace bond{
         return {};
     }
 
-    std::vector<std::string> &Unit::get_dependencies() {
+    std::vector<t_string> &Unit::get_dependencies() {
         return dependencies;
     }
 
 
-    Build::Build(const std::string &lib_path, const std::string &main_file)
-        :context(lib_path) {
+    Build::Build(const t_string &lib_path, const t_string &main_file)
+        :context(lib_path.c_str()) {
         this->main_file = main_file;
     }
 
 
-    void topologicalSortDFS(const std::string& module, std::unordered_map<std::string, std::vector<std::string>>& graph,
-                            std::unordered_set<std::string>& visited, std::vector<std::string>& result) {
+    void topologicalSortDFS(const t_string& module, std::unordered_map<t_string, std::vector<t_string>>& graph,
+                            std::unordered_set<t_string>& visited, std::vector<t_string>& result) {
 
         visited.insert(module);
 
@@ -80,9 +80,9 @@ namespace bond{
         result.push_back(module);
     }
 
-    std::vector<std::string> topologicalSort(std::unordered_map<std::string, std::vector<std::string>>& graph) {
-        std::unordered_set<std::string> visited;
-        std::vector<std::string> result;
+    std::vector<t_string> topologicalSort(std::unordered_map<t_string, std::vector<t_string>>& graph) {
+        std::unordered_set<t_string> visited;
+        std::vector<t_string> result;
 
         for (auto& [module, _] : graph) {
             if (visited.contains(module)) continue;
@@ -93,7 +93,7 @@ namespace bond{
     }
 
 
-    std::expected<GcPtr<Code>, std::string> Unit::compile() {
+    std::expected<GcPtr<Code>, t_string> Unit::compile() {
         auto codegen = CodeGenerator(context, scopes.get());
         auto code = codegen.generate_code(nodes);
 
@@ -101,15 +101,15 @@ namespace bond{
             return std::unexpected("compilation failed");
         }
         return code;
-    };
+    }
 
 
-    std::expected<std::string, std::string> Build::build() {
+    std::expected<t_string, t_string> Build::build() {
         TRY(find_deps(main_file));
         if (context.has_error()) return std::unexpected("build failed");
 
         //build graph
-//        std::unordered_map<std::string, std::vector<std::string>> graph;
+//        std::unordered_map<t_string, std::vector<t_string>> graph;
 //
 //        for (auto &unit : units) {
 //            graph[unit.first] = unit.second->get_dependencies();
@@ -118,12 +118,12 @@ namespace bond{
 //        auto sorted = topologicalSort(graph);
 //        order does not matter
 
-        auto output_file = std::filesystem::path(main_file).stem().string() + ".bar";
+        auto output_file = std::filesystem::path(main_file.c_str()).stem().string() + ".bar";
         TRY(write_archive(output_file, units));
         return output_file;
     }
 
-    std::expected<void, std::string> Build::find_deps(const std::string& path) {
+    std::expected<void, t_string> Build::find_deps(const t_string& path) {
         //do not add core to dependencies
         if (path.starts_with("core:")) {
             auto p = path.substr(5);
@@ -138,10 +138,10 @@ namespace bond{
 
         auto unit = std::make_shared<Unit>(path, &context);
         TRY(unit->find_dependencies());
-        units[std::filesystem::absolute(path).string()] = unit;
+        units[std::filesystem::absolute(path.c_str()).string()] = unit;
 
         for (auto &dep : unit->get_dependencies()) {
-            if (units.contains(std::filesystem::absolute(dep).string())) {
+            if (units.contains(std::filesystem::absolute(dep.c_str()).string())) {
                 continue;
             }
             TRY(find_deps(dep));

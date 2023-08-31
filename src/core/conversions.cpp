@@ -14,7 +14,7 @@ namespace bond {
         if (obj->is<String>()) {
             auto str = obj->as<String>()->get_value();
             try {
-                return make_ok(make_int(std::stoll(str)));
+                return make_ok(make_int(std::stoll(str.c_str())));
             } catch (std::invalid_argument &e) {
                 return make_error(make_string("invalid int"));
             } catch (std::out_of_range &e) {

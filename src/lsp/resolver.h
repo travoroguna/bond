@@ -33,13 +33,13 @@ namespace bond::lsp {
     struct StructSymbol {
         StructSymbol() = default;
 
-        StructSymbol(std::unordered_map<std::string, std::shared_ptr<Symbol>> fields,
-                     std::unordered_map<std::string, std::shared_ptr<Symbol>> methods) : m_fields(
+        StructSymbol(std::unordered_map<t_string, std::shared_ptr<Symbol>> fields,
+                     std::unordered_map<t_string, std::shared_ptr<Symbol>> methods) : m_fields(
                 std::move(fields)), m_methods(std::move(methods)) {}
 
         std::vector<std::shared_ptr<Symbol>> m_fields_vec;
-        std::unordered_map<std::string, std::shared_ptr<Symbol>> m_fields;
-        std::unordered_map<std::string, std::shared_ptr<Symbol>> m_methods;
+        std::unordered_map<t_string, std::shared_ptr<Symbol>> m_fields;
+        std::unordered_map<t_string, std::shared_ptr<Symbol>> m_methods;
     };
 
 
@@ -64,7 +64,7 @@ namespace bond::lsp {
             INSTANCE
         };
 
-        std::string m_name;
+        t_string m_name;
         Kind m_kind;
 
         GcPtr<NativeStruct> m_native_struct;
@@ -73,7 +73,7 @@ namespace bond::lsp {
         std::shared_ptr<FunctionSymbol> m_function;
         std::shared_ptr<InstanceSymbol> m_instance;
 
-        explicit Symbol(std::string name) : m_name(std::move(name)) {
+        explicit Symbol(t_string name) : m_name(std::move(name)) {
             m_kind = Kind::NATIVE_STRUCT;
             m_native_struct = ANY_STRUCT;
         }
@@ -86,7 +86,7 @@ namespace bond::lsp {
             m_kind = Kind::RESULT;
         }
 
-        explicit Symbol(const std::string& name, std::shared_ptr<StructSymbol> struct_) : m_struct(std::move(struct_)) {
+        explicit Symbol(const t_string& name, std::shared_ptr<StructSymbol> struct_) : m_struct(std::move(struct_)) {
             m_kind = Kind::STRUCT;
             m_name = name;
         }
@@ -99,7 +99,7 @@ namespace bond::lsp {
             m_kind = Kind::INSTANCE;
         }
 
-        [[nodiscard]] std::string to_string() const {
+        [[nodiscard]] t_string to_string() const {
             switch (m_kind) {
                 case Kind::NATIVE_STRUCT:
                     return m_native_struct->get_name();
@@ -108,7 +108,7 @@ namespace bond::lsp {
                 case Kind::STRUCT:
                     return m_name;
                 case Kind::FUNCTION: {
-                    std::string params;
+                    t_string params;
                     for (auto& param : m_function->m_params) {
                         params += param->to_string() + ", ";
                     }
@@ -134,10 +134,10 @@ namespace bond::lsp {
     void init_symbols();
 
     struct ResolveError {
-        std::string m_message;
+        t_string m_message;
         SharedSpan m_span;
 
-        ResolveError(std::string message, SharedSpan span) : m_message(std::move(message)), m_span(std::move(span)) {}
+        ResolveError(t_string message, SharedSpan span) : m_message(std::move(message)), m_span(std::move(span)) {}
     };
 
     class Resolver : public NodeVisitor {
@@ -145,7 +145,7 @@ namespace bond::lsp {
         Resolver(Context *context, std::vector<SharedNode> &nodes) : m_context(context), m_nodes(nodes) {}
 
         // what am I doing here?
-        std::expected<std::unordered_map<std::string, std::shared_ptr<Symbol>>, std::vector<ResolveError>> resolve();
+        std::expected<std::unordered_map<t_string, std::shared_ptr<Symbol>>, std::vector<ResolveError>> resolve();
 
         void visit(BinaryOp *expr) override;
 
@@ -223,8 +223,8 @@ namespace bond::lsp {
 
     private:
         Context *m_context;
-        std::string m_file_uri;
-        std::unordered_map<std::string, std::shared_ptr<Symbol>> m_symbols;
+        t_string m_file_uri;
+        std::unordered_map<t_string, std::shared_ptr<Symbol>> m_symbols;
         std::vector<std::shared_ptr<Symbol>> type_stack;
 
         void push(const std::shared_ptr<Symbol> &type);
@@ -240,15 +240,15 @@ namespace bond::lsp {
 
         void fill_global_scope();
 
-        void declare(const std::string &name, const std::shared_ptr<Symbol> &symbol);
+        void declare(const t_string &name, const std::shared_ptr<Symbol> &symbol);
 
-        std::vector<std::unordered_map<std::string, std::shared_ptr<Symbol>>> m_scopes;
+        std::vector<std::unordered_map<t_string, std::shared_ptr<Symbol>>> m_scopes;
 
-        void declare(const std::string &name, const std::shared_ptr<Symbol> &symbol, const SharedSpan &span);
+        void declare(const t_string &name, const std::shared_ptr<Symbol> &symbol, const SharedSpan &span);
 
-        void add_error(const std::string &message, const SharedSpan &span);
+        void add_error(const t_string &message, const SharedSpan &span);
 
-        std::shared_ptr<Symbol> get_symbol(const std::string &name, const SharedSpan &span);
+        std::shared_ptr<Symbol> get_symbol(const t_string &name, const SharedSpan &span);
 
         std::shared_ptr<Symbol>
         resolve_and_compare(const std::shared_ptr<TypeNode> &sym, const std::shared_ptr<Symbol> &expr_type,

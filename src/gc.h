@@ -3,6 +3,9 @@
 // windows things
 #define NOMINMAX
 
+#include "bond_gc.h"
+
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -12,25 +15,8 @@
 #include <functional>
 #include <expected>
 #include <optional>
-#include <mutex>
 #include <ranges>
 #include <cassert>
-#include <thread>
-
-#undef DEBUG
-#define GC_BUILD
-
-#ifdef DEBUG
-#define GC_DEBUG
-#endif
-
-#define ALL_INTERIOR_POINTERS
-#define GC_THREADS
-
-#include <gc.h>
-#include <gc_cpp.h>
-#include <gc/gc_allocator.h>
-
 
 
 namespace bond {
@@ -56,7 +42,7 @@ namespace bond {
     }
 
     template<typename T>
-    class GcPtr {
+    class GcPtr: public gc {
     public:
         GcPtr() = default;
 

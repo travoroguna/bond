@@ -10,3 +10,6 @@ embuild
 cmake-build-gccb
 out.bond
 package-lock.json
+.cache
+.clangd
+compile_commands.json

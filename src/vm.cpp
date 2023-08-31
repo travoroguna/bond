@@ -15,20 +15,20 @@ namespace bond {
   runtime_error("not implemented", RuntimeError::GenericError,                 \
                 m_current_frame->get_span())
 
-    static t_vector alt;
 
     void Vm::run(const GcPtr<Code> &code) {
         init_bin_funcs();
         alt.resize(1);
         m_stop = false;
 
-        auto func = FUNCTION_STRUCT->create_immortal<Function>(
+        auto func = Runtime::ins()->make_function(
                 "__main__", std::vector<std::shared_ptr<Param>>(), code);
 
         func->set_globals(m_globals);
         push(func);
         call_function(func, t_vector());
         exec();
+        process_events_if_needed();
     }
 
     void Vm::update_frame_pointer() {
@@ -64,7 +64,7 @@ namespace bond {
     void Vm::set_local_arguments(Frame *frame, const t_vector &args,
                                  const VectorArgs &params,
                                  const GcPtr<StringMap> &locals) {
-        auto local_args = MAP_STRUCT->create_instance<StringMap>();
+        auto local_args = Runtime::ins()->make_string_map();
 
         for (size_t i = 0; i < args.size(); i++) {
             local_args->set(params[i]->name, args[i]);
@@ -81,13 +81,9 @@ namespace bond {
 
     void Vm::call_function(const GcPtr<Function> &function, const t_vector &args,
                            const GcPtr<StringMap> &locals) {
-
         auto frame = &m_frames[m_frame_pointer];
-
         update_frame_pointer();
-
         auto params = function->get_arguments();
-
         check_argument_count(args, params);
 
         if (m_stop) {
@@ -95,26 +91,35 @@ namespace bond {
         }
 
         set_local_arguments(frame, args, params, locals);
-
         frame->set_function(function);
         frame->set_globals(function->get_globals());
-
         m_current_frame = frame;
     }
 
 
     GcPtr<Object> Vm::call_function_ex(const GcPtr<Function> &function, const t_vector &args) {
+        std::lock_guard<std::mutex> lock(m_func_ex_lock);
+
+        if (m_has_error) {
+            return nullptr;
+        }
+
+        m_stop = false;
         call_function(function, args);
+        auto pre_stop_frame = m_stop_frame;
+        m_stop_frame = m_frame_pointer;
         exec(m_frame_pointer);
-        return pop();
+        m_stop_frame = pre_stop_frame;
+        auto res = pop();
+        return res;
     }
 
     void Vm::setup_bound_call(const GcPtr<Object> &instance,
                               const GcPtr<Function> &function, t_vector &args) {
         auto params = function->get_arguments();
         if (params.size() - 1 != args.size()) {
-            runtime_error(fmt::format("expected {} arguments, got {}",
-                                      params.size() - 1, args.size()),
+            runtime_error(fmt::format("fn {} expected {} arguments, got {}",
+                                      function->get_name(), params.size() - 1, args.size()),
                           RuntimeError::GenericError, m_current_frame->get_span());
             return;
         }
@@ -161,10 +166,10 @@ namespace bond {
         push(_struct->create_instance(fields));
     }
 
-    void Vm::runtime_error(const std::string &error, RuntimeError e,
+    void Vm::runtime_error(const t_string &error, RuntimeError e,
                            const SharedSpan &span) {
 
-        std::string err;
+        t_string err;
         switch (e) {
             case RuntimeError::TypeError:
                 err = fmt::format("TypeError: {}", error);
@@ -184,7 +189,6 @@ namespace bond {
 
         m_stop = true;
         m_has_error = true;
-
         push(make_string(err));
 
         for (size_t i = 0; i < m_frame_pointer; i++) {
@@ -197,11 +201,11 @@ namespace bond {
         fmt::print(" {}\n", err);
     }
 
-    void Vm::runtime_error(const std::string &error) {
+    void Vm::runtime_error(const t_string &error) {
         runtime_error(error, RuntimeError::GenericError);
     }
 
-    void Vm::runtime_error(const std::string &error, RuntimeError e) {
+    void Vm::runtime_error(const t_string &error, RuntimeError e) {
         if (m_current_frame != nullptr) {
             runtime_error(error, e, m_current_frame->get_span());
         }
@@ -212,17 +216,10 @@ namespace bond {
         push(make_string(error));
     }
 
-    static NativeMethodPtr i_add;
-    static NativeMethodPtr i_sub;
-    static NativeMethodPtr i_mul;
-    static NativeMethodPtr i_div;
-
-    static NativeMethodPtr f_add;
-    static NativeMethodPtr f_sub;
-    static NativeMethodPtr f_mul;
-    static NativeMethodPtr f_div;
 
     void Vm::init_bin_funcs() {
+        auto INT_STRUCT = Runtime::ins()->INT_STRUCT;
+        auto FLOAT_STRUCT = Runtime::ins()->FLOAT_STRUCT;
         i_add = INT_STRUCT->get_slot(Slot::BIN_ADD);
         i_sub = INT_STRUCT->get_slot(Slot::BIN_SUB);
         i_mul = INT_STRUCT->get_slot(Slot::BIN_MUL);
@@ -262,7 +259,7 @@ namespace bond {
  * @param op_name The name of the binary operation.
  */
 
-    void Vm::bin_op(Slot slot, const std::string &op_name) {
+    void Vm::bin_op(Slot slot, const t_string &op_name) {
         if (peek(1)->is<NativeInstance>() and peek()->is<NativeInstance>()) {
 
             auto right = pop()->as<NativeInstance>();
@@ -305,7 +302,7 @@ namespace bond {
  * @see Vm::call_slot()
  */
 
-    void Vm::compare_op(Slot slot, const std::string &op_name) {
+    void Vm::compare_op(Slot slot, const t_string &op_name) {
         if (!peek(1)->is<NativeInstance>() or !peek()->is<NativeInstance>()) {
             runtime_error(fmt::format("unable to {} values of type {} and {}", op_name,
                                       peek(1).type_name(), peek().type_name()),
@@ -396,7 +393,7 @@ namespace bond {
         return had_error();
     }
 
-    std::expected<GcPtr<Object>, std::string>
+    std::expected<GcPtr<Object>, t_string>
     Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args) {
         if (!instance->is<NativeInstance>()) {
             return std::unexpected(
@@ -442,6 +439,8 @@ namespace bond {
         } else {
             runtime_error(fmt::format("{} is not callable", func->str()));
         }
+
+
     }
 
     void Vm::call_native_function(const GcPtr<Object> &func, t_vector &args) {
@@ -486,10 +485,41 @@ namespace bond {
         call_function(cl->get_function(), args, cl->get_up_values());
     }
 
+
+    void Vm::process_events_if_needed() {
+        if (m_ctx->has_error()) {
+            m_stop = true;
+            return;
+        }
+
+        if (m_start_event_loop_cb) {
+            m_start_event_loop_cb();
+        }
+        else {
+            return;
+        }
+
+        for (size_t i = 0; i < m_yield_frames.size(); i++) {
+            auto &frame = m_yield_frames[i];
+            if (frame.future->is_ready()) {
+                m_frames[m_frame_pointer] = frame.frame;
+                m_current_frame = &m_frames[m_frame_pointer];
+                update_frame_pointer();
+                push(frame.future->get_value());
+
+                std::swap(m_yield_frames[i], m_yield_frames.back());
+                m_yield_frames.pop_back();
+                exec(m_frame_pointer);
+            }
+        }
+
+    }
+
+
     void Vm::exec(uint32_t stop_frame) {
         if (m_frame_pointer == 0)
             return;
-        while (!m_stop) {
+        while (!m_stop  ) {
 
             auto opcode = m_current_frame->get_opcode();
             switch (opcode) {
@@ -636,15 +666,28 @@ namespace bond {
                     if (m_frame_pointer == stop_frame) {
                         m_frame_pointer--;
                         m_current_frame = &m_frames[m_frame_pointer - 1];
+                        process_events_if_needed();
                         return;
                     }
 
                     if (m_frame_pointer == 1) {
+                        while (!m_yield_frames.empty()) process_events_if_needed();
+                        if (has_top() and peek()->is<Result>()) {
+                            auto result = pop()->as<Result>();
+                            if (result->has_error()) {
+                                runtime_error(result->str(), RuntimeError::GenericError,
+                                              m_current_frame->get_span());
+                                break;
+                            }
+                            push(result->get_value());
+                        }
+
                         m_stop = true;
                         break;
                     }
                     m_frame_pointer--;
                     m_current_frame = &m_frames[m_frame_pointer - 1];
+                    process_events_if_needed();
                     break;
                 }
                 case Opcode::PUSH_TRUE:
@@ -730,7 +773,7 @@ namespace bond {
                 case Opcode::BUILD_LIST: {
 
                     auto size = m_current_frame->get_oprand();
-                    auto list = LIST_STRUCT->create_instance<List>();
+                    auto list = Runtime::ins()->make_list({});
 
                     for (int i = 0; i < size; i++) {
                         list->prepend(pop());
@@ -761,7 +804,7 @@ namespace bond {
                     auto position = m_current_frame->get_oprand();
                     auto cond = pop();
 
-                    auto res = BOOL_STRUCT->create({cond}).value()->as<Bool>();
+                    auto res = Runtime::ins()->BOOL_STRUCT->create({cond}).value()->as<Bool>();
 
                     if (!res->get_value()) {
                         m_current_frame->jump_absolute(position);
@@ -780,7 +823,7 @@ namespace bond {
                     auto right = pop();
                     auto left = pop();
 
-                    auto res = BOOL_STRUCT->create({left}).value()->as<Bool>();
+                    auto res = Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
 
                     if (res->get_value()) {
                         push(left);
@@ -795,8 +838,8 @@ namespace bond {
                     auto right = pop();
                     auto left = pop();
 
-                    auto l_bool = BOOL_STRUCT->create({left}).value()->as<Bool>();
-                    auto r_bool = BOOL_STRUCT->create({right}).value()->as<Bool>();
+                    auto l_bool = Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
+                    auto r_bool = Runtime::ins()->BOOL_STRUCT->create({right}).value()->as<Bool>();
 
                     auto l = l_bool->get_value();
                     auto r = r_bool->get_value();
@@ -980,7 +1023,7 @@ namespace bond {
                 }
                 case Opcode::NOT: {
                     auto obj = pop();
-                    auto res = BOOL_STRUCT->create({obj}).value()->as<Bool>();
+                    auto res = Runtime::ins()->BOOL_STRUCT->create({obj}).value()->as<Bool>();
                     push(AS_BOOL(!res->get_value()));
                     break;
                 }
@@ -1192,7 +1235,7 @@ namespace bond {
                 case Opcode::CREATE_CLOSURE: {
                     auto func = m_current_frame->get_constant()->as<Function>();
                     func->set_globals(m_current_frame->get_globals());
-                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(
+                    auto closure = Runtime::ins()->CLOSURE_STRUCT->create_instance<Closure>(
                             func->as<Function>(), m_current_frame->get_locals());
                     m_current_frame->set_local(func->get_name(), closure);
                     break;
@@ -1201,7 +1244,7 @@ namespace bond {
                 case Opcode::CREATE_CLOSURE_EX: {
                     auto func = m_current_frame->get_constant()->as<Function>();
                     func->set_globals(m_current_frame->get_globals());
-                    auto closure = CLOSURE_STRUCT->create_instance<Closure>(
+                    auto closure = Runtime::ins()->CLOSURE_STRUCT->create_instance<Closure>(
                             func->as<Function>(), m_current_frame->get_locals());
                     push(closure);
                     break;
@@ -1209,7 +1252,7 @@ namespace bond {
 
                 case Opcode::BUILD_DICT: {
                     auto count = m_current_frame->get_oprand();
-                    auto dict = HASHMAP_STRUCT->create_instance<HashMap>();
+                    auto dict = Runtime::ins()->HASHMAP_STRUCT->create_instance<HashMap>();
 
                     for (int i = 0; i < count; i++) {
                         auto value = pop();
@@ -1227,11 +1270,18 @@ namespace bond {
 
                 case Opcode::MAKE_ASYNC:
                 case Opcode::AWAIT:
-                    runtime_error("async/await is not implemented");
+                    runtime_error("asyncio not implemented");
+                    break;
             }
 
-            //            collect_if_needed();
         }
+
+    }
+
+    GcPtr<Object> Vm::pop() {
+        auto obj = stack[m_stack_pointer].get();
+        stack[m_stack_pointer--].reset();
+        return obj;
     }
 
 } // namespace bond

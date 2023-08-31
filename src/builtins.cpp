@@ -80,11 +80,11 @@ namespace bond {
         return OK(make_string(help.str()));
     }
 
-    std::string build_doc(const GcPtr<Function> &function) {
+    t_string build_doc(const GcPtr<Function> &function) {
         std::stringstream help;
         help << fmt::format("fn {}(", function->get_name());
 
-        std::vector<std::string> params;
+        std::vector<t_string> params;
 
         for (auto const &param: function->get_arguments()) {
             params.push_back(param->name);
@@ -179,7 +179,7 @@ namespace bond {
         String* prompt;
         TRY(parse_args(args, prompt));
         fmt::print("{}", prompt->get_value());
-        std::string input;
+        t_string input;
         std::getline(std::cin, input);
         return OK(make_string(input));
     }
@@ -223,7 +223,7 @@ namespace bond {
 
     struct Iterator: public NativeInstance {
         virtual obj_result next() = 0;
-        virtual std::expected<bool, std::string> has_next() = 0;
+        virtual std::expected<bool, t_string> has_next() = 0;
 
         virtual obj_result to_list(){
             t_vector items;
@@ -312,7 +312,7 @@ namespace bond {
             return next.value();
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto vm = get_current_vm();
             auto next = vm->call_slot(Slot::HAS_NEXT, it, {});
 
@@ -365,7 +365,7 @@ namespace bond {
             return vm->pop();
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             return next.value();
@@ -389,7 +389,7 @@ namespace bond {
             return next.value();
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             return next.value() && count > 0;
@@ -421,7 +421,7 @@ namespace bond {
             }
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             return next.value();
@@ -449,7 +449,7 @@ namespace bond {
             return it->as<Iterator>()->next();
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             return next.value();
@@ -477,7 +477,7 @@ namespace bond {
             return next_value;
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto h_next = it->as<Iterator>()->has_next();
             TRY(h_next);
 
@@ -518,7 +518,7 @@ namespace bond {
             return it->as<Iterator>()->next();
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             if (next.value())
@@ -546,7 +546,7 @@ namespace bond {
             return res;
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto next = it->as<Iterator>()->has_next();
             TRY(next);
             return next.value();
@@ -568,7 +568,7 @@ namespace bond {
             return next_value;
         }
 
-        std::expected<bool, std::string> has_next() override {
+        std::expected<bool, t_string> has_next() override {
             auto h_next = it->as<Iterator>()->has_next();
             TRY(h_next);
             if (!h_next.value())
@@ -760,25 +760,26 @@ namespace bond {
 
 
             builtins = {
-                    {"println", NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("println", "println(...)",
+                    {"println", Runtime::ins()->make_native_function("println", "println(...)",
                                                                                         b_println)},
-                    {"print",   NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("print", "print(...)", b_print)},
-                    {"dump",    NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("dump", "dump()", b_dump)},
-                    {"exit",    NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("exit", "exit(code)", b_exit)},
-                    {"help",    NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("help", "help(obj)", b_help)},
-                    {"type_of", NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("type_of", "type_of(obj)", b_type_of)},
-                    {"instance_of", NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("instance_of", "instance_of(obj, type)", b_instance_of)},
-                    {"input",   NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("input", "input(prompt)", b_input)},
-                    {"Int", INT_STRUCT},
-                    {"Float", FLOAT_STRUCT},
-                    {"String", STRING_STRUCT},
-                    {"List", LIST_STRUCT},
-                    {"Bool", BOOL_STRUCT},
-                    {"Nil", NONE_STRUCT},
-                    {"iter", NATIVE_FUNCTION_STRUCT->create_instance<NativeFunction>("iter", "iter(iterable: Any) -> Iter", b_iter)},
-                    {"debug_break", NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("debug_break", "debug_break()", b_debug_break)},
+                    {"print",   Runtime::ins()->make_native_function("print", "print(...)", b_print)},
+                    {"dump",    Runtime::ins()->make_native_function("dump", "dump()", b_dump)},
+                    {"exit",    Runtime::ins()->make_native_function("exit", "exit(code)", b_exit)},
+                    {"help",    Runtime::ins()->make_native_function("help", "help(obj)", b_help)},
+                    {"type_of", Runtime::ins()->make_native_function("type_of", "type_of(obj)", b_type_of)},
+                    {"instance_of", Runtime::ins()->make_native_function("instance_of", "instance_of(obj, type)", b_instance_of)},
+                    {"input",   Runtime::ins()->make_native_function("input", "input(prompt)", b_input)},
+                    {"Int", Runtime::ins()->INT_STRUCT},
+                    {"Float", Runtime::ins()->FLOAT_STRUCT},
+                    {"String", Runtime::ins()->STRING_STRUCT},
+                    {"List", Runtime::ins()->LIST_STRUCT},
+                    {"Bool", Runtime::ins()->BOOL_STRUCT},
+                    {"Nil", Runtime::ins()->NONE_STRUCT},
+                    {"Future", Runtime::ins()->FUTURE_STRUCT},
+                    {"iter", Runtime::ins()->make_native_function("iter", "iter(iterable: Any) -> Iter", b_iter)},
+                    {"debug_break", Runtime::ins()->make_native_function("debug_break", "debug_break()", b_debug_break)},
                     {"__future__", future.build()},
-                    {"format", NATIVE_FUNCTION_STRUCT->create_immortal<NativeFunction>("format", "format(str, ...)", b_format)},
+                    {"format", Runtime::ins()->make_native_function("format", "format(str, ...)", b_format)},
             };
 
             built = true;

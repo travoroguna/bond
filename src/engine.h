@@ -18,7 +18,7 @@
 #include <utility>
 
 namespace bond {
-    class Engine {
+    class Engine: public gc {
     private:
         std::string m_lib_path;
         std::vector<std::string, gc_allocator<std::string>> m_args;
@@ -40,8 +40,8 @@ namespace bond {
         void set_checker(bool check) { m_check = check; }
     };
 
-    std::unique_ptr<Engine> create_engine(const std::string& lib_path, const std::vector<std::string, gc_allocator<std::string>>& args);
-    std::unique_ptr<Engine> create_engine(const std::string& lib_path);
+    Engine* create_engine(const std::string& lib_path, const std::vector<std::string, gc_allocator<std::string>>& args);
+    Engine* create_engine(const std::string& lib_path);
 
 }
 

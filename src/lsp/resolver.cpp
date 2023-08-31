@@ -553,7 +553,7 @@ namespace bond::lsp {
         return get_symbol(sym->get_name(), span);
     }
 
-    std::expected<std::unordered_map<std::string, std::shared_ptr<Symbol>>, std::vector<ResolveError>>
+    std::expected<std::unordered_map<t_string, std::shared_ptr<Symbol>>, std::vector<ResolveError>>
     Resolver::resolve() {
         fill_global_scope();
         for (auto &stmnt: m_nodes) {
@@ -586,7 +586,7 @@ namespace bond::lsp {
         m_scopes.pop_back();
     }
 
-    std::shared_ptr<Symbol> Resolver::get_symbol(const std::string &name, const SharedSpan &span) {
+    std::shared_ptr<Symbol> Resolver::get_symbol(const t_string &name, const SharedSpan &span) {
         for (auto &scope: std::ranges::reverse_view(m_scopes)) {
             if (scope.contains(name)) {
                 return scope[name];
@@ -597,7 +597,7 @@ namespace bond::lsp {
     }
 
     void Resolver::fill_global_scope() {
-        auto globs = MAP_STRUCT->create_instance<StringMap>();
+        auto globs = Runtime::ins()->MAP_STRUCT->create_instance<StringMap>();
         add_builtins_to_globals(globs);
         new_scope();
         for (auto &[name, _]: globs->get_value()) {
@@ -616,7 +616,7 @@ namespace bond::lsp {
         declare("Nil", NIL_SYMBOL);
     }
 
-    void Resolver::declare(const std::string &name, const std::shared_ptr<Symbol> &symbol) {
+    void Resolver::declare(const t_string &name, const std::shared_ptr<Symbol> &symbol) {
         for (auto &scope: std::ranges::reverse_view(m_scopes)) {
             // no span ignore
             if (scope.contains(name)) {
@@ -627,7 +627,7 @@ namespace bond::lsp {
         m_scopes.back()[name] = symbol;
     }
 
-    void Resolver::declare(const std::string &name, const std::shared_ptr<Symbol> &symbol, const SharedSpan &span) {
+    void Resolver::declare(const t_string &name, const std::shared_ptr<Symbol> &symbol, const SharedSpan &span) {
         for (auto &scope: std::ranges::reverse_view(m_scopes)) {
             if (scope.contains(name)) {
                 add_error(fmt::format("variable {} already declared", name), span);
@@ -637,18 +637,18 @@ namespace bond::lsp {
         m_scopes.back()[name] = symbol;
     }
 
-    void Resolver::add_error(const std::string &message, const SharedSpan &span) {
+    void Resolver::add_error(const t_string &message, const SharedSpan &span) {
         m_errors.emplace_back(message, span);
     }
 
     void init_symbols() {
-        INT_SYMBOL = std::make_shared<Symbol>(INT_STRUCT);
-        FLOAT_SYMBOL = std::make_shared<Symbol>(FLOAT_STRUCT);
-        STRING_SYMBOL = std::make_shared<Symbol>(STRING_STRUCT);
-        LIST_SYMBOL = std::make_shared<Symbol>(LIST_STRUCT);
-        HASHMAP_SYMBOL = std::make_shared<Symbol>(HASHMAP_STRUCT);
-        BOOL_SYMBOL = std::make_shared<Symbol>(BOOL_STRUCT);
-        NIL_SYMBOL = std::make_shared<Symbol>(NONE_STRUCT);
+        INT_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->INT_STRUCT);
+        FLOAT_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->FLOAT_STRUCT);
+        STRING_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->STRING_STRUCT);
+        LIST_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->LIST_STRUCT);
+        HASHMAP_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->HASHMAP_STRUCT);
+        BOOL_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->BOOL_STRUCT);
+        NIL_SYMBOL = std::make_shared<Symbol>(Runtime::ins()->NONE_STRUCT);
         ANY_STRUCT = make<NativeStruct>("Any", "Any(object: Any)", bond::c_Default<Any>);
         ANY_SYMBOL = std::make_shared<Symbol>(ANY_STRUCT);
     }

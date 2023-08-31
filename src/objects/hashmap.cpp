@@ -6,13 +6,14 @@
 #include "../object.h"
 #include "../api.h"
 #include "../vm.h"
+#include "../runtime.h"
 
 
 #define INITIAL_HASH_CAPACITY 16
 
 
 namespace bond {
-    std::expected<void, std::string> check_key_hashable(const GcPtr<Object> &key) {
+    std::expected<void, t_string> check_key_hashable(const GcPtr<Object> &key) {
         if (!key->is<NativeInstance>()) {
             return std::unexpected("key is not hashable");
         }
@@ -30,7 +31,7 @@ namespace bond {
         return {};
     }
 
-    std::expected<GcPtr<Object>, std::string> HashMap::get(const GcPtr<Object> &key) {
+    std::expected<GcPtr<Object>, t_string> HashMap::get(const GcPtr<Object> &key) {
         auto h_res = hash_key(key);
         TRY(h_res);
         auto h = h_res.value();
@@ -63,7 +64,7 @@ namespace bond {
     }
 
 
-    std::expected<void, std::string> HashMap::set(const GcPtr<Object> &key, const GcPtr<Object> &value) {
+    std::expected<void, t_string> HashMap::set(const GcPtr<Object> &key, const GcPtr<Object> &value) {
         auto cap = m_entries.size();
 
         if (m_size >= cap / 2) {
@@ -73,7 +74,7 @@ namespace bond {
         return set_entry(key, value);
     }
 
-    std::expected<void, std::string> HashMap::remove(const GcPtr<Object> &key) {
+    std::expected<void, t_string> HashMap::remove(const GcPtr<Object> &key) {
         auto h_res = hash_key(key);
         TRY(h_res);
 
@@ -107,7 +108,7 @@ namespace bond {
         return std::unexpected(fmt::format("key {} not found", key->str()));
     }
 
-    std::expected<bool, std::string> HashMap::has(const GcPtr<Object> &key) {
+    std::expected<bool, t_string> HashMap::has(const GcPtr<Object> &key) {
         auto h_res = hash_key(key);
         TRY(h_res);
 
@@ -138,7 +139,7 @@ namespace bond {
         return false;
     }
 
-    std::expected<size_t, std::string> HashMap::hash_key(const GcPtr<bond::Object> &key) {
+    std::expected<size_t, t_string> HashMap::hash_key(const GcPtr<bond::Object> &key) {
         TRY(check_key_hashable(key));
         auto the_key = key->as<NativeInstance>();
 
@@ -170,7 +171,7 @@ namespace bond {
     }
 
 
-    std::expected<void, std::string> HashMap::set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value) {
+    std::expected<void, t_string> HashMap::set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value) {
         auto h_res = hash_key(key);
         TRY(h_res);
         auto h = h_res.value();
@@ -219,11 +220,11 @@ namespace bond {
             new_cap = INITIAL_HASH_CAPACITY;
         }
 
-        std::vector<std::shared_ptr<ht_entry>> new_entries;
+        hash_vector new_entries;
         new_entries.resize(new_cap);
 
         for (auto &entry: new_entries) {
-            entry = std::make_shared<ht_entry>(nullptr, nullptr, 0);
+            entry = new (GC) ht_entry(nullptr, nullptr, 0);
         }
 
         assert(new_entries.size() == new_cap);
@@ -242,8 +243,8 @@ namespace bond {
 
     }
 
-    std::string HashMap::str() const {
-        std::string res = "{ ";
+    t_string HashMap::str() const {
+        t_string res = "{ ";
         for (auto &entry: m_entries) {
             if (entry->key.get() == nullptr) {
                 continue;
@@ -359,7 +360,7 @@ namespace bond {
                 auto entry = m_map->get_entries()[m_index];
                 m_index++;
                 if (entry->key.get() != nullptr) {
-                    next_item = LIST_STRUCT->create_instance<List>(t_vector{entry->key, entry->value});
+                    next_item = Runtime::ins()->LIST_STRUCT->create_instance<List>(t_vector{entry->key, entry->value});
                     return;
                 }
             }
@@ -397,15 +398,17 @@ namespace bond {
     }
 
 
-    GcPtr<NativeStruct> HASHMAP_STRUCT = make<NativeStruct>("HashMap", "HashMap(val: HashMap)", c_Default<HashMap>,
+    void init_hash_map() {
+        Runtime::ins()->HASHMAP_STRUCT = make<NativeStruct>("HashMap", "HashMap(val: HashMap)", c_Default<HashMap>,
                                                             method_map{
-                                                                    {"__getitem__", {HashMap_getitem, "__getitem__(key: Any) -> Any"}},
-                                                                    {"__setitem__", {HashMap_setitem, "__setitem__(key: Any, value: Any) -> None"}},
-                                                                    {"size",        {HashMap_len,     "size() -> Int"}},
-                                                                    {"get",         {HashMap_get,     "get(key: Any) -> String!Any"}},
-                                                                    {"set",         {HashMap_set,     "set(key: Any, value: Any) -> String!None"}},
+                                                                    {"__getitem__", {HashMap_getitem,  "__getitem__(key: Any) -> Any"}},
+                                                                    {"__setitem__", {HashMap_setitem,  "__setitem__(key: Any, value: Any) -> None"}},
+                                                                    {"size",        {HashMap_len,      "size() -> Int"}},
+                                                                    {"get",         {HashMap_get,      "get(key: Any) -> String!Any"}},
+                                                                    {"set",         {HashMap_set,      "set(key: Any, value: Any) -> String!None"}},
                                                                     {"contains",    {HashMap_contains, "contains(key: Any) -> Bool"}},
                                                                     {"remove",      {HashMap_remove,   "remove(key: Any) -> None"}},
-                                                                    {"__iter__",    {HashMap_iter,    "__iter__() -> Iterator"}},
+                                                                    {"__iter__",    {HashMap_iter,     "__iter__() -> Iterator"}},
                                                             });
+    }
 }

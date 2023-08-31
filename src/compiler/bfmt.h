@@ -44,19 +44,19 @@ namespace bond{
 
     class Unit {
     public:
-        Unit(std::string path, Context *context) : path(std::move(path)), context(context) {};
-        std::expected<void, std::string> find_dependencies();
-        std::vector<std::string> &get_dependencies();
+        Unit(t_string path, Context *context) : path(std::move(path)), context(context) {};
+        std::expected<void, t_string> find_dependencies();
+        std::vector<t_string> &get_dependencies();
         std::shared_ptr<Scopes> get_scopes() { return scopes; }
         std::vector<std::shared_ptr<Node>> &get_nodes() { return nodes; }
         size_t get_unit_id() const { return unit_id; }
-        std::expected<GcPtr<Code>, std::string> compile();
+        std::expected<GcPtr<Code>, t_string> compile();
 
 
     private:
-        std::string path;
+        t_string path;
         std::vector<std::shared_ptr<Node>> nodes;
-        std::vector<std::string> dependencies;
+        std::vector<t_string> dependencies;
         size_t unit_id {0};
         std::shared_ptr<Scopes> scopes;
         Context *context;
@@ -74,8 +74,8 @@ namespace bond{
         return value;
     }
 
-    auto write_archive(const std::string &path, const std::unordered_map<std::string, std::shared_ptr<Unit>>&) -> std::expected<void, std::string>;
-    auto read_archive(const std::string &path) -> std::expected<std::unordered_map<uint32_t, GcPtr<Code>>, std::string>;
+    auto write_archive(const t_string &path, const std::unordered_map<t_string, std::shared_ptr<Unit>>&) -> std::expected<void, t_string>;
+    auto read_archive(const t_string &path) -> std::expected<std::unordered_map<uint32_t, GcPtr<Code>>, t_string>;
 
-    auto may_be_bar_file(const std::string &path) -> bool;
+    auto may_be_bar_file(const t_string &path) -> bool;
 }

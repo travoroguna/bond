@@ -1,4 +1,5 @@
 #include "../object.h"
+#include "../runtime.h"
 
 namespace bond {
     obj_result Int_construct(const t_vector &args) {
@@ -150,29 +151,20 @@ namespace bond {
     }
 
 
-    GcPtr<NativeStruct> INT_STRUCT = make_immortal<NativeStruct>("Int", "Int(value)", Int_construct, method_map {
-            {"__add__", {Int_add, "add(other)"}},
-            {"__sub__", {Int_sub, "sub(other)"}},
-            {"__mul__", {Int_mul, "mul(other)"}},
-            {"__div__", {Int_div, "div(other)"}},
-            {"__mod__", {Int_mod, "mod(other)"}},
-            {"__lt__", {Int_lt, "__lt__(other)"}},
-            {"__eq__", {Int_eq, "__eq__(other)"}},
-            {"__ne__", {Int_ne, "__ne__(other)"}},
-            {"__gt__", {Int_gt, "__gt__(other)"}},
-            {"__le__", {Int_le, "__le__(other)"}},
-            {"__ge__", {Int_ge, "__ge__(other)"}},
-            {"__hash__", {Int_hash, "__hash__()"}}
-    });
-
-
-
-    GcPtr<Int> make_int(int64_t value) {
-        if (value > -1 and value < 256) {
-            auto val = int_cache[value];
-            return val;
-        }
-
-        return INT_STRUCT->create_instance<Int>(value);
+    void init_int() {
+        Runtime::ins()->INT_STRUCT = make_immortal<NativeStruct>("Int", "Int(value)", Int_construct, method_map{
+                {"__add__",  {Int_add,  "add(other)"}},
+                {"__sub__",  {Int_sub,  "sub(other)"}},
+                {"__mul__",  {Int_mul,  "mul(other)"}},
+                {"__div__",  {Int_div,  "div(other)"}},
+                {"__mod__",  {Int_mod,  "mod(other)"}},
+                {"__lt__",   {Int_lt,   "__lt__(other)"}},
+                {"__eq__",   {Int_eq,   "__eq__(other)"}},
+                {"__ne__",   {Int_ne,   "__ne__(other)"}},
+                {"__gt__",   {Int_gt,   "__gt__(other)"}},
+                {"__le__",   {Int_le,   "__le__(other)"}},
+                {"__ge__",   {Int_ge,   "__ge__(other)"}},
+                {"__hash__", {Int_hash, "__hash__()"}}
+        });
     }
 }

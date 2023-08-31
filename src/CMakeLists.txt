@@ -4,6 +4,7 @@ project(bond-lib)
 set(CMAKE_CXX_STANDARD 23)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(FMT_INSTALL OFF CACHE INTERNAL "")
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 CPMAddPackage(
         NAME nlohmann_json
@@ -41,9 +42,10 @@ CPMAddPackage(
         NAME bdwgc
         GITHUB_REPOSITORY ivmai/bdwgc
         GIT_TAG master
-        OPTIONS "enable_docs OFF" "enable_cplusplus ON" "BUILD_SHARED_LIBS OFF" "enable_gc_debug OFF" "enable_large_config OFF" "enable_threads ON" "enable_dynamic_loading ON"
+        OPTIONS "BUILD_SHARED_LIBS ON" "enable_docs OFF" "enable_cplusplus ON"  "enable_gc_debug OFF" "enable_large_config OFF" "enable_threads ON" "enable_dynamic_loading ON"
         EXCLUDE_FROM_ALL YES
 )
+
 
 if(EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -pthread")
@@ -66,21 +68,60 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
 
         lsp/resolver.cpp
         lsp/resolver.h
-        )
+        runtime.cpp
+        runtime.h
+)
 
-target_link_libraries(bond-lib gc gctba fmt::fmt-header-only nlohmann_json bnk)
+
+target_include_directories(bond-lib PUBLIC ${bdwgc_SOURCE_DIR}/include)
+target_include_directories(bond-lib PUBLIC ${fmtlib_SOURCE_DIR}/include)
+
+target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json bnk)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
+
+#copy the dlls to the output directory
+
+set_target_properties(gc PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+set_target_properties(gccpp PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+set_target_properties(gctba PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 if (MSVC)
     target_link_libraries(gc atomic_ops)
 endif ()
+
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")
 
 INSTALL(TARGETS bond-lib
         LIBRARY DESTINATION lib
         PUBLIC_HEADER DESTINATION include/bondlib
+)
+
+INSTALL(TARGETS gc
+        LIBRARY DESTINATION bin
+        PUBLIC_HEADER DESTINATION include/gc
+)
+
+INSTALL(TARGETS gccpp
+        LIBRARY DESTINATION bin
+        PUBLIC_HEADER DESTINATION include/gc
+)
+
+INSTALL(TARGETS gctba
+        LIBRARY DESTINATION bin
+        PUBLIC_HEADER DESTINATION include/gc
 )
 
 #INSTALL(TARGETS fmt)

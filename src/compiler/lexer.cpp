@@ -236,6 +236,7 @@ namespace bond {
             ADD_TOKEN('&', TokenType::BITWISE_AND);
             ADD_TOKEN('^', TokenType::BITWISE_XOR);
             ADD_TOKEN(':', TokenType::COLON);
+            ADD_TOKEN('?', TokenType::QUESTION);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);

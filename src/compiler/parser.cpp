@@ -22,7 +22,7 @@ namespace bond {
                     "println", "print", "dump", "exit",
                     "help", "type_of", "instance_of", "input",
                     "Int", "Float", "String", "Bool", "List",
-                    "debug_break", "__future__", "format", "iter"
+                    "debug_break", "__future__", "format", "iter", "Future"
             };
 
             for (auto &builtin: builtins) {
@@ -83,8 +83,13 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::async_declaration() {
+        throw ParserError("Asyncio not implemented", previous().get_span());
+
+        auto pre = m_in_async;
+        m_in_async = true;
         consume(TokenType::FUN, peek().get_span(), "Expected function after async keyword");
         auto function = function_declaration(false, false);
+        m_in_async = pre;
         return std::make_shared<AsyncDef>(function->get_span(), function);
     }
 
@@ -518,6 +523,10 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::await_statement() {
         if (match({TokenType::AWAIT})) {
+            throw ParserError("Asyncio not implemented", previous().get_span());
+            if (!m_in_async and in_function) {
+                throw ParserError("Cannot await outside of an async function", previous().get_span());
+            }
             auto await_expr = await_statement();
             auto span = span_from_spans(await_expr->get_span(), previous().get_span());
             return std::make_shared<Await>(span, await_expr);
@@ -697,6 +706,7 @@ namespace bond {
 
         return expr;
     }
+
 
     std::shared_ptr<Node> Parser::_or() {
         auto expr = _and();
@@ -884,8 +894,15 @@ namespace bond {
             } else if (match({TokenType::LEFT_PAREN})) {
                 expr = f_call(expr);
             } else if (match({TokenType::DOT})) {
-                auto name = consume(TokenType::IDENTIFIER, expr->get_span(), "Expected property name after '.'.");
-                expr = std::make_shared<GetAttribute>(expr->get_span(), expr, name.get_lexeme());
+                if (match({TokenType::IDENTIFIER})) {
+                    expr = std::make_shared<GetAttribute>(span_from_spans(expr->get_span(), previous().get_span()), expr, previous().get_lexeme());
+                }
+                else if (match({TokenType::QUESTION})) {
+                    expr = std::make_shared<Try>(span_from_spans(expr->get_span(), previous().get_span()), expr);
+                }
+                else {
+                    throw ParserError("Expected property name or '?' after '.'.", peek().get_span());
+                }
             } else {
                 break;
             }

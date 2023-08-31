@@ -195,6 +195,8 @@ namespace bond {
 
         bool m_report = true;
 
+        bool m_in_async = false;
+
         std::vector<std::pair<std::string, SharedSpan>> m_diagnostics;
 
         std::vector<std::pair<SharedNode, SharedNode>> key_value_pairs(TokenType end_token);

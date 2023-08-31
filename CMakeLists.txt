@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 
 OPTION(BOND_DEBUG "Debug mode" OFF)
 
@@ -37,9 +40,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     add_executable(bond src/main.cpp ${WIN32_RESOURCES})
 
     if (MSVC)
-        set(CMAKE_CXX_FLAGS "/Wall /cgthreads8  /EHsc")
+        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
     else ()
-        set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -fexceptions -pthread -dl")
+        set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
     endif ()
 
     message("Windows")
@@ -59,7 +62,7 @@ if(EMSCRIPTEN)
 endif()
 
 
-target_link_libraries(bond bond-lib Argumentum::headers)
+target_link_libraries(bond PRIVATE bond-lib Argumentum::headers)
 
 
 cpm_licenses_create_disclaimer_target(
@@ -72,6 +75,28 @@ if (BOND_DEBUG)
     message("Debug mode")
     target_compile_definitions(bond-lib PRIVATE DEBUG)
 endif ()
+
+#file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/input.txt
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gc.dll
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gccpp.dll
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gctba.dll
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gc.pdb
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gccpp.pdb
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#
+#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gctba.pdb
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 
 set(CPACK_PACKAGE_NAME "bond")

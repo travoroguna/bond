@@ -1,15 +1,16 @@
 #include "../object.h"
+#include "../runtime.h"
 
 
 namespace bond {
-    void StringMap::set(const std::string& key, const GcPtr<Object>& obj) {
+    void StringMap::set(const t_string& key, const GcPtr<Object>& obj) {
         m_value[key] = obj;
     }
-    std::optional<GcPtr<Object>> StringMap::get(const std::string& key) {
+    std::optional<GcPtr<Object>> StringMap::get(const t_string& key) {
         if (m_value.contains(key)) return m_value[key];
         return std::nullopt;
     }
-    GcPtr<Object> StringMap::get_unchecked(const std::string& key) {
+    GcPtr<Object> StringMap::get_unchecked(const t_string& key) {
         return m_value[key];
     }
 
@@ -20,5 +21,7 @@ namespace bond {
         return OK(args[0]);
     }
 
-    GcPtr<NativeStruct> MAP_STRUCT = make_immortal<NativeStruct>("Map", "Map(value: Map)", c_Map);
+    void init_map() {
+        Runtime::ins()->MAP_STRUCT = make_immortal<NativeStruct>("Map", "Map(value: Map)", c_Map);
+    }
 }

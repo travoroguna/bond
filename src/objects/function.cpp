@@ -3,7 +3,9 @@
 //
 
 
+
 #include "../object.h"
+#include "../runtime.h"
 
 namespace bond {
     obj_result c_Function(const t_vector &args) {
@@ -26,16 +28,39 @@ namespace bond {
             return OK(make_string(self->get_name()));
         }
 
-        return ERR("Attribute " + name + " not found");
+        return ERR(fmt::format("AttributeError: function '{}' has no attribute '{}'", self->get_name(), name)) ;
     }
 
 
-    GcPtr<NativeStruct> FUNCTION_STRUCT = make_immortal<NativeStruct>("Function", "Function(value)", c_Function,
-                                                                      method_map{
-                                                                              {"__getattr__", {F_get_attribute,
-                                                                                               "__getattr__(name: String)"}},
-                                                                      });
+    void init_function() {
+        Runtime::ins()->FUNCTION_STRUCT = make_immortal<NativeStruct>("Function", "Function(value)", c_Function,
+                                                                          method_map{
+                                                                                  {"__getattr__", {F_get_attribute,
+                                                                                                   "__getattr__(name: String)"}},
+                                                                          });
 
-    GcPtr<NativeStruct> NATIVE_FUNCTION_STRUCT = make_immortal<NativeStruct>("NativeFunction", "NativeFunction(value)",
-                                                                             c_Default<NativeFunction>);
+        Runtime::ins()->NATIVE_FUNCTION_STRUCT = make_immortal<NativeStruct>("NativeFunction",
+                                                                                 "NativeFunction(value)",
+                                                                                 c_Default<NativeFunction>);
+    }
+
+    GcPtr<Result> make_result(const GcPtr<Object> &value, bool is_error) {
+        return Runtime::ins()->make_result(value, is_error);
+    }
+
+    GcPtr<Float> make_float(double value) {
+        return Runtime::ins()->make_float(value);
+    }
+
+    GcPtr<List> make_list(const t_vector &values) {
+        return Runtime::ins()->make_list(values);
+    }
+
+    GcPtr<Int> make_int(int64_t value) {
+        return Runtime::ins()->make_int(value);
+    }
+
+    GcPtr<String> make_string(const t_string& value) {
+        return Runtime::ins()->make_string(value);
+    }
 }

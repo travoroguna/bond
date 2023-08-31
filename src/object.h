@@ -10,6 +10,38 @@
 #include <thread>
 #include <mutex>
 
+
+using custom_str = std::basic_string<char, std::char_traits<char>, gc_allocator<char>>;
+class t_string: public custom_str {
+public:
+    t_string(const std::string& str) : custom_str(str) {}
+    t_string(const char* str) : custom_str(str) {}
+    t_string(char *string, size_t i) {
+        this->assign(string, i);
+    }
+    t_string() = default;
+    t_string(const t_string& str) : custom_str(str) {}
+    t_string(t_string&& str) noexcept : custom_str(std::move(str)) {}
+    t_string(const custom_str &str) : custom_str(str) {}
+
+    t_string &operator=(const t_string &str) {
+        custom_str::operator=(str);
+        return *this;
+    }
+
+    t_string &operator=(const std::string &str) {
+        custom_str::operator=(str);
+        return *this;
+    }
+};
+
+template <>
+struct ::std::hash<t_string> {
+    std::size_t operator()(const t_string& k) const {
+        return std::hash<std::string>()(k.c_str());
+    }
+};
+
 namespace bond {
     enum class Opcode : uint32_t {
         LOAD_CONST,
@@ -109,15 +141,15 @@ namespace bond {
 
     class Object;
 
-    using obj_result = std::expected<GcPtr<Object>, std::string>;
+    using obj_result = std::expected<GcPtr<Object>, t_string>;
 
-    std::string Slot_to_string(Slot slot);
+    t_string Slot_to_string(Slot slot);
 
     class Object : public GcObject {
     public:
         Object() = default;
 
-        [[nodiscard]] virtual std::string str() const {
+        [[nodiscard]] virtual t_string str() const {
             return fmt::format("<Object at {}>", (void *) this);
         }
 
@@ -128,16 +160,11 @@ namespace bond {
         return GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
     }
 
-    template<typename T, typename... Args>
-    inline GcPtr<T> make_immortal(Args &&...args) {
-        auto imm = GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
-//        immortals.push_back(imm);
-        return imm;
-    }
-
     using t_vector = std::vector<GcPtr<Object>, gc_allocator<GcPtr<Object>>>;
-    using t_map = std::unordered_map<std::string, GcPtr<Object>, std::hash<std::string>, std::equal_to<>,
-            gc_allocator<std::pair<const std::string, GcPtr<Object>>>>;
+    using t_map = std::unordered_map<t_string, GcPtr<Object>, std::hash<t_string>, std::equal_to<>,
+            gc_allocator<std::pair<const t_string, GcPtr<Object>>>>;
+
+
     using NativeMethodPtr = std::function<obj_result(const GcPtr<Object> &self, const t_vector &)>;
     using NativeFunctionPtr = std::function<obj_result(const t_vector &)>;
 
@@ -147,33 +174,33 @@ namespace bond {
     using slot_array = std::array<NativeMethodPtr, Slot::SIZE>;
     using getter = std::function<obj_result(const GcPtr<Object> &)>;
     using setter = std::function<obj_result(const GcPtr<Object> &, const GcPtr<Object> &)>;
-    using method_map = std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>>;
+    using method_map = std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>>;
 
 
 
     class NativeStruct : public Object {
     public:
-        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor)
+        NativeStruct(t_string name, t_string doc, NativeFunctionPtr constructor)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_constructor(std::move(constructor)) { set_slots(); }
 
-        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor,
-                     const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods)
+        NativeStruct(t_string name, t_string doc, NativeFunctionPtr constructor,
+                     const std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &methods)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_methods(methods),
                   m_constructor(std::move(constructor)) { set_slots(); }
 
-        NativeStruct(std::string name, std::string doc, NativeFunctionPtr constructor,
-                     const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods,
-                     std::unordered_map<std::string, std::pair<getter, setter>> &properties)
+        NativeStruct(t_string name, t_string doc, NativeFunctionPtr constructor,
+                     const std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &methods,
+                     std::unordered_map<t_string, std::pair<getter, setter>> &properties)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_methods(methods),
                   m_constructor(std::move(constructor)), m_attributes(properties) { set_slots(); }
 
-        void add_methods(const std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &methods);
+        void add_methods(const std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &methods);
 
-        [[nodiscard]] std::optional<NativeMethodPtr> get_method(const std::string &name) const;
+        [[nodiscard]] std::optional<NativeMethodPtr> get_method(const t_string &name) const;
 
-        [[nodiscard]] std::string get_name() const { return m_name; }
+        [[nodiscard]] t_string get_name() const { return m_name; }
 
-        [[nodiscard]] std::string get_doc() const { return m_doc; }
+        [[nodiscard]] t_string get_doc() const { return m_doc; }
 
         [[nodiscard]] NativeFunctionPtr get_constructor() const { return m_constructor; }
 
@@ -201,31 +228,31 @@ namespace bond {
 
         NativeMethodPtr get_slot(Slot slot);
 
-        bool has_method(const std::string &name) const;
+        bool has_method(const t_string &name) const;
 
         [[nodiscard]]
-        std::string str() const override { return m_name; }
+        t_string str() const override { return m_name; }
 
-        std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> &get_methods() { return m_methods; }
+        std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &get_methods() { return m_methods; }
 
         void set_methods(const method_map &methods) { m_methods = methods; }
 
-        std::optional<getter> get_getter(const std::string &name) const;
+        std::optional<getter> get_getter(const t_string &name) const;
 
-        std::optional<setter> get_setter(const std::string &name) const;
+        std::optional<setter> get_setter(const t_string &name) const;
 
-        std::unordered_map<std::string, std::pair<getter, setter>> &get_attributes() { return m_attributes; }
+        std::unordered_map<t_string, std::pair<getter, setter>> &get_attributes() { return m_attributes; }
 
 
     protected:
-        std::string m_name;
-        std::string m_doc;
-        std::unordered_map<std::string, std::pair<NativeMethodPtr, std::string>> m_methods;
+        t_string m_name;
+        t_string m_doc;
+        std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> m_methods;
         NativeFunctionPtr m_constructor;
         slot_array m_slots;
 
         //getter and setter
-        std::unordered_map<std::string, std::pair<getter, setter>> m_attributes;
+        std::unordered_map<t_string, std::pair<getter, setter>> m_attributes;
 
     };
 
@@ -238,9 +265,9 @@ namespace bond {
 
         [[nodiscard]] NativeStruct *get_native_struct() const { return m_native_struct; }
 
-        [[nodiscard]] obj_result call_method(const std::string &name, const t_vector &args);
+        [[nodiscard]] obj_result call_method(const t_string &name, const t_vector &args);
 
-        bool has_method(const std::string &name);
+        bool has_method(const t_string &name);
 
         void set_native_struct(NativeStruct *native_struct) { m_native_struct = native_struct; }
 
@@ -248,13 +275,13 @@ namespace bond {
 
         virtual bool has_slot(Slot slot);
 
-        [[nodiscard]] std::string str() const override {
+        [[nodiscard]] t_string str() const override {
             return fmt::format("<instance of {} at {}>", m_native_struct->get_name(), (void *) this);
         }
 
-        std::optional<obj_result> get_attr(const std::string &name);
+        std::optional<obj_result> get_attr(const t_string &name);
 
-        std::optional<obj_result> set_attr(const std::string &name, const GcPtr<Object> &value);
+        std::optional<obj_result> set_attr(const t_string &name, const GcPtr<Object> &value);
 
 
     protected:
@@ -265,7 +292,7 @@ namespace bond {
 
     obj_result OK();
 
-    obj_result ERR(std::string error);
+    obj_result ERR(t_string error);
 
 
 
@@ -277,49 +304,57 @@ namespace bond {
 
         [[nodiscard]] double get_value() const { return m_value; }
 
-        [[nodiscard]] std::string str() const override { return fmt::format("{}", m_value); }
+        [[nodiscard]] t_string str() const override { return fmt::format("{}", m_value); }
 
     private:
         double m_value;
     };
 
-    struct ht_entry {
+    struct ht_entry: public gc {
         GcPtr<Object> key;
         GcPtr<Object> value;
         size_t hash;
+
+        ht_entry(const GcPtr<Object>& key, const GcPtr<Object>& value, size_t hash) {
+            this->key = key;
+            this->value = value;
+            this->hash = hash;
+        }
     };
 
+
+    using hash_vector = std::vector<ht_entry*, gc_allocator<ht_entry*>>;
 
     class HashMap : public NativeInstance {
     public:
         HashMap() { expand(); }
 
-        [[nodiscard]] std::string str() const override;
+        [[nodiscard]] t_string str() const override;
 
-        std::expected<GcPtr<Object>, std::string> get(const GcPtr<Object> &key);
+        std::expected<GcPtr<Object>, t_string> get(const GcPtr<Object> &key);
 
-        std::expected<void, std::string> set(const GcPtr<Object> &key, const GcPtr<Object> &value);
+        std::expected<void, t_string> set(const GcPtr<Object> &key, const GcPtr<Object> &value);
 
-        std::expected<void, std::string> remove(const GcPtr<Object> &key);
+        std::expected<void, t_string> remove(const GcPtr<Object> &key);
 
-        std::expected<bool, std::string> has(const GcPtr<Object> &key);
+        std::expected<bool, t_string> has(const GcPtr<Object> &key);
 
         size_t size() const;
 
         size_t capacity() { return m_entries.size(); }
 
-        std::vector<std::shared_ptr<ht_entry>> &get_entries() { return m_entries; }
+        hash_vector &get_entries() { return m_entries; }
 
 
     private:
         void expand();
 
-        std::vector<std::shared_ptr<ht_entry>> m_entries;
+        hash_vector m_entries;
         size_t m_size = 0;
 
-        std::expected<void, std::string> set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value);
+        std::expected<void, t_string> set_entry(const GcPtr<Object> &key, const GcPtr<Object> &value);
 
-        static std::expected<size_t, std::string> hash_key(const GcPtr<bond::Object> &key);
+        static std::expected<size_t, t_string> hash_key(const GcPtr<bond::Object> &key);
     };
 
     class Int : public NativeInstance {
@@ -328,7 +363,7 @@ namespace bond {
 
         [[nodiscard]] int64_t get_value() const { return m_value; }
 
-        std::string str() const override { return fmt::format("{}", m_value); }
+        t_string str() const override { return fmt::format("{}", m_value); }
 
     private:
         int64_t m_value;
@@ -340,7 +375,7 @@ namespace bond {
 
         [[nodiscard]] bool get_value() const { return m_value; }
 
-        [[nodiscard]] std::string str() const override { return fmt::format("{}", m_value); }
+        [[nodiscard]] t_string str() const override { return fmt::format("{}", m_value); }
 
     private:
         bool m_value;
@@ -348,27 +383,30 @@ namespace bond {
 
     class String : public NativeInstance {
     public:
-        explicit String(std::string value) : m_value(std::move(value)) {}
+        explicit String(t_string value) : m_value(std::move(value)) {}
+        String() = default;
 
-        [[nodiscard]] std::string get_value() const { return m_value; }
+        String(char *base, size_t len) : m_value(base, len) {}
 
-        [[nodiscard]] std::string &get_value_ref() { return m_value; }
+        [[nodiscard]] t_string get_value() const { return m_value; }
 
-        [[nodiscard]] std::string str() const override { return m_value; }
+        [[nodiscard]] t_string &get_value_ref() { return m_value; }
+
+        [[nodiscard]] t_string str() const override { return m_value; }
 
     private:
-        std::string m_value;
+        t_string m_value;
     };
 
     class StringIterator : public NativeInstance {
     public:
-        explicit StringIterator(std::string value) : m_value(std::move(value)) {}
+        explicit StringIterator(t_string value) : m_value(std::move(value)) {}
 
-        [[nodiscard]] std::string get_value() const { return m_value; }
+        [[nodiscard]] t_string get_value() const { return m_value; }
 
-        [[nodiscard]] std::string str() const override { return fmt::format("<string iterator at {}>", (void *) this); }
+        [[nodiscard]] t_string str() const override { return fmt::format("<string iterator at {}>", (void *) this); }
 
-        std::string m_value;
+        t_string m_value;
         size_t m_index = 0;
     };
 
@@ -376,7 +414,7 @@ namespace bond {
     public:
         None() = default;
 
-        [[nodiscard]] std::string str() const override { return "Nil"; }
+        [[nodiscard]] t_string str() const override { return "Nil"; }
     };
 
     class StringMap : public NativeInstance {
@@ -389,13 +427,13 @@ namespace bond {
 
         void set_value(t_map value) { m_value = std::move(value); }
 
-        void set(const std::string &key, const GcPtr<Object> &obj);
+        void set(const t_string &key, const GcPtr<Object> &obj);
 
-        std::optional<GcPtr<Object>> get(const std::string &key);
+        std::optional<GcPtr<Object>> get(const t_string &key);
 
-        GcPtr<Object> get_unchecked(const std::string &key);
+        GcPtr<Object> get_unchecked(const t_string &key);
 
-        bool has(const std::string &key) { return m_value.contains(key); }
+        bool has(const t_string &key) { return m_value.contains(key); }
 
     private:
         t_map m_value;
@@ -427,7 +465,7 @@ namespace bond {
 
         uint32_t current_index() { return m_instructions.size(); }
 
-        [[nodiscard]] std::string disassemble() const;
+        [[nodiscard]] t_string disassemble() const;
 
         GcPtr<Object> get_constant(size_t index) { return m_constants[index]; }
 
@@ -460,16 +498,16 @@ namespace bond {
 
         std::unordered_map<uint64_t, uint32_t> m_int_map;
         std::unordered_map<double, uint32_t> m_float_map;
-        std::unordered_map<std::string, uint32_t> m_string_map;
+        std::unordered_map<t_string, uint32_t> m_string_map;
     };
 
     class Function : public NativeInstance {
     public:
-        Function(std::string name, std::vector<std::shared_ptr<Param>> arguments, const GcPtr<Code> &code)
+        Function(t_string name, std::vector<std::shared_ptr<Param>> arguments, const GcPtr<Code> &code)
                 : m_name(
                 std::move(name)), m_arguments(std::move(arguments)), m_code(code) {}
 
-        [[nodiscard]] std::string get_name() const { return m_name; }
+        [[nodiscard]] t_string get_name() const { return m_name; }
 
         [[nodiscard]] std::vector<std::shared_ptr<Param>> &get_arguments() { return m_arguments; }
 
@@ -479,45 +517,82 @@ namespace bond {
 
         [[nodiscard]] GcPtr<StringMap> get_globals() const { return m_globals; }
 
+        void set_async() { m_is_async = true; }
+
+        bool is_async() { return m_is_async; }
+
 
     private:
-        std::string m_name;
+        t_string m_name;
         std::vector<std::shared_ptr<Param>> m_arguments;
         GcPtr<Code> m_code;
         GcPtr<StringMap> m_globals;
+        bool m_is_async{false};
+    };
+
+    class Future : public NativeInstance {
+    public:
+        Future() = default;
+        Future(const GcPtr<Object> &value) : m_value(value) {}
+        [[nodiscard]] t_string str() const override { return fmt::format("<future at {}>", (void *) this); }
+
+        void set_value(const GcPtr<Object> &value);
+
+        [[nodiscard]] GcPtr<Object> get_value() {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_cv.wait(lock, [this] { return m_ready; });
+            return m_value;
+        }
+
+        bool is_ready() {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            return m_ready;
+        }
+
+        void set_then(const GcPtr<Function> &func) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_then = func;
+        }
+
+    private:
+        std::mutex m_mutex;
+        std::condition_variable m_cv;
+        bool m_ready = false;
+        GcPtr<Object> m_value;
+        std::optional<GcPtr<Function>> m_then {std::nullopt};
     };
 
     class Instance;
 
     class Struct : public NativeInstance {
     public:
-        Struct(std::string name, const std::vector<std::string> &fields) : m_name(std::move(name)), m_fields(fields) {}
+        Struct(t_string name, const std::vector<t_string> &fields) : m_name(std::move(name)), m_fields(fields) {}
 
-        [[nodiscard]] std::string get_name() const { return m_name; }
+        [[nodiscard]] t_string get_name() const { return m_name; }
 
-        [[nodiscard]] std::vector<std::string> get_fields() const { return m_fields; }
+        [[nodiscard]] std::vector<t_string> get_fields() const { return m_fields; }
 
         [[nodiscard]] GcPtr<Instance> create_instance(const t_map &fields);
 
-        void add_method(const std::string &name, const GcPtr<Function> &func) { m_methods[name] = func; }
+        void add_method(const t_string &name, const GcPtr<Function> &func) { m_methods[name] = func; }
 
-        [[nodiscard]] std::optional<GcPtr<Function>> get_method(const std::string &name) const;
+        [[nodiscard]] std::optional<GcPtr<Function>> get_method(const t_string &name) const;
 
-        bool has_method(const std::string &name) const { return m_methods.contains(name); }
+        bool has_method(const t_string &name) const { return m_methods.contains(name); }
 
         void set_globals(const GcPtr<StringMap> &globals);
 
         [[nodiscard]] GcPtr<StringMap> get_globals() const { return m_globals; }
 
-        std::unordered_map<std::string, GcPtr<Function>> &get_methods() { return m_methods; }
+        std::unordered_map<t_string, GcPtr<Function>> &get_methods() { return m_methods; }
 
-        std::string str() const override { return fmt::format("<struct {}>", m_name); }
+        t_string str() const override { return fmt::format("<struct {}>", m_name); }
 
 
     private:
-        std::string m_name;
-        std::vector<std::string> m_fields;
-        std::unordered_map<std::string, GcPtr<Function>> m_methods;
+        t_string m_name;
+        std::vector<t_string> m_fields;
+        std::unordered_map<t_string, GcPtr<Function>> m_methods;
         GcPtr<StringMap> m_globals;
     };
 
@@ -533,17 +608,17 @@ namespace bond {
 
         void set_fields(t_map fields) { m_fields = std::move(fields); }
 
-        obj_result bind_method(const std::string &name);
+        obj_result bind_method(const t_string &name);
 
-        obj_result get_method(const std::string &name);
+        obj_result get_method(const t_string &name);
 
-        obj_result get_field(const std::string &name);
+        obj_result get_field(const t_string &name);
 
-        obj_result set_field(const std::string &name, const GcPtr<Object> &value);
+        obj_result set_field(const t_string &name, const GcPtr<Object> &value);
 
         obj_result get_type();
 
-        [[nodiscard]] std::string str() const override;
+        [[nodiscard]] t_string str() const override;
 
         Struct *get_struct() const { return m_type; }
 
@@ -558,41 +633,41 @@ namespace bond {
 
     class NativeFunction : public NativeInstance {
     public:
-        NativeFunction(std::string name, std::string doc, NativeFunctionPtr function)
+        NativeFunction(t_string name, t_string doc, NativeFunctionPtr function)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_function(std::move(function)) {}
 
-        [[nodiscard]] std::string get_name() const { return m_name; }
+        [[nodiscard]] t_string get_name() const { return m_name; }
 
-        [[nodiscard]] std::string get_doc() const { return m_doc; }
+        [[nodiscard]] t_string get_doc() const { return m_doc; }
 
         [[nodiscard]] NativeFunctionPtr get_function() const { return m_function; }
 
     private:
-        std::string m_name;
-        std::string m_doc;
+        t_string m_name;
+        t_string m_doc;
         NativeFunctionPtr m_function;
     };
 
     class Module : public NativeInstance {
     public:
-        explicit Module(std::string path, const GcPtr<StringMap> &globals) : m_globals(globals),
+        explicit Module(t_string path, const GcPtr<StringMap> &globals) : m_globals(globals),
                                                                              m_path(std::move(path)) {}
 
-        Module(std::string path, const t_map &objects);
+        Module(t_string path, const t_map &objects);
 
         GcPtr<StringMap> get_globals() { return m_globals; }
 
-        obj_result get_attribute(const std::string &name);
+        obj_result get_attribute(const t_string &name);
 
-        std::string get_path() { return m_path; }
+        t_string get_path() { return m_path; }
 
-        void add_module(const std::string &name, const GcPtr<Module> &mod);
+        void add_module(const t_string &name, const GcPtr<Module> &mod);
 
-        std::string str() const override { return fmt::format("<module {}>", m_path); }
+        t_string str() const override { return fmt::format("<module {}>", m_path); }
 
     private:
         GcPtr<StringMap> m_globals;
-        std::string m_path;
+        t_string m_path;
     };
 
 
@@ -631,7 +706,7 @@ namespace bond {
 
         GcPtr<Object> pop();
 
-        std::string str() const override;
+        t_string str() const override;
 
         friend class ListIterator;
 
@@ -663,7 +738,7 @@ namespace bond {
 
         [[nodiscard]] bool has_error() const { return m_error; }
 
-        std::string str() const override { return fmt::format("{}({})", m_error ? "Error" : "Ok", m_value->str()); }
+        t_string str() const override { return fmt::format("{}({})", m_error ? "Error" : "Ok", m_value->str()); }
 
     private:
         GcPtr<Object> m_value;
@@ -685,31 +760,7 @@ namespace bond {
     };
 
 
-    extern GcPtr<NativeStruct> CLOSURE_STRUCT;
-    extern GcPtr<NativeStruct> RESULT_STRUCT;
-    extern GcPtr<NativeStruct> FLOAT_STRUCT;
-    extern GcPtr<NativeStruct> INT_STRUCT;
-    extern GcPtr<NativeStruct> BOOL_STRUCT;
-    extern GcPtr<NativeStruct> STRING_STRUCT;
-    extern GcPtr<NativeStruct> NONE_STRUCT;
-    extern GcPtr<NativeStruct> MAP_STRUCT;
-    extern GcPtr<NativeStruct> STRUCT_STRUCT;
-    extern GcPtr<NativeStruct> INSTANCE_STRUCT;
-    extern GcPtr<NativeStruct> FUNCTION_STRUCT;
-    extern GcPtr<NativeStruct> NATIVE_FUNCTION_STRUCT;
-    extern GcPtr<NativeStruct> CODE_STRUCT;
-    extern GcPtr<NativeStruct> MODULE_STRUCT;
-    extern GcPtr<NativeStruct> LIST_STRUCT;
-    extern GcPtr<NativeStruct> BOUND_METHOD_STRUCT;
-    extern GcPtr<NativeStruct> HASHMAP_STRUCT;
-
-    extern GcPtr<Bool> C_TRUE;
-    extern GcPtr<Bool> C_FALSE;
-    extern GcPtr<None> C_NONE;
-
-
 #define TRY(expr) if (auto result = (expr); !result) return std::unexpected(result.error())
-#define AS_BOOL(cond) (cond ? bond::C_TRUE : bond::C_FALSE)
 
     template<typename T>
     obj_result c_Default(const t_vector args) {
@@ -724,7 +775,7 @@ namespace bond {
         return std::make_shared<T>(std::forward<Args>(args)...);
     }
 
-    std::string get_type_name(const GcPtr<Object> &obj);
+    t_string get_type_name(const GcPtr<Object> &obj);
 
 
     template<typename... Values>
@@ -762,16 +813,44 @@ namespace bond {
         return OK();
     }
 
-
-    extern GcPtr<Int> int_cache[256];
-
-    void init_caches();
-
     GcPtr<Float> make_float(double value);
 
-    GcPtr<Result> make_result(const GcPtr<Object> &value, bool is_error);
+    GcPtr<List> make_list(const t_vector &values);
 
-    inline GcPtr<Result> make_ok(const GcPtr<Object> &value) {
+    GcPtr<Int> make_int(int64_t value);
+
+    GcPtr<String> make_string(const t_string& value);
+
+    GcPtr<NativeFunction> make_native_function(t_string name, t_string doc, const NativeFunctionPtr &function);
+
+    GcPtr<Module> make_module(t_string path, const GcPtr<StringMap> &globals);
+
+    GcPtr<NativeStruct>
+    make_native_struct(t_string name, t_string doc, NativeFunctionPtr constructor, const method_map &methods);
+
+
+    // init functions
+    void init_closure();
+    void init_result();
+    void init_float();
+    void init_int();
+    void init_bool();
+    void init_string();
+    void init_none();
+    void init_map();
+    void init_struct();
+    void init_instance_method();
+    void init_function();
+    void init_code();
+    void init_module();
+    void init_list();
+    void init_hash_map();
+    void init_future();
+
+    // result functions
+    [[nodiscard]] GcPtr<Result> make_result(const GcPtr<Object>& value, bool is_error);
+
+    [[nodiscard]] inline GcPtr<Result> make_ok(const GcPtr<Object> &value) {
         return make_result(value, false);
     }
 
@@ -780,7 +859,7 @@ namespace bond {
         return make_ok(GcPtr<T>(new(GC) T(std::forward<Args>(args)...)));
     }
 
-    inline GcPtr<Result> make_error(const GcPtr<Object> &value) {
+    [[nodiscard]] inline GcPtr<Result> make_error(const GcPtr<Object> &value) {
         return make_result(value, true);
     }
 
@@ -789,21 +868,7 @@ namespace bond {
         return make_error(GcPtr<T>(new(GC) T(std::forward<Args>(args)...)));
     }
 
-    GcPtr<List> make_list(const t_vector &values);
-
-    GcPtr<Int> make_int(int64_t value);
-
-    GcPtr<String> make_string(std::string value);
-
-    GcPtr<NativeFunction> make_native_function(std::string name, std::string doc, const NativeFunctionPtr &function);
-
-    GcPtr<Module> make_module(std::string path, const GcPtr<StringMap> &globals);
-
-    GcPtr<NativeStruct>
-    make_native_struct(std::string name, std::string doc, NativeFunctionPtr constructor, const method_map &methods);
-
-
-} // namespace bond
+}
 
 // formatting
 template<>
@@ -816,13 +881,15 @@ struct fmt::formatter<bond::GcPtr<bond::Object>> {
     }
 };
 
+
+
 // Variadic template to convert vector elements to a format argument pack.
 template<typename... Args>
-std::string format_impl(const std::string &format_string, const std::vector<fmt::format_context::format_arg> &args) {
+t_string format_impl(const t_string &format_string, const std::vector<fmt::format_context::format_arg> &args) {
     return fmt::vformat(format_string, fmt::basic_format_args<fmt::format_context>(args.data(), args.size()));
 }
 
 
 // Main function to call the format_impl with the vector of arguments.
-std::string format_(const std::string &format_string, const std::vector<fmt::format_context::format_arg> &args);
-std::expected<std::string, std::string> bond_format(const std::string &format_string, const bond::t_vector &args);
+t_string format_(const t_string &format_string, const std::vector<fmt::format_context::format_arg> &args);
+std::expected<t_string, t_string> bond_format(const t_string &format_string, const bond::t_vector &args);

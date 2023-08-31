@@ -3,6 +3,7 @@
 //
 
 #include "../object.h"
+#include "../runtime.h"
 
 namespace bond {
 
@@ -11,10 +12,6 @@ namespace bond {
         Bool* is_error;
         TRY(parse_args(args, value, is_error));
         return make_result(value, is_error->get_value());
-    }
-
-    GcPtr<Result> make_result(const GcPtr<Object>& value, bool is_error) {
-        return RESULT_STRUCT->create_instance<Result>(value, is_error);
     }
 
     obj_result Result_is_ok(const GcPtr<Object>& Self, const t_vector &args) {
@@ -61,14 +58,17 @@ namespace bond {
         }
     }
 
-    GcPtr<NativeStruct> RESULT_STRUCT = make_immortal<NativeStruct>("Result", "Result(value: Object, error: Object)",
-                                                                    Result_construct, method_map{
-                    {"is_ok", {Result_is_ok, "is_ok() -> Bool"}},
-                    {"is_error", {Result_is_error, "is_error() -> Bool"}},
-                    {"value", {Result_value, "value() -> Any"}},
-                    {"error", {Result_error, "error() -> Any"}},
-                    {"or_else", {Result_or_else, "or_else(else_value: Any) -> Any"}}
+    void init_result() {
+        Runtime::ins()->RESULT_STRUCT = make_immortal<NativeStruct>("Result",
+                                                                        "Result(value: Object, error: Object)",
+                                                                        Result_construct, method_map{
+                        {"is_ok",    {Result_is_ok,    "is_ok() -> Bool"}},
+                        {"is_error", {Result_is_error, "is_error() -> Bool"}},
+                        {"value",    {Result_value,    "value() -> Any"}},
+                        {"error",    {Result_error,    "error() -> Any"}},
+                        {"or_else",  {Result_or_else,  "or_else(else_value: Any) -> Any"}}
 
-            });
+                });
+    }
 
 }

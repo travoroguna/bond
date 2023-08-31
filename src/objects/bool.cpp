@@ -1,9 +1,8 @@
 #include "../object.h"
+#include "../runtime.h"
 
 
 namespace bond {
-#define BOOL_(x) (x ? bond::C_TRUE : bond::C_FALSE)
-
     obj_result Bool_construct(const t_vector &args) {
         if (args.size() != 1) {
             return ERR("Bool constructor takes exactly one argument");
@@ -13,15 +12,15 @@ namespace bond {
 
         if (instanceof<Int>(arg.get())) {
             auto arg_int = arg->as<Int>();
-            return OK(BOOL_(arg_int->get_value() != 0));
+            return OK(AS_BOOL(arg_int->get_value() != 0));
         } else if (instanceof<Float>(arg.get())) {
             auto arg_float = arg->as<Float>();
-            return OK(BOOL_(arg_float->get_value() != 0));
+            return OK(AS_BOOL(arg_float->get_value() != 0));
         } else if (instanceof<Bool>(arg.get())) {
             auto arg_bool = arg->as<Bool>();
-            return OK(BOOL_(arg_bool->get_value()));
+            return OK(AS_BOOL(arg_bool->get_value()));
         } else {
-            return OK(C_TRUE);
+            return OK(Runtime::ins()->C_TRUE);
         }
     }
 
@@ -37,7 +36,7 @@ namespace bond {
 
         if (other->is<Bool>()) {
             auto other_bool = other->as<Bool>();
-            return OK(BOOL_(self_bool->get_value() == other_bool->get_value()));
+            return OK(AS_BOOL(self_bool->get_value() == other_bool->get_value()));
         } else {
             return OK(FALSE_CONST);
         }
@@ -53,19 +52,20 @@ namespace bond {
 
         if (other->is<Bool>()) {
             auto other_bool = other->as<Bool>();
-            return OK(BOOL_(self_bool->get_value() != other_bool->get_value()));
+            return OK(AS_BOOL(self_bool->get_value() != other_bool->get_value()));
         } else {
             return OK(TRUE_CONST);
         }
 
     }
 
-
-    GcPtr<NativeStruct> BOOL_STRUCT = make_immortal<NativeStruct>("Bool", "Bool(value)", Bool_construct, method_map{
-        { "__eq__", {Bool_eq, "__eq__()"} },
-        { "__ne__", {Bool_ne, "__ne__()"} },
+    void init_bool() {
+        Runtime::ins()->BOOL_STRUCT = make_immortal<NativeStruct>("Bool", "Bool(value)", Bool_construct, method_map{
+                                                                              {"__eq__", {Bool_eq, "__eq__()"}},
+                                                                              {"__ne__", {Bool_ne, "__ne__()"}},
+                                                                      }
+        );
+        Runtime::ins()->C_TRUE = Runtime::ins()->BOOL_STRUCT->create_immortal<Bool>(true);
+        Runtime::ins()->C_FALSE = Runtime::ins()->BOOL_STRUCT->create_immortal<Bool>(false);
     }
-    );
-    GcPtr<Bool> C_TRUE = BOOL_STRUCT->create_immortal<Bool>(true);
-    GcPtr<Bool> C_FALSE = BOOL_STRUCT->create_immortal<Bool>(false);
 }

@@ -34,7 +34,7 @@ namespace bond {
 
         OK, ERROR_t,
 
-        COLON
+        COLON, QUESTION
     };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {

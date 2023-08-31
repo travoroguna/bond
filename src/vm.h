@@ -15,11 +15,12 @@
 #include "compiler/codegen.h"
 #include "compiler/context.h"
 #include "object.h"
+#include "runtime.h"
 
 #include <cassert>
 
 namespace bond {
-#define TO_BOOL(X) BOOL_STRUCT->create({(X)}).value()->as<Bool>()
+#define TO_BOOL(X) Runtime::ins()->BOOL_STRUCT->create({(X)}).value()->as<Bool>()
 
     class Frame {
     public:
@@ -39,6 +40,11 @@ namespace bond {
             if (m_ip == 0) {
                 return m_code->get_span(0);
             }
+
+            if (m_ip >= m_code->get_code_size()) {
+                return m_code->get_span(m_code->get_code_size() - 1);
+            }
+
             return m_code->get_span(m_ip - 1);
         }
 
@@ -60,23 +66,23 @@ namespace bond {
 
         void set_locals(const GcPtr<StringMap> &locals) { m_locals = locals; }
 
-        void set_global(const std::string &key, const GcPtr<Object> &value) {
+        void set_global(const t_string &key, const GcPtr<Object> &value) {
             m_globals->set(key, value);
         }
 
-        bool has_global(const std::string &key) { return m_globals->has(key); }
+        bool has_global(const t_string &key) { return m_globals->has(key); }
 
-        GcPtr<Object> get_global(const std::string &key) {
+        GcPtr<Object> get_global(const t_string &key) {
             return m_globals->get_unchecked(key);
         }
 
-        void set_local(const std::string &key, const GcPtr<Object> &value) {
+        void set_local(const t_string &key, const GcPtr<Object> &value) {
             m_locals->set(key, value);
         }
 
-        bool has_local(const std::string &key) { return m_locals->has(key); }
+        bool has_local(const t_string &key) { return m_locals->has(key); }
 
-        GcPtr<Object> get_local(const std::string &key) {
+        GcPtr<Object> get_local(const t_string &key) {
             return m_locals->get_unchecked(key);
         }
 
@@ -84,12 +90,16 @@ namespace bond {
 
         GcPtr<StringMap> get_globals() { return m_globals; }
 
+        size_t get_ip() { return m_ip; }
+
+        bool is_at_end() { return m_ip >= m_code->get_code_size(); }
+
         void clear() {
             m_locals.reset();
             m_globals.reset();
-            m_function.reset();
-            m_code.reset();
-            m_ip = 0;
+//            m_function.reset();
+//            m_code.reset();
+//            m_ip = 0;
         }
 
     private:
@@ -100,29 +110,41 @@ namespace bond {
         GcPtr<StringMap> m_globals;
     };
 
+
+    struct AsyncFrame: public gc {
+        Frame frame;
+        GcPtr<Future> future;
+
+        AsyncFrame(Frame frame, const GcPtr<Future> &future) : frame(std::move(frame)), future(future) {}
+    };
+
 #define FRAME_MAX 1024
 
     using VectorArgs = std::vector<std::shared_ptr<Param>>;
 
     class Vm {
     public:
+        Runtime* runtime() { return m_runtime; }
+
         explicit Vm(Context *ctx) {
             m_ctx = ctx;
-            m_True = C_TRUE;
-            m_False = C_FALSE;
-            m_Nil = C_NONE;
-            m_globals = MAP_STRUCT->create_instance<StringMap>();
+            m_True = Runtime::ins()->C_TRUE;
+            m_False = Runtime::ins()->C_FALSE;
+            m_Nil = Runtime::ins()->C_NONE;
+            m_globals = Runtime::ins()->make_string_map();
             assert(m_globals.get() != nullptr);
             add_builtins_to_globals(m_globals);
+            m_runtime = Runtime::ins();
         }
 
         Vm(Context *ctx, const GcPtr<StringMap> &globals) {
             m_ctx = ctx;
-            m_True = C_TRUE;
-            m_False = C_FALSE;
-            m_Nil = C_NONE;
+            m_True = Runtime::ins()->C_TRUE;
+            m_False = Runtime::ins()->C_FALSE;
+            m_Nil = Runtime::ins()->C_NONE;
             m_globals = globals;
             add_builtins_to_globals(m_globals);
+            m_runtime = Runtime::ins();
         }
 
         void run(const GcPtr<Code> &code);
@@ -137,24 +159,24 @@ namespace bond {
 
         void call_function(const GcPtr<Function> &function, const t_vector &args,
                            const GcPtr<StringMap> &locals = nullptr);
-        GcPtr <Object> call_function_ex(const GcPtr <Function> &function, const t_vector &args);
+        GcPtr<Object> call_function_ex(const GcPtr <Function> &function, const t_vector &args);
 
         void exec(uint32_t stop_frame = 0);
 
-        void runtime_error(const std::string &error, RuntimeError e,
+        void runtime_error(const t_string &error, RuntimeError e,
                            const SharedSpan &span);
 
-        void runtime_error(const std::string &error, RuntimeError e);
+        void runtime_error(const t_string &error, RuntimeError e);
 
         template<typename... T>
         [[nodiscard]] GcPtr<Object>
         call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args,
                   fmt::format_string<T...> fmt, T &&...fmt_args);
 
-        std::expected<GcPtr<Object>, std::string>
+        std::expected<GcPtr<Object>, t_string>
         call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args);
 
-        inline GcPtr<Object> pop() { return stack[m_stack_pointer--]; }
+        inline GcPtr<Object> pop();
 
         inline void push(GcPtr<Object> const &obj) { stack[++m_stack_pointer] = obj; }
 
@@ -167,7 +189,14 @@ namespace bond {
         //        t_vector m_stack;
         bool call_object_ex(const GcPtr<Object> &obj, t_vector &args);
 
+        void runtime_error(const t_string &error);
+
+        void set_start_event_loop_cb(std::function<void()> cb) { m_start_event_loop_cb = cb; }
+
+
+
     private:
+        Runtime *m_runtime = nullptr;
         GcPtr<Object> stack[1024];
         int m_stack_pointer = -1;
 
@@ -185,30 +214,28 @@ namespace bond {
 
         void init_bin_funcs();
 
-        std::expected<GcPtr<Module>, std::string>
-        load_dynamic_lib(const std::string &path, std::string &alias);
+        std::expected<GcPtr<Module>, t_string>
+        load_dynamic_lib(const t_string &path, t_string &alias);
 
         GcPtr<StringMap> m_globals;
 
         void create_instance(const GcPtr<Struct> &_struct, const t_vector &args);
 
-        std::expected<GcPtr<Module>, std::string>
-        create_module(const std::string &path, std::string &alias);
+        std::expected<GcPtr<Module>, t_string>
+        create_module(const t_string &path, t_string &alias);
 
         void call_bound_method(const GcPtr<BoundMethod> &bound_method,
                                t_vector &args);
 
-        std::expected<std::string, std::string>
-        path_resolver(const std::string &path);
+        std::expected<t_string, t_string>
+        path_resolver(const t_string &path);
 
-        void runtime_error(const std::string &error);
-
-        void bin_op(Slot slot, const std::string &op_name);
+        void bin_op(Slot slot, const t_string &op_name);
 
         void setup_bound_call(const GcPtr<Object> &instance,
                               const GcPtr<Function> &function, t_vector &args);
 
-        void compare_op(Slot slot, const std::string &op_name);
+        void compare_op(Slot slot, const t_string &op_name);
 
         void call_native_function(const GcPtr<Object> &func, t_vector &args);
 
@@ -234,6 +261,26 @@ namespace bond {
 
         void bin_alt(const NativeMethodPtr &meth, const char *op_name);
 
+        NativeMethodPtr i_add;
+        NativeMethodPtr i_sub;
+        NativeMethodPtr i_mul;
+        NativeMethodPtr i_div;
+
+        NativeMethodPtr f_add;
+        NativeMethodPtr f_sub;
+        NativeMethodPtr f_mul;
+        NativeMethodPtr f_div;
+
+        t_vector alt;
+
+        std::mutex m_func_ex_lock;
+        size_t m_stop_frame = 0;
+        std::atomic_bool m_aq = false;
+
+        std::vector<AsyncFrame, gc_allocator<AsyncFrame>> m_yield_frames;
+        std::function <void()> m_start_event_loop_cb;
+
+        void process_events_if_needed();
     };
 
 }; // namespace bond

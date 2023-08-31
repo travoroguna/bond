@@ -2,12 +2,11 @@
 // Created by travor on 06/07/2023.
 //
 #include "../object.h"
+#include "../runtime.h"
 #include <sstream>
 
 
 namespace bond {
-
-
     size_t Code::simple_instruction(std::stringstream &ss, const char *name, size_t offset) const {
         ss << fmt::format("{}\n", name);
         return offset + 1;
@@ -43,15 +42,6 @@ namespace bond {
                 m_constants.push_back(obj);
                 return m_constants.size() - 1;
             }
-        } else if (instanceof<String>(obj.get())) {
-            auto value = obj->as<String>()->get_value();
-            if (m_string_map.contains(value)) {
-                return m_string_map[value];
-            } else {
-                m_string_map[value] = m_constants.size();
-                m_constants.push_back(obj);
-                return m_constants.size() - 1;
-            }
         }
 
         m_constants.push_back(obj);
@@ -72,7 +62,7 @@ namespace bond {
     }
 
 
-    std::string Code::disassemble() const {
+    t_string Code::disassemble() const {
         std::stringstream ss;
         size_t count = 0;
 
@@ -197,5 +187,7 @@ namespace bond {
         return GcPtr<Code>(code);
     }
 
-    GcPtr<NativeStruct> CODE_STRUCT = make_immortal<NativeStruct>("Code", "Code()", Code_construct);
+    void init_code() {
+        Runtime::ins()->CODE_STRUCT = make_immortal<NativeStruct>("Code", "Code()", Code_construct);
+    }
 }
