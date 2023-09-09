@@ -2,7 +2,7 @@
 
 ## What is bond?
 
-bond is a dynamically typed language that is strongly typed. It is designed to be simple to use
+bond is a dynamically typed language. It is designed to be simple to use
 
 ## building
 
@@ -56,6 +56,3 @@ or build and install with
 ```bash
 cmake --build . --target install
 ```
-
-Use the install configuration as libraries like fmt are only built in the install configuration
-
