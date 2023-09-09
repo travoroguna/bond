@@ -3,15 +3,15 @@
 #include "core/build.h"
 #include "engine.h"
 #include "import.h"
+#include "runtime.h"
 #include <argumentum/argparse-h.h>
 
 int main(int32_t argc, char **argv) {
 #ifdef _WIN32
-    auto lib_path =
-            std::filesystem::path(argv[0]).parent_path().string() + "/../libraries/";
+    auto lib_path = std::filesystem::path(bond::get_exe_path()).parent_path().string() + "/../libraries/";
 
     if (!std::filesystem::exists(lib_path)) {
-        lib_path = std::filesystem::path(argv[0]).parent_path().string() + "/";
+        lib_path = std::filesystem::path(bond::get_exe_path()).parent_path().string() + "/";
     }
 
     fmt::print("lib_path: {}\n", lib_path);
@@ -96,7 +96,7 @@ int main(int32_t argc, char **argv) {
             fmt::print("Failed to load archive: {}\n", res.error());
             return 1;
         }
-
+        vm.run(res.value());
         exit_code = vm.had_error() or engine->get_context()->has_error() ? 1 : 0;
     } else {
         engine->run_file(full_path);

@@ -229,7 +229,7 @@ namespace bond {
             return std::unexpected(fmt::format("archive {} does not exist", path));
         }
 
-        auto res = read_archive(path);
+        auto res = read_archive_file(path);
         TRY(res);
 
         m_context = ctx;

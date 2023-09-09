@@ -64,6 +64,11 @@ endif()
 
 target_link_libraries(bond PRIVATE bond-lib Argumentum::headers)
 
+add_executable(bootstrap src/bootstrap.cpp)
+target_link_libraries(bootstrap PRIVATE bond-lib)
+
+install(TARGETS bootstrap DESTINATION bootstrap)
+
 
 cpm_licenses_create_disclaimer_target(
         write-licenses "${CMAKE_CURRENT_BINARY_DIR}/third_party.txt" "${CPM_PACKAGES}"

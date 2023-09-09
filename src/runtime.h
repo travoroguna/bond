@@ -7,7 +7,19 @@
 #include "object.h"
 
 
+#ifdef _WIN32
+#include <windows.h>
+#elif __linux__
+#include <unistd.h>
+#include <limits.h>
+#elif __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+
 namespace bond {
+    std::string get_exe_path();
+
     class Runtime {
         GcPtr<Int> int_cache[256];
         std::unordered_map<t_string, GcPtr<String>> string_cache;
