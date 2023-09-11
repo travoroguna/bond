@@ -133,6 +133,8 @@ namespace bond{
         fmt::print("Packing to dist directory\n");
         std::string dist_dir = "dist/";
 
+        auto exe_path = std::filesystem::path(get_exe_path()).parent_path().string() + "/";
+
         if (!std::filesystem::exists(dist_dir)) {
             std::filesystem::create_directory(dist_dir);
         }
@@ -146,9 +148,10 @@ namespace bond{
 
         std::filesystem::create_directory(dist_dir + "/libraries");
 
+        auto b_path = exe_path + "bootstrap.exe";
         // copy bootstrap and rename to dist dir
-        if (!std::filesystem::exists(context.get_lib_path() + "bootstrap.exe")) {
-            return std::unexpected(fmt::format("bootstrap not found: {}", arch_path));
+        if (!std::filesystem::exists(b_path)) {
+            return std::unexpected(fmt::format("bootstrap not found: {}", b_path));
         }
 
         auto arch_name = std::filesystem::path(arch_path.c_str()).filename().stem().string();
@@ -158,14 +161,15 @@ namespace bond{
 //            std::filesystem::copy_file(context.get_lib_path() + "bootstrap.pdb", dist_dir + arch_name + ".pdb", std::filesystem::copy_options::overwrite_existing);
 //        }
 
-        std::filesystem::copy_file(context.get_lib_path() + "bootstrap.exe", dist_dir + arch_name + ".exe", std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::copy_file(b_path, dist_dir + arch_name + ".exe", std::filesystem::copy_options::overwrite_existing);
 
         // copy required files
         for (auto& file : required_files) {
-            if (!std::filesystem::exists(context.get_lib_path() + file.c_str())) {
-                return std::unexpected(fmt::format("required file not found: {}", file));
+            auto the_lib = exe_path + file.c_str();
+            if (!std::filesystem::exists(the_lib)) {
+                return std::unexpected(fmt::format("required file not found: {}", the_lib));
             }
-            std::filesystem::copy_file(context.get_lib_path() + file.c_str(), dist_dir + file.c_str(), std::filesystem::copy_options::overwrite_existing);
+            std::filesystem::copy_file(the_lib, dist_dir + file.c_str(), std::filesystem::copy_options::overwrite_existing);
         }
 
         // copy optional debug files
