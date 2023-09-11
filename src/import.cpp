@@ -147,6 +147,10 @@ namespace bond {
             return load_dynamic_lib(m_ctx, resolved_path.c_str(), alias.c_str());
         }
 
+
+        auto pre_cwd = std::filesystem::current_path();
+        std::filesystem::current_path(std::filesystem::path(resolved_path.c_str()).parent_path());
+
         auto id = m_ctx->new_module(resolved_path.c_str());
         auto source = bond::Context::read_file(resolved_path.c_str());
 
@@ -173,6 +177,7 @@ namespace bond {
             return std::unexpected(fmt::format("unable to import module {}", resolved_path));
         }
 
+        std::filesystem::current_path(pre_cwd);
 
         auto mod = Runtime::ins()->MODULE_STRUCT->create_instance<Module>(resolved_path, vm.get_globals());
         m_ctx->add_module(resolved_path.c_str(), mod);
@@ -191,6 +196,7 @@ namespace bond {
         if (m_modules.contains(path)) {
             return m_modules[path];
         }
+
 
         if (ctx->has_module(path.c_str())) {
             return ctx->get_module(path.c_str())->as<Module>();
