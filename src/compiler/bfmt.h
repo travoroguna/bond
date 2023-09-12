@@ -185,7 +185,7 @@ namespace bond {
         auto code = function->get_code();
 
         write_string(stream, function->get_name());
-        write_val<S, uint32_t>(stream, arguments.size());
+        write_val<S, uint32_t>(stream, (uint32_t)arguments.size());
         write_code_impl(stream, code);
 
         for (auto &param: arguments) {
@@ -205,7 +205,7 @@ namespace bond {
 
         auto params = std::vector<std::shared_ptr<Param>>();
 
-        for (int i = 0; i < arg_count; i++) {
+        for (uint32_t i = 0; i < arg_count; i++) {
             auto arg_name = read_string<S>(stream);
             auto arg_span = read_span(stream);
 
@@ -228,8 +228,8 @@ namespace bond {
         auto fields = s->get_fields();
         auto methods = s->get_methods();
 
-        write_val<S, uint32_t>(stream, fields.size());
-        write_val<S, uint32_t>(stream, methods.size());
+        write_val<S, uint32_t>(stream, (uint32_t)fields.size());
+        write_val<S, uint32_t>(stream, (uint32_t)methods.size());
 
         for (auto &field: fields) {
             write_string(stream, field);
@@ -251,14 +251,14 @@ namespace bond {
 
         auto fields = std::vector<t_string>();
 
-        for (int i = 0; i < field_count; i++) {
+        for (uint32_t i = 0; i < field_count; i++) {
             auto field_name = read_string<S>(stream);
             fields.push_back(field_name);
         }
 
         auto s = Runtime::ins()->STRUCT_STRUCT->create_instance<Struct>(name, fields);
 
-        for (int i = 0; i < method_count; i++) {
+        for (uint32_t i = 0; i < method_count; i++) {
             t_string method_name = read_string<S>(stream);
             auto method = read_function(stream);
             s->add_method(method_name, method);
@@ -273,9 +273,9 @@ namespace bond {
         auto instructions = code->get_instructions();
         auto spans = code->get_spans();
 
-        write_val<S, uint32_t>(stream, constants.size());
-        write_val<S, uint32_t>(stream, instructions.size());
-        write_val<S, uint32_t>(stream, spans.size());
+        write_val<S, uint32_t>(stream, (uint32_t)constants.size());
+        write_val<S, uint32_t>(stream, (uint32_t)instructions.size());
+        write_val<S, uint32_t>(stream, (uint32_t)spans.size());
 
         for (auto &constant: constants) {
             if (instanceof<Int>(constant.get())) {
@@ -314,12 +314,12 @@ namespace bond {
                        const std::unordered_map<t_string, std::shared_ptr<Unit>> &units) -> std::expected<void, t_string> {
         write_val<S, uint32_t>(stream, BOND_MAGIC_NUMBER);
         write_val<S, uint32_t>(stream, BOND_BAR_VERSION);
-        write_val<S, uint32_t>(stream, units.size());
+        write_val<S, uint32_t>(stream, (uint32_t)units.size());
 
         size_t i = 1;
         for (auto &[_, unit]: units) {
             fmt::print("[{}/{}] unit {}, {}\n", i, units.size(), unit->get_unit_id(), _);
-            write_val<S, uint32_t>(stream, unit->get_unit_id());
+            write_val<S, uint32_t>(stream, (uint32_t)unit->get_unit_id());
             auto code = unit->compile();
             TRY(code);
             write_code_impl(stream, code.value());
@@ -355,7 +355,7 @@ namespace bond {
 
         t_vector constants;
 
-        for (auto i = 0; i < constants_count; i++) {
+        for (uint32_t i = 0; i < constants_count; i++) {
             if (!stream) {
                 throw std::runtime_error("Unexpected end of file");
             }
@@ -384,14 +384,14 @@ namespace bond {
 
         auto instructions = std::vector<uint32_t>();
 
-        for (auto i = 0; i < code_size; i++) {
+        for (uint32_t i = 0; i < code_size; i++) {
             auto instruction = read_val<S, uint32_t>(stream);
             instructions.emplace_back(instruction);
         }
 
         auto spans = std::vector<SharedSpan>();
 
-        for (auto i = 0; i < spans_count; i++) {
+        for (uint32_t i = 0; i < spans_count; i++) {
             spans.emplace_back(read_span(stream));
         }
 
@@ -416,7 +416,7 @@ namespace bond {
 
         std::unordered_map<uint32_t, GcPtr<Code>> modules;
 
-        for (auto i = 0; i < module_count; i++) {
+        for (uint32_t i = 0; i < module_count; i++) {
             auto module_id = read_val<S, uint32_t>(stream);
             auto code = read_code_impl(stream);
             modules.emplace(module_id, code);
