@@ -1278,10 +1278,6 @@ namespace bond {
 
     }
 
-    GcPtr<Object> Vm::pop() {
-        auto obj = stack[m_stack_pointer].get();
-        stack[m_stack_pointer--].reset();
-        return obj;
-    }
+
 
 } // namespace bond

@@ -111,20 +111,20 @@ namespace bond {
     };
 
 
-    struct AsyncFrame: public gc {
+    struct AsyncFrame : public gc {
         Frame frame;
         GcPtr<Future> future;
 
         AsyncFrame(Frame frame, const GcPtr<Future> &future) : frame(std::move(frame)), future(future) {}
     };
 
-#define FRAME_MAX 1024
+#define FRAME_MAX 512
 
     using VectorArgs = std::vector<std::shared_ptr<Param>>;
 
     class Vm {
     public:
-        Runtime* runtime() { return m_runtime; }
+        Runtime *runtime() { return m_runtime; }
 
         explicit Vm(Context *ctx) {
             m_ctx = ctx;
@@ -159,7 +159,8 @@ namespace bond {
 
         void call_function(const GcPtr<Function> &function, const t_vector &args,
                            const GcPtr<StringMap> &locals = nullptr);
-        GcPtr<Object> call_function_ex(const GcPtr <Function> &function, const t_vector &args);
+
+        GcPtr<Object> call_function_ex(const GcPtr<Function> &function, const t_vector &args);
 
         void exec(uint32_t stop_frame = 0);
 
@@ -176,7 +177,11 @@ namespace bond {
         std::expected<GcPtr<Object>, t_string>
         call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args);
 
-        inline GcPtr<Object> pop();
+        inline GcPtr<Object> pop() {
+            auto obj = stack[m_stack_pointer].get();
+            stack[m_stack_pointer--].reset();
+            return obj;
+        }
 
         inline void push(GcPtr<Object> const &obj) { stack[++m_stack_pointer] = obj; }
 
@@ -192,7 +197,6 @@ namespace bond {
         void runtime_error(const t_string &error);
 
         void set_start_event_loop_cb(std::function<void()> cb) { m_start_event_loop_cb = cb; }
-
 
 
     private:
@@ -214,21 +218,15 @@ namespace bond {
 
         void init_bin_funcs();
 
-        std::expected<GcPtr<Module>, t_string>
-        load_dynamic_lib(const t_string &path, t_string &alias);
 
         GcPtr<StringMap> m_globals;
 
         void create_instance(const GcPtr<Struct> &_struct, const t_vector &args);
 
-        std::expected<GcPtr<Module>, t_string>
-        create_module(const t_string &path, t_string &alias);
 
         void call_bound_method(const GcPtr<BoundMethod> &bound_method,
                                t_vector &args);
 
-        std::expected<t_string, t_string>
-        path_resolver(const t_string &path);
 
         void bin_op(Slot slot, const t_string &op_name);
 
@@ -278,7 +276,7 @@ namespace bond {
         std::atomic_bool m_aq = false;
 
         std::vector<AsyncFrame, gc_allocator<AsyncFrame>> m_yield_frames;
-        std::function <void()> m_start_event_loop_cb;
+        std::function<void()> m_start_event_loop_cb;
 
         void process_events_if_needed();
     };
