@@ -37,6 +37,9 @@ if (MSVC)
     )
 endif ()
 
+if (EMSCRIPTEN)
+    set(enable_threads OFF CACHE INTERNAL "")
+endif()
 
 CPMAddPackage(
         NAME bdwgc
@@ -53,7 +56,6 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory(libs)
-add_subdirectory(core/bnk)
 
 add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context.cpp compiler/context.h compiler/span.h compiler/ast.cpp compiler/ast.h
         compiler/parser.cpp compiler/parser.h compiler/codegen.cpp compiler/codegen.h vm.cpp vm.h gc.cpp gc.h compiler/nodevisitor.cpp
@@ -76,7 +78,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
 target_include_directories(bond-lib PUBLIC ${bdwgc_SOURCE_DIR}/include)
 target_include_directories(bond-lib PUBLIC ${fmtlib_SOURCE_DIR}/include)
 
-target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json bnk)
+target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 
