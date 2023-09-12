@@ -10,4 +10,4 @@
 #include "compiler/context.h"
 #include "compiler/parser.h"
 #include "vm.h"
-#include "conv.hpp"
+#include "traits.hpp"

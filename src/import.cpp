@@ -21,7 +21,7 @@
 
 #include "compiler/bfmt.h"
 #include "api.h"
-#include "conv.hpp"
+#include "traits.hpp"
 
 namespace bond {
     std::expected<t_string, t_string> path_resolver(Context *ctx, const t_string &path) {
