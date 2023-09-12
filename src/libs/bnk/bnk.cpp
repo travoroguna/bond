@@ -288,13 +288,16 @@ namespace bond::bnk {
         return Runtime::ins()->C_NONE;
     }
 
-    GcPtr<Module> build_bnk_module() {
+    void build_bnk_module(bond::Mod &mod) {
 #define ENUM_VALUE(name) {make_string(#name), bond_traits<decltype(name)>::wrap(name)}
 #define ENUM_INT(name) {#name, make_int(name)}
 #define ENUM_SUB(name, sub) { t_string(#name).substr(sub), make_int(name) }
 
+
+
         t_map nk_enum = {
                 // panel flags
+                {"DEFAULT", make_int(NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_CLOSABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE)},
                 ENUM_SUB(NK_WINDOW_BORDER, 3),
                 ENUM_SUB(NK_WINDOW_BORDER, 3),
                 ENUM_SUB(NK_WINDOW_MOVABLE, 3),
@@ -314,8 +317,6 @@ namespace bond::bnk {
                 ENUM_SUB(NK_TEXT_CENTERED, 3),
                 ENUM_SUB(NK_TEXT_RIGHT, 3),
         };
-
-        auto mod = Mod("bnk");
 
         mod.function("init", bnk_init,
                      "init(width: Int, height: Int, title: String) !<None, String>\ninitializes a window");
@@ -346,8 +347,14 @@ namespace bond::bnk {
                 .field("h", BnkRect::get_h, BnkRect::set_h);
 
         mod.add("flags", make_enum(nk_enum));
-
-        return mod.build();
     }
 
+}
+
+EXPORT void bond_module_init(bond::Context *ctx, bond::Vm* current_vm, bond::Mod &mod) {
+    GC_INIT();
+    bond::Runtime::ins()->set_runtime(current_vm->runtime());
+    bond::set_current_vm(current_vm);
+
+    bond::bnk::build_bnk_module(mod);
 }

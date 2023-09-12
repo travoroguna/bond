@@ -5,7 +5,6 @@
 
 #include "../object.h"
 #include "../conv.hpp"
-#include "bnk.h"
 #include "conversions.h"
 
 
@@ -85,9 +84,6 @@ namespace bond {
                 .method("__has_next__", Range::has_next,
                         "__has_next__() -> Bool\nreturns true if the range has a next element")
                 .method("__next__", Range::next, "__next__() -> Int\nreturns the next element of the range");
-
-        mod.add("bnk", bnk::build_bnk_module()->as<Object>());
-
 
         core_module = mod.build();
     }

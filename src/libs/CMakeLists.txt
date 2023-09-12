@@ -6,6 +6,8 @@ option(BUILD_LIBS "Build shared libraries" ON)
 
 
 if (BUILD_LIBS MATCHES ON)
+    add_subdirectory(bnk)
+
     CPMAddPackage(
             NAME libuv
             GIT_REPOSITORY "https://github.com/libuv/libuv.git"
@@ -22,7 +24,7 @@ if (BUILD_LIBS MATCHES ON)
     target_link_libraries(io bond-lib uv_a)
 
 
-    INSTALL(TARGETS fs io
+    INSTALL(TARGETS fs io bnk
             LIBRARY DESTINATION libraries
             RUNTIME DESTINATION libraries
             PUBLIC_HEADER DESTINATION libraries)

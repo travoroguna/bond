@@ -7,7 +7,7 @@
 
 
 namespace bond::bnk{
-    GcPtr<Module> build_bnk_module();
+
 }
 
 #endif //BOND_BNK_H

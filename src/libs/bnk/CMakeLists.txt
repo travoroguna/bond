@@ -19,6 +19,6 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
-add_library(bnk STATIC ${SOURCES})
+add_library(bnk SHARED ${SOURCES})
 target_include_directories(bnk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(bnk PRIVATE glfw fmt::fmt-header-only gc gccpp)
+target_link_libraries(bnk  bond-lib glfw)

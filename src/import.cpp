@@ -30,7 +30,7 @@ namespace bond {
         auto test_compiled_c_path = path + ".dll";
 #else
         auto lib_p = t_string("lib") + path + ".so";
-        auto test_compiled_native = ctx->get_lib_path() + lib_p;
+        auto test_compiled_native = t_string(ctx->get_lib_path()) + lib_p;
         const auto& test_compiled_c_path = lib_p;
 #endif
 
@@ -58,13 +58,14 @@ namespace bond {
 
     std::expected<GcPtr<Module>, t_string>
     load_dynamic_lib(Context *ctx, const t_string &path, const t_string &alias) {
+        auto mod = bond::Mod(path);
+
 #ifdef _WIN32
         auto handle = LoadLibrary(path.c_str());
         if (!handle) {
             return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, GetLastError()));
         }
 
-        auto mod = bond::Mod(path);
         // void bond_module_init(bond::Context *ctx, const char *path)
         auto init = (void (*)(bond::Context *, bond::Vm*, bond::Mod* mod)) GetProcAddress(handle, "bond_module_init");
 

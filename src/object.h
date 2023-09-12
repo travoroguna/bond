@@ -463,7 +463,7 @@ namespace bond {
 
         void patch_code(uint32_t offset, uint32_t oprand) { m_instructions[offset] = oprand; }
 
-        uint32_t current_index() { return m_instructions.size(); }
+        uint32_t current_index() { return (uint32_t)m_instructions.size(); }
 
         [[nodiscard]] t_string disassemble() const;
 
@@ -471,7 +471,7 @@ namespace bond {
 
         uint32_t get_code(size_t index) { return m_instructions[index]; }
 
-        uint32_t get_code_size() { return m_instructions.size(); }
+        uint32_t get_code_size() { return (uint32_t)m_instructions.size(); }
 
         SharedSpan get_span(size_t index) { return m_spans[index]; }
 

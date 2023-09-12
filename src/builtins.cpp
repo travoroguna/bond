@@ -118,6 +118,10 @@ namespace bond {
         if (obj->is<NativeStruct>()) {
             return build_help_for_native_struct(obj->as<NativeStruct>());
         }
+        else if(obj->is<NativeFunction>()) {
+            auto doc = make_string(obj->as<NativeFunction>()->get_doc());
+            return OK(make_string(fmt::format("fn {}\n", doc->get_value())));
+        }
         else if (obj->is<Struct>()) {
             return build_help_for_struct(obj->as<Struct>());
         }

@@ -81,6 +81,8 @@ namespace bond {
             C_NONE_RESULT = runtime_ptr->C_NONE_RESULT;
             C_NONE_FUTURE = runtime_ptr->C_NONE_FUTURE;
             C_NONE_RESULT_FUTURE = runtime_ptr->C_NONE_RESULT_FUTURE;
+
+            init_caches();
         }
 
         void init() {
