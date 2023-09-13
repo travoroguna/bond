@@ -6,13 +6,14 @@
 
 #include "object.h"
 #include "runtime.h"
+#include <type_traits>
 
 namespace bond {
     template<typename R, typename = void>
     struct bond_traits {
         static R unwrap(const GcPtr<Object> &object) = delete;
-
         static GcPtr<Object> wrap(const R &object) = delete;
+        static bool can_unwrap(const GcPtr<Object> &object) = delete;
     };
 
     template<>
@@ -20,6 +21,10 @@ namespace bond {
         static GcPtr<Object> unwrap(const GcPtr<Object> &object) { return object; }
 
         static GcPtr<Object> wrap(const GcPtr<Object> &object) { return object; }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return true; }
+
+        using type = GcPtr<Object>;
     };
 
     template<typename Integer>
@@ -28,10 +33,15 @@ namespace bond {
             return object->as<Int>()->get_value();
         }
 
-        static GcPtr<Object> wrap(const Integer &object) {
+        static GcPtr<Int> wrap(const Integer &object) {
             return make_int(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<Int>(); }
+
+        using type = Int;
     };
+
 
     template<>
     struct bond_traits<bool> {
@@ -42,6 +52,10 @@ namespace bond {
         static GcPtr<Object> wrap(const bool &object) {
             return AS_BOOL(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<Bool>(); }
+
+        using type = bool;
     };
 
     template<>
@@ -50,9 +64,13 @@ namespace bond {
             return object->as<Float>()->get_value();
         }
 
-        static GcPtr<Object> wrap(const double &object) {
+        static GcPtr<Float> wrap(const double &object) {
             return make_float(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<Float>(); }
+
+        using type = Float;
     };
 
     template<>
@@ -64,6 +82,10 @@ namespace bond {
         static GcPtr<Object> wrap(const double &object) {
             return make_float(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<Float>(); }
+
+        using type = Float;
     };
 
     template<>
@@ -75,6 +97,8 @@ namespace bond {
         static GcPtr<Object> wrap(const t_string &object) {
             return make_string(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<String>(); }
     };
 
     template<>
@@ -86,6 +110,8 @@ namespace bond {
         static GcPtr<Object> wrap(const t_string &object) {
             return make_string(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<String>(); }
     };
 
     template<>
@@ -103,6 +129,8 @@ namespace bond {
             }
             return Runtime::ins()->C_NONE;
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return true; }
     };
 
     template<>
@@ -115,6 +143,8 @@ namespace bond {
         static GcPtr<Object> wrap(const t_map &object) {
             return Runtime::ins()->make_string_map(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<StringMap>(); }
     };
 
     template<>
@@ -127,6 +157,8 @@ namespace bond {
         static GcPtr<Object> wrap(const t_vector &object) {
             return Runtime::ins()->make_list(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<List>(); }
     };
 
     template<>
@@ -139,7 +171,137 @@ namespace bond {
         static GcPtr<Object> wrap(const char *object) {
             return make_string(object);
         }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<String>(); }
     };
+
+    template<>
+    struct bond_traits<void> {
+        static GcPtr<None> wrap() {
+            return Runtime::ins()->C_NONE;
+        }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<None>(); }
+    };
+
+    template<typename T>
+    struct bond_traits<std::expected<GcPtr<T>, t_string>> {
+        static GcPtr<T> unwrap(const GcPtr<Object> &t) {
+            return t->as<T>();
+        }
+
+        static std::expected<GcPtr<Object>, t_string>
+
+        wrap(const GcPtr<T> &t) {
+            return t;
+        }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return true; }
+
+    };
+
+    template<typename R, typename... Args>
+    struct bond_traits<std::function<R(Args...)>> {
+        static std::function<R(Args...)> unwrap(const GcPtr<Object> &t) {
+            return t->as<NativeFunction>()->get_function();
+        }
+
+        static GcPtr<NativeFunction> wrap(const t_string& name, const t_string& doc, const std::function<R(Args...)> &t) {
+            return make<NativeFunction>(name, doc, t);
+        }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<NativeFunction>(); }
+    };
+
+    template<auto F, bool PassThis = false>
+    struct f_wrapper {
+       t_string name;
+       t_string doc;
+    };
+
+
+    using arg_list = std::vector<GcPtr<Object>>;
+    using return_type = std::expected<GcPtr<Object>, t_string>;
+
+    template<typename T>
+    auto do_unwrap(const GcPtr<Object>& obj, size_t& i){
+        if (!bond_traits<T>::can_unwrap(obj)) {
+            throw fmt::format("Expected argument {} to be of type {} but got {}", i, bond_traits<T>::type::name(), get_type_name(obj));
+        }
+        i--;
+        return bond_traits<T>::unwrap(obj);
+    }
+
+
+    template<typename R, typename... Args, R (*F)(Args...)>
+    struct bond_traits<f_wrapper<F, false>> {
+        static GcPtr<NativeFunction> wrap(const f_wrapper<F, false> &f_w) {
+            return make<NativeFunction>(f_w.name, f_w.doc, [](const t_vector &args) -> return_type {
+                if (args.size() != sizeof...(Args)) {
+                    return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                               std::to_string(args.size()));
+                }
+
+                if constexpr (std::is_same_v<R, void>) {
+                    size_t i = sizeof ...(Args) - 1;
+
+                    try {
+                        F(do_unwrap<Args>(args[i], i)...);
+                    }
+                    catch (const std::string &e) {
+                        return std::unexpected(e);
+                    }
+
+                    return bond_traits<void>::wrap();
+                } else {
+                    size_t i = sizeof ...(Args) - 1;
+                    try {
+                        return bond_traits<R>::wrap(F(do_unwrap<Args>(args[i], i)...));
+                    }
+                    catch (const std::string &e) {
+                        return std::unexpected(e);
+                    }
+                }
+            });
+        }
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<NativeFunction>(); }
+    };
+
+    template<typename R, typename... Args, R (*F)(Args...)>
+    struct bond_traits<f_wrapper<F, true>> {
+        static NativeMethodPtr wrap(const f_wrapper<F, true> &f_w) {
+            return [](const GcPtr<Object> &self, const t_vector &args) -> return_type {
+                if (args.size() != sizeof...(Args)) {
+                    return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                               std::to_string(args.size()));
+                }
+
+                if constexpr (std::is_same_v<R, void>) {
+                    size_t i = sizeof ...(Args) - 1;
+                    try {
+                        F(self, do_unwrap<Args>(args[i], i)...);
+                    }
+                    catch (const std::string &e) {
+                        return std::unexpected(e);
+                    }
+                    return bond_traits<void>::wrap();
+                } else {
+                    size_t i = sizeof ...(Args) - 1;
+                    try {
+                        return bond_traits<R>::wrap(F(self, do_unwrap<Args>(args[i], i)...));
+                    }
+                    catch (const std::string &e) {
+                        return std::unexpected(e);
+                    }
+                }
+            };
+        }
+
+
+        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<NativeMethodPtr>(); }
+    };
+
 
 
     class Mod {
@@ -233,6 +395,13 @@ namespace bond {
 
         Mod &function(const t_string &name, const NativeFunctionPtr &value, const t_string &doc) {
             auto fn = Runtime::ins()->make_native_function(name, doc, value);
+            m_exports->set(name, fn);
+            return *this;
+        }
+
+        template <auto K>
+        Mod &function(const t_string &name, const t_string& doc) {
+            auto fn = bond_traits<f_wrapper<K, false>>::wrap(f_wrapper<K, false>{name, doc});
             m_exports->set(name, fn);
             return *this;
         }

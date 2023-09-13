@@ -298,13 +298,18 @@ namespace bond {
 
 // builtin types
 
+#define INSTANCE(NAME) static const char *name() { return #NAME; }
+
     class Float : public NativeInstance {
     public:
+        INSTANCE(Float)
+
         explicit Float(double value) : m_value(value) {}
 
         [[nodiscard]] double get_value() const { return m_value; }
 
         [[nodiscard]] t_string str() const override { return fmt::format("{}", m_value); }
+
 
     private:
         double m_value;
@@ -327,6 +332,8 @@ namespace bond {
 
     class HashMap : public NativeInstance {
     public:
+        INSTANCE(HashMap)
+
         HashMap() { expand(); }
 
         [[nodiscard]] t_string str() const override;
@@ -346,6 +353,7 @@ namespace bond {
         hash_vector &get_entries() { return m_entries; }
 
 
+
     private:
         void expand();
 
@@ -359,6 +367,8 @@ namespace bond {
 
     class Int : public NativeInstance {
     public:
+        INSTANCE(Int)
+
         explicit Int(int64_t value) : m_value(value) {}
 
         [[nodiscard]] int64_t get_value() const { return m_value; }
@@ -371,6 +381,8 @@ namespace bond {
 
     class Bool : public NativeInstance {
     public:
+        INSTANCE(Bool)
+
         explicit Bool(bool value) : m_value(value) {}
 
         [[nodiscard]] bool get_value() const { return m_value; }
@@ -383,6 +395,7 @@ namespace bond {
 
     class String : public NativeInstance {
     public:
+        INSTANCE(String)
         explicit String(t_string value) : m_value(std::move(value)) {}
         String() = default;
 
@@ -400,6 +413,7 @@ namespace bond {
 
     class StringIterator : public NativeInstance {
     public:
+        INSTANCE(StringIterator)
         explicit StringIterator(t_string value) : m_value(std::move(value)) {}
 
         [[nodiscard]] t_string get_value() const { return m_value; }
@@ -412,6 +426,7 @@ namespace bond {
 
     class None : public NativeInstance {
     public:
+        INSTANCE(None)
         None() = default;
 
         [[nodiscard]] t_string str() const override { return "Nil"; }
@@ -419,6 +434,7 @@ namespace bond {
 
     class StringMap : public NativeInstance {
     public:
+        INSTANCE(StringMap)
         StringMap() = default;
 
         StringMap(const t_map &map) : m_value(map) {}
@@ -442,6 +458,7 @@ namespace bond {
 
     class Code : public NativeInstance {
     public:
+        INSTANCE(Code)
         Code() = default;
 
         Code(std::vector<uint32_t> instructions, std::vector<std::shared_ptr<Span>> spans,
@@ -503,6 +520,7 @@ namespace bond {
 
     class Function : public NativeInstance {
     public:
+        INSTANCE(Function)
         Function(t_string name, std::vector<std::shared_ptr<Param>> arguments, const GcPtr<Code> &code)
                 : m_name(
                 std::move(name)), m_arguments(std::move(arguments)), m_code(code) {}
@@ -532,6 +550,7 @@ namespace bond {
 
     class Future : public NativeInstance {
     public:
+        INSTANCE(Future)
         Future() = default;
         Future(const GcPtr<Object> &value) : m_value(value) {}
         [[nodiscard]] t_string str() const override { return fmt::format("<future at {}>", (void *) this); }
@@ -566,6 +585,8 @@ namespace bond {
 
     class Struct : public NativeInstance {
     public:
+        INSTANCE(Struct)
+
         Struct(t_string name, const std::vector<t_string> &fields) : m_name(std::move(name)), m_fields(fields) {}
 
         [[nodiscard]] t_string get_name() const { return m_name; }
@@ -599,6 +620,7 @@ namespace bond {
 
     class Instance : public NativeInstance {
     public:
+        INSTANCE(Instance)
         Instance(Struct *type, t_map fields)
                 : m_type(type), m_fields(std::move(fields)) {}
 
@@ -633,6 +655,7 @@ namespace bond {
 
     class NativeFunction : public NativeInstance {
     public:
+        INSTANCE(NativeFunction)
         NativeFunction(t_string name, t_string doc, NativeFunctionPtr function)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_function(std::move(function)) {}
 
@@ -650,6 +673,7 @@ namespace bond {
 
     class Module : public NativeInstance {
     public:
+        INSTANCE(Module)
         explicit Module(t_string path, const GcPtr<StringMap> &globals) : m_globals(globals),
                                                                              m_path(std::move(path)) {}
 
@@ -673,6 +697,7 @@ namespace bond {
 
     class BoundMethod : public NativeInstance {
     public:
+        INSTANCE(BoundMethod)
         BoundMethod(GcPtr<Instance> instance, GcPtr<Function> method) : m_instance(std::move(instance)),
                                                                         m_method(std::move(method)) {}
 
@@ -688,6 +713,7 @@ namespace bond {
 
     class List : public NativeInstance {
     public:
+        INSTANCE(List)
         List() = default;
 
         List(const t_vector &elements);
@@ -721,6 +747,7 @@ namespace bond {
 
     class ListIterator : public NativeInstance {
     public:
+        INSTANCE(ListIterator)
         explicit ListIterator(const GcPtr<List> &list) : m_list(list) {}
 
         GcPtr<List> m_list;
@@ -730,6 +757,7 @@ namespace bond {
 
     class Result : public NativeInstance {
     public:
+        INSTANCE(Result)
         Result(GcPtr<Object> value, bool is_error) : m_value(std::move(value)), m_error(is_error) {}
 
         [[nodiscard]] GcPtr<Object> get_value() const { return m_value; }
@@ -747,6 +775,7 @@ namespace bond {
 
     class Closure : public NativeInstance {
     public:
+        INSTANCE(Closure)
         Closure(GcPtr<Function> function, GcPtr<StringMap> up_values) : m_function(std::move(function)),
                                                                         m_up_values(std::move(up_values)) {}
 
