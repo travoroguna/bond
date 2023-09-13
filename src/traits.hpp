@@ -236,70 +236,108 @@ namespace bond {
     template<typename R, typename... Args, R (*F)(Args...)>
     struct bond_traits<f_wrapper<F, false>> {
         static GcPtr<NativeFunction> wrap(const f_wrapper<F, false> &f_w) {
-            return make<NativeFunction>(f_w.name, f_w.doc, [](const t_vector &args) -> return_type {
-                if (args.size() != sizeof...(Args)) {
-                    return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
-                               std::to_string(args.size()));
-                }
+            return make<NativeFunction>(f_w.name, f_w.doc, wrap_impl);
+        }
 
-                if constexpr (std::is_same_v<R, void>) {
-                    size_t i = sizeof ...(Args) - 1;
+        static NativeFunctionPtr wrap_to_fptr(const f_wrapper<F, false> &f_w) {
+            return wrap_impl;
+        }
 
-                    try {
-                        F(do_unwrap<Args>(args[i], i)...);
-                    }
-                    catch (const std::string &e) {
-                        return std::unexpected(e);
-                    }
+        static return_type wrap_impl(const t_vector &args) {
+            if (args.size() != sizeof...(Args)) {
+                return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                           std::to_string(args.size()));
+            }
 
-                    return bond_traits<void>::wrap();
-                } else {
-                    size_t i = sizeof ...(Args) - 1;
-                    try {
-                        return bond_traits<R>::wrap(F(do_unwrap<Args>(args[i], i)...));
-                    }
-                    catch (const std::string &e) {
-                        return std::unexpected(e);
-                    }
-                }
-            });
+            if constexpr (std::is_same_v<R, void>) {
+                return invoke_and_wrap_void<Args...>(args);
+            } else {
+                return invoke_and_wrap<R, Args...>(args);
+            }
+        }
+
+        template <typename... InvokeArgs>
+        static return_type invoke_and_wrap_void(const t_vector &args) {
+            size_t i = sizeof ...(InvokeArgs) - 1;
+            try {
+                F(do_unwrap<InvokeArgs>(args[i], i)...);
+                return bond_traits<void>::wrap();
+            }
+            catch (const std::string &e) {
+                return std::unexpected(e);
+            }
+
+            return bond_traits<void>::wrap();
+        }
+
+        template <typename Ret, typename... InvokeArgs>
+        static return_type invoke_and_wrap(const t_vector &args) {
+            size_t i = sizeof ...(InvokeArgs) - 1;
+            try {
+                return bond_traits<Ret>::wrap(F(do_unwrap<InvokeArgs>(args[i], i)...));
+            }
+            catch (const std::string &e) {
+                return std::unexpected(e);
+            }
         }
 
         static bool can_unwrap(const GcPtr<Object> &object) { return object->is<NativeFunction>(); }
     };
 
-    template<typename R, typename... Args, R (*F)(Args...)>
-    struct bond_traits<f_wrapper<F, true>> {
-        static NativeMethodPtr wrap(const f_wrapper<F, true> &f_w) {
-            return [](const GcPtr<Object> &self, const t_vector &args) -> return_type {
-                if (args.size() != sizeof...(Args)) {
-                    return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
-                               std::to_string(args.size()));
-                }
 
-                if constexpr (std::is_same_v<R, void>) {
-                    size_t i = sizeof ...(Args) - 1;
-                    try {
-                        F(self, do_unwrap<Args>(args[i], i)...);
-                    }
-                    catch (const std::string &e) {
-                        return std::unexpected(e);
-                    }
-                    return bond_traits<void>::wrap();
-                } else {
-                    size_t i = sizeof ...(Args) - 1;
-                    try {
-                        return bond_traits<R>::wrap(F(self, do_unwrap<Args>(args[i], i)...));
-                    }
-                    catch (const std::string &e) {
-                        return std::unexpected(e);
-                    }
-                }
-            };
+
+    template<const char *t_name, typename T>
+    struct AnyOpaque final: public bond::NativeInstance {
+        static const char *name() {
+            return t_name;
         }
 
+        T value;
 
-        static bool can_unwrap(const GcPtr<Object> &object) { return object->is<NativeMethodPtr>(); }
+        static auto register_type(const t_string& mod_name) -> bond::GcPtr<bond::NativeStruct> {
+            auto doc = fmt::format("{}({}: any) -> {}", t_name, t_name, t_name);
+            auto the_struct = bond::make_immortal<bond::NativeStruct>(t_name, doc, bond::c_Default<AnyOpaque<t_name, T>>);
+            bond::Runtime::ins()->register_type(mod_name, t_name, the_struct);
+            return the_struct;
+        }
+
+        static auto register_type(const t_string& mod_name, const t_string& doc, const bond::NativeFunctionPtr& constructor) -> bond::GcPtr<bond::NativeStruct> {
+            auto the_struct = bond::make_immortal<bond::NativeStruct>(t_name, doc, constructor);
+            bond::Runtime::ins()->register_type(mod_name, t_name, the_struct);
+            return the_struct;
+        }
+
+        template <auto Constructor>
+        static auto register_type(const t_string& mod_name, const t_string& doc) -> bond::GcPtr<bond::NativeStruct> {
+            using Type = bond::f_wrapper<Constructor, false>;
+            auto the_constructor = bond::bond_traits<Type>::wrap_to_fptr(Type{t_name, doc});
+            auto the_struct = bond::make_immortal<bond::NativeStruct>(t_name, doc, the_constructor);
+            bond::Runtime::ins()->register_type(mod_name, t_name, the_struct);
+            return the_struct;
+        }
+
+        AnyOpaque() = default;
+        AnyOpaque(T value) : value(value) {}
+    };
+
+
+    template <const char *t_name, typename Any>
+    struct bond::bond_traits<const AnyOpaque<t_name, Any>&> {
+        static auto wrap(const AnyOpaque<t_name, Any>& any) -> bond::GcPtr<AnyOpaque<t_name, Any>> {
+            auto p_struct= bond::Runtime::ins()->get_type(any.module, any.name)->template as<bond::NativeStruct>()->template create_instance<AnyOpaque<t_name, Any>>();
+            p_struct->value = any.value;
+            return p_struct;
+        }
+
+        static auto unwrap(const bond::GcPtr<Object>& any) -> Any {
+            return any->template as<AnyOpaque<t_name, Any>>()->value;
+        }
+
+        static auto can_unwrap(const bond::GcPtr<Object>& any) -> bool {
+            return any->is<AnyOpaque<t_name, Any>>();
+        }
+
+        using type = AnyOpaque<t_name, Any>;
     };
 
 

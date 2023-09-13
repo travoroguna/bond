@@ -25,6 +25,7 @@ namespace bond {
         std::unordered_map<t_string, GcPtr<String>> string_cache;
         std::vector<GcPtr<Object>> m_immortals;
         std::vector<std::function<void()>> m_exit_callbacks;
+        std::unordered_map<t_string, t_map> module_types;
 
     public:
         static Runtime* ins() {
@@ -40,6 +41,17 @@ namespace bond {
 
         void add_exit_callback(const std::function<void()>& callback) {
             m_exit_callbacks.push_back(callback);
+        }
+
+        void register_type(const t_string& module_name, const t_string& type_name, const GcPtr<NativeStruct>& type) {
+            if (module_types.contains(module_name)) assert(!module_types[module_name].contains(type_name) && "Type already registered");
+            module_types[module_name][type_name] = type;
+        }
+
+        GcPtr<NativeStruct> get_type(const t_string& module_name, const t_string& type_name) {
+            assert(module_types.contains(module_name) && "Module not found");
+            assert(module_types[module_name].contains(type_name) && "Type not found");
+            return module_types[module_name][type_name]->as<NativeStruct>();
         }
 
         void exit() {
