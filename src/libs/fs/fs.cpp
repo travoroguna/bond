@@ -109,6 +109,10 @@ namespace bond::fs {
 
 
     static obj_result join(const t_vector &args) {
+        if (args.empty()) {
+            return make_error_t("expected at least one argument");
+        }
+
         std::vector<std::string> paths;
 
         size_t i = 0;

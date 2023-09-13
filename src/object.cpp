@@ -22,27 +22,6 @@ namespace bond {
         return res;
     }
 
-    const std::unordered_map<t_string, Slot> method_mappings = {
-            {"__ne__",       Slot::NE},
-            {"__eq__",       Slot::EQ},
-            {"__lt__",       Slot::LT},
-            {"__gt__",       Slot::GT},
-            {"__le__",       Slot::LE},
-            {"__ge__",       Slot::GE},
-            {"__add__",      Slot::BIN_ADD},
-            {"__sub__",      Slot::BIN_SUB},
-            {"__mul__",      Slot::BIN_MUL},
-            {"__div__",      Slot::BIN_DIV},
-            {"__mod__",      Slot::BIN_MOD},
-            {"__getattr__",  Slot::GET_ATTR},
-            {"__setattr__",  Slot::SET_ATTR},
-            {"__getitem__",  Slot::GET_ITEM},
-            {"__setitem__",  Slot::SET_ITEM},
-            {"__iter__",     Slot::ITER},
-            {"__next__",     Slot::NEXT},
-            {"__has_next__", Slot::HAS_NEXT},
-            {"__hash__", Slot::HASH},
-    };
 
     std::unordered_map<Slot, t_string> swap_map(const std::unordered_map<t_string, Slot> &map) {
         std::unordered_map<Slot, t_string> res;
@@ -52,18 +31,84 @@ namespace bond {
         return res;
     }
 
-    const std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
 
     t_string Slot_to_string(Slot slot) {
+        const std::unordered_map<t_string, Slot> method_mappings = {
+                {"__ne__",       Slot::NE},
+                {"__eq__",       Slot::EQ},
+                {"__lt__",       Slot::LT},
+                {"__gt__",       Slot::GT},
+                {"__le__",       Slot::LE},
+                {"__ge__",       Slot::GE},
+                {"__add__",      Slot::BIN_ADD},
+                {"__sub__",      Slot::BIN_SUB},
+                {"__mul__",      Slot::BIN_MUL},
+                {"__div__",      Slot::BIN_DIV},
+                {"__mod__",      Slot::BIN_MOD},
+                {"__getattr__",  Slot::GET_ATTR},
+                {"__setattr__",  Slot::SET_ATTR},
+                {"__getitem__",  Slot::GET_ITEM},
+                {"__setitem__",  Slot::SET_ITEM},
+                {"__iter__",     Slot::ITER},
+                {"__next__",     Slot::NEXT},
+                {"__has_next__", Slot::HAS_NEXT},
+                {"__hash__",     Slot::HASH},
+        };
+
+        const std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
         return slot_str_map.at(slot);
     }
 
     bool Instance::has_slot(Slot slot) {
+        const std::unordered_map<t_string, Slot> method_mappings = {
+                {"__ne__",       Slot::NE},
+                {"__eq__",       Slot::EQ},
+                {"__lt__",       Slot::LT},
+                {"__gt__",       Slot::GT},
+                {"__le__",       Slot::LE},
+                {"__ge__",       Slot::GE},
+                {"__add__",      Slot::BIN_ADD},
+                {"__sub__",      Slot::BIN_SUB},
+                {"__mul__",      Slot::BIN_MUL},
+                {"__div__",      Slot::BIN_DIV},
+                {"__mod__",      Slot::BIN_MOD},
+                {"__getattr__",  Slot::GET_ATTR},
+                {"__setattr__",  Slot::SET_ATTR},
+                {"__getitem__",  Slot::GET_ITEM},
+                {"__setitem__",  Slot::SET_ITEM},
+                {"__iter__",     Slot::ITER},
+                {"__next__",     Slot::NEXT},
+                {"__has_next__", Slot::HAS_NEXT},
+                {"__hash__",     Slot::HASH},
+        };
+
+        const std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
         return m_type->has_method(slot_str_map.at(slot));
     }
 
 
     void NativeStruct::set_slots() {
+        const std::unordered_map<t_string, Slot> method_mappings = {
+                {"__ne__",       Slot::NE},
+                {"__eq__",       Slot::EQ},
+                {"__lt__",       Slot::LT},
+                {"__gt__",       Slot::GT},
+                {"__le__",       Slot::LE},
+                {"__ge__",       Slot::GE},
+                {"__add__",      Slot::BIN_ADD},
+                {"__sub__",      Slot::BIN_SUB},
+                {"__mul__",      Slot::BIN_MUL},
+                {"__div__",      Slot::BIN_DIV},
+                {"__mod__",      Slot::BIN_MOD},
+                {"__getattr__",  Slot::GET_ATTR},
+                {"__setattr__",  Slot::SET_ATTR},
+                {"__getitem__",  Slot::GET_ITEM},
+                {"__setitem__",  Slot::SET_ITEM},
+                {"__iter__",     Slot::ITER},
+                {"__next__",     Slot::NEXT},
+                {"__has_next__", Slot::HAS_NEXT},
+                {"__hash__",     Slot::HASH},
+        };
         std::fill_n(m_slots.data(), Slot::SIZE, nullptr);
 
         for (auto &[name, method]: m_methods) {
@@ -83,7 +128,8 @@ namespace bond {
         if (attr.first == nullptr) return std::nullopt;
         return attr.first;
     }
-    std::optional<setter> NativeStruct::get_setter(const t_string &name) const{
+
+    std::optional<setter> NativeStruct::get_setter(const t_string &name) const {
         if (!m_attributes.contains(name))
             return std::nullopt;
         auto attr = m_attributes.at(name);
@@ -146,7 +192,7 @@ namespace bond {
         return std::unexpected(std::move(error));
     }
 
-    obj_result ERR(const std::string& error) {
+    obj_result ERR(const std::string &error) {
         return std::unexpected(error);
     }
 
@@ -157,16 +203,13 @@ namespace bond {
 
 
     t_string get_type_name(const GcPtr<Object> &obj) {
-        if (obj->is<Instance>()){
+        if (obj->is<Instance>()) {
             return obj->as<Instance>()->get_struct()->get_name();
-        }
-        else if (obj->is<Struct>()) {
+        } else if (obj->is<Struct>()) {
             return obj->as<Struct>()->get_name();
-        }
-        else if (obj->is<NativeInstance>()) {
+        } else if (obj->is<NativeInstance>()) {
             return obj->as<NativeInstance>()->get_native_struct()->get_name();
-        }
-        else if (obj->is<NativeStruct>()) {
+        } else if (obj->is<NativeStruct>()) {
             return obj->as<NativeStruct>()->get_name();
         }
         return obj.type_name();
@@ -186,14 +229,11 @@ std::expected<t_string, t_string> bond_format(const t_string &format_string, con
 
         if (arg->is<bond::Int>()) {
             a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Int>()->get_value());
-        }
-        else if(arg->is<bond::Float>()) {
+        } else if (arg->is<bond::Float>()) {
             a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Float>()->get_value());
-        }
-        else if(arg->is<bond::Bool>()) {
+        } else if (arg->is<bond::Bool>()) {
             a = fmt::detail::make_arg<fmt::format_context>(arg->as<bond::Bool>()->get_value());
-        }
-        else {
+        } else {
             a = fmt::detail::make_arg<fmt::format_context>(arg);
         }
 

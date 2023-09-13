@@ -7,12 +7,25 @@
 #include "object.h"
 
 
+#ifdef _WIN32
+#include <windows.h>
+#elif __linux__
+#include <unistd.h>
+#include <limits.h>
+#elif __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+
 namespace bond {
+    std::string get_exe_path();
+
     class Runtime {
         GcPtr<Int> int_cache[256];
         std::unordered_map<t_string, GcPtr<String>> string_cache;
         std::vector<GcPtr<Object>> m_immortals;
         std::vector<std::function<void()>> m_exit_callbacks;
+        std::unordered_map<t_string, t_map> module_types;
 
     public:
         static Runtime* ins() {
@@ -28,6 +41,17 @@ namespace bond {
 
         void add_exit_callback(const std::function<void()>& callback) {
             m_exit_callbacks.push_back(callback);
+        }
+
+        void register_type(const t_string& module_name, const t_string& type_name, const GcPtr<NativeStruct>& type) {
+            if (module_types.contains(module_name)) assert(!module_types[module_name].contains(type_name) && "Type already registered");
+            module_types[module_name][type_name] = type;
+        }
+
+        GcPtr<NativeStruct> get_type(const t_string& module_name, const t_string& type_name) {
+            assert(module_types.contains(module_name) && "Module not found");
+            assert(module_types[module_name].contains(type_name) && "Type not found");
+            return module_types[module_name][type_name]->as<NativeStruct>();
         }
 
         void exit() {
@@ -69,6 +93,8 @@ namespace bond {
             C_NONE_RESULT = runtime_ptr->C_NONE_RESULT;
             C_NONE_FUTURE = runtime_ptr->C_NONE_FUTURE;
             C_NONE_RESULT_FUTURE = runtime_ptr->C_NONE_RESULT_FUTURE;
+
+            init_caches();
         }
 
         void init() {

@@ -29,6 +29,8 @@ namespace bond {
         Context context;
         std::unordered_map<t_string, std::shared_ptr<Unit>> units;
         std::expected<void, t_string> find_deps(const t_string &path);
+
+        std::expected<void, t_string> pack_to_dist_dir(const t_string &arch_path);
     };
 
 }

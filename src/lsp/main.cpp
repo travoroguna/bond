@@ -47,7 +47,7 @@ namespace lsp {
 
     t_string decode_uri_component(const t_string& input) {
         std::ostringstream decoded;
-        std::istringstream iss(input);
+        std::istringstream iss(input.c_str());
         iss >> std::hex;
 
         char c;

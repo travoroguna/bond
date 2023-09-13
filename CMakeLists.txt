@@ -64,6 +64,11 @@ endif()
 
 target_link_libraries(bond PRIVATE bond-lib Argumentum::headers)
 
+add_executable(bootstrap src/bootstrap.cpp)
+target_link_libraries(bootstrap PRIVATE bond-lib)
+
+install(TARGETS bootstrap DESTINATION bin)
+
 
 cpm_licenses_create_disclaimer_target(
         write-licenses "${CMAKE_CURRENT_BINARY_DIR}/third_party.txt" "${CPM_PACKAGES}"
@@ -75,28 +80,6 @@ if (BOND_DEBUG)
     message("Debug mode")
     target_compile_definitions(bond-lib PRIVATE DEBUG)
 endif ()
-
-#file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/input.txt
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
-
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gc.dll
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gccpp.dll
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gctba.dll
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gc.pdb
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gccpp.pdb
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#
-#file(COPY ${CMAKE_CURRENT_BINARY_DIR}/_deps/bdwgc-build/gctba.pdb
-#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 
 set(CPACK_PACKAGE_NAME "bond")

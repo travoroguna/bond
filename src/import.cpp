@@ -21,7 +21,7 @@
 
 #include "compiler/bfmt.h"
 #include "api.h"
-#include "conv.hpp"
+#include "traits.hpp"
 
 namespace bond {
     std::expected<t_string, t_string> path_resolver(Context *ctx, const t_string &path) {
@@ -30,7 +30,7 @@ namespace bond {
         auto test_compiled_c_path = path + ".dll";
 #else
         auto lib_p = t_string("lib") + path + ".so";
-        auto test_compiled_native = ctx->get_lib_path() + lib_p;
+        auto test_compiled_native = t_string(ctx->get_lib_path()) + lib_p;
         const auto& test_compiled_c_path = lib_p;
 #endif
 
@@ -58,13 +58,14 @@ namespace bond {
 
     std::expected<GcPtr<Module>, t_string>
     load_dynamic_lib(Context *ctx, const t_string &path, const t_string &alias) {
+        auto mod = bond::Mod(path);
+
 #ifdef _WIN32
         auto handle = LoadLibrary(path.c_str());
         if (!handle) {
             return std::unexpected(fmt::format("failed to load dynamic library {}: {}", path, GetLastError()));
         }
 
-        auto mod = bond::Mod(path);
         // void bond_module_init(bond::Context *ctx, const char *path)
         auto init = (void (*)(bond::Context *, bond::Vm*, bond::Mod* mod)) GetProcAddress(handle, "bond_module_init");
 
@@ -147,6 +148,10 @@ namespace bond {
             return load_dynamic_lib(m_ctx, resolved_path.c_str(), alias.c_str());
         }
 
+
+        auto pre_cwd = std::filesystem::current_path();
+        std::filesystem::current_path(std::filesystem::path(resolved_path.c_str()).parent_path());
+
         auto id = m_ctx->new_module(resolved_path.c_str());
         auto source = bond::Context::read_file(resolved_path.c_str());
 
@@ -173,6 +178,7 @@ namespace bond {
             return std::unexpected(fmt::format("unable to import module {}", resolved_path));
         }
 
+        std::filesystem::current_path(pre_cwd);
 
         auto mod = Runtime::ins()->MODULE_STRUCT->create_instance<Module>(resolved_path, vm.get_globals());
         m_ctx->add_module(resolved_path.c_str(), mod);
@@ -191,6 +197,7 @@ namespace bond {
         if (m_modules.contains(path)) {
             return m_modules[path];
         }
+
 
         if (ctx->has_module(path.c_str())) {
             return ctx->get_module(path.c_str())->as<Module>();
@@ -229,7 +236,7 @@ namespace bond {
             return std::unexpected(fmt::format("archive {} does not exist", path));
         }
 
-        auto res = read_archive(path);
+        auto res = read_archive_file(path);
         TRY(res);
 
         m_context = ctx;

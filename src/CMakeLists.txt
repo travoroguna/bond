@@ -37,6 +37,9 @@ if (MSVC)
     )
 endif ()
 
+if (EMSCRIPTEN)
+    set(enable_threads OFF CACHE INTERNAL "")
+endif()
 
 CPMAddPackage(
         NAME bdwgc
@@ -53,13 +56,12 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory(libs)
-add_subdirectory(core/bnk)
 
 add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context.cpp compiler/context.h compiler/span.h compiler/ast.cpp compiler/ast.h
         compiler/parser.cpp compiler/parser.h compiler/codegen.cpp compiler/codegen.h vm.cpp vm.h gc.cpp gc.h compiler/nodevisitor.cpp
         compiler/nodevisitor.h object.h object.cpp api.h api.cpp builtins.cpp bond.h
         objects/bool.cpp objects/float.cpp objects/integer.cpp objects/string.cpp objects/nil.cpp
-        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h conv.hpp conv.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h engine.cpp engine.h engine.h
+        objects/struct.cpp objects/instance.cpp objects/list.cpp objects/map.cpp object_helpers.h objects/future.cpp md5.cpp md5.h objects/nativestruct.cpp objects/code.cpp objects/function.cpp objects/module.cpp objects/result.cpp objects/closure.cpp debug.cpp debug.h traits.hpp traits.hpp import.cpp import.h core/conversions.cpp core/conversions.h core/core.cpp core/core.h engine.cpp engine.h engine.h
         compiler/bfmt.cpp
         compiler/bfmt.h
         core/build.cpp
@@ -76,7 +78,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
 target_include_directories(bond-lib PUBLIC ${bdwgc_SOURCE_DIR}/include)
 target_include_directories(bond-lib PUBLIC ${fmtlib_SOURCE_DIR}/include)
 
-target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json bnk)
+target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 

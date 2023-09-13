@@ -33,7 +33,7 @@ namespace bond {
         if (self->has_value()) {
             return self->get_value();
         } else {
-            return ERR("Attempted to get value of error Result");
+            return ERR("Attempted to get value of an error");
         }
     }
 
@@ -43,7 +43,7 @@ namespace bond {
         if (self->has_error()) {
             return self->get_value();
         } else {
-            return ERR("Attempted to get error of value Result");
+            return ERR("Attempted to unwrap an error");
         }
     }
 

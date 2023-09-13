@@ -3,6 +3,7 @@
 //
 
 
+#include <iosfwd>
 #include "build.h"
 #include "../import.h"
 
@@ -105,23 +106,93 @@ namespace bond{
 
 
     std::expected<t_string, t_string> Build::build() {
-        TRY(find_deps(main_file));
-        if (context.has_error()) return std::unexpected("build failed");
+        try {
+            TRY(find_deps(main_file));
+            if (context.has_error()) return std::unexpected("build failed");
 
-        //build graph
-//        std::unordered_map<t_string, std::vector<t_string>> graph;
-//
-//        for (auto &unit : units) {
-//            graph[unit.first] = unit.second->get_dependencies();
-//        }
-//
-//        auto sorted = topologicalSort(graph);
-//        order does not matter
-
-        auto output_file = std::filesystem::path(main_file.c_str()).stem().string() + ".bar";
-        TRY(write_archive(output_file, units));
-        return output_file;
+            auto output_file = std::filesystem::path(main_file.c_str()).stem().string() + ".bar";
+            TRY(write_archive_file(output_file, units));
+            TRY(pack_to_dist_dir(output_file));
+            return output_file;
+        }
+        catch (std::exception& e) {
+            return std::unexpected(fmt::format("build failed: {}", e.what()));
+        }
     }
+
+
+    std::vector<t_string> required_files = {
+            "gc.dll", "gccpp.dll", "gctba.dll"
+    };
+
+    std::vector<t_string> optional_debug = {
+            "gc.pdb", "gccpp.pdb", "gctba.pdb"
+    };
+
+    std::expected<void, t_string> Build::pack_to_dist_dir(const t_string& arch_path) {
+        fmt::print("Packing to dist directory\n");
+        std::string dist_dir = "dist/";
+
+        auto exe_path = std::filesystem::path(get_exe_path()).parent_path().string() + "/";
+
+        if (!std::filesystem::exists(dist_dir)) {
+            std::filesystem::create_directory(dist_dir);
+        }
+        else {
+            if (!std::filesystem::is_directory(dist_dir)) {
+                return std::unexpected(fmt::format("dist is not a directory"));
+            }
+            std::filesystem::remove_all(dist_dir);
+            std::filesystem::create_directory(dist_dir);
+        }
+
+        std::filesystem::create_directory(dist_dir + "/libraries");
+
+        auto b_path = exe_path + "bootstrap.exe";
+        // copy bootstrap and rename to dist dir
+        if (!std::filesystem::exists(b_path)) {
+            return std::unexpected(fmt::format("bootstrap not found: {}", b_path));
+        }
+
+        auto arch_name = std::filesystem::path(arch_path.c_str()).filename().stem().string();
+
+        //optional copy bootstrap debug files
+//        if (std::filesystem::exists(context.get_lib_path() + "bootstrap.pdb")) {
+//            std::filesystem::copy_file(context.get_lib_path() + "bootstrap.pdb", dist_dir + arch_name + ".pdb", std::filesystem::copy_options::overwrite_existing);
+//        }
+
+        std::filesystem::copy_file(b_path, dist_dir + arch_name + ".exe", std::filesystem::copy_options::overwrite_existing);
+
+        // copy required files
+        for (auto& file : required_files) {
+            auto the_lib = exe_path + file.c_str();
+            if (!std::filesystem::exists(the_lib)) {
+                return std::unexpected(fmt::format("required file not found: {}", the_lib));
+            }
+            std::filesystem::copy_file(the_lib, dist_dir + file.c_str(), std::filesystem::copy_options::overwrite_existing);
+        }
+
+        // copy optional debug files
+//        for (auto& file : optional_debug) {
+//            if (!std::filesystem::exists(context.get_lib_path() + file.c_str())) {
+//                continue;
+//            }
+//            std::filesystem::copy_file(context.get_lib_path() + file.c_str(), dist_dir + file.c_str(), std::filesystem::copy_options::overwrite_existing);
+//        }
+
+        //copy archive
+        if (!std::filesystem::exists(arch_path.c_str())) {
+            return std::unexpected(fmt::format("archive not found: {}", arch_path));
+        }
+
+        std::filesystem::copy_file(arch_path.c_str(), dist_dir + arch_name + ".bar", std::filesystem::copy_options::overwrite_existing);
+
+
+        // TODO: copy libraries
+
+        return {};
+    }
+
 
     std::expected<void, t_string> Build::find_deps(const t_string& path) {
         //do not add core to dependencies

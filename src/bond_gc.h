@@ -11,7 +11,10 @@
 #endif
 
 #define ALL_INTERIOR_POINTERS
-#define GC_THREADS
+
+#ifndef EMSCRIPTEN
+    #define GC_THREADS
+#endif
 
 #include <gc.h>
 #include <gc_cpp.h>
