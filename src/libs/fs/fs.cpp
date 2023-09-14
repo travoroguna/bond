@@ -132,6 +132,13 @@ namespace bond::fs {
 
         return make_string(path.string());
     }
+
+    static obj_result read_file(const t_string& str) {
+        if (!std::filesystem::exists(str.c_str())) {
+            return make_error_t(fmt::format("path '{}' does not exist", str));
+        }
+        return make_ok(make_string(Context::read_file(str.c_str())));
+    }
 }
 
 
@@ -162,4 +169,6 @@ EXPORT void bond_module_init(bond::Context *ctx, bond::Vm* current_vm, bond::Mod
                                                 "Sets the current working directory to the given path.");
     mod.function("join", bond::fs::join, "join(...paths: String) -> String\n"
                                             "Joins the given paths together.");
+    mod.function<&bond::fs::read_file>("read_file", "read_file(path: String) -> Result<String, String>\n"
+                                                    "Reads the file at the given path.");
 }
