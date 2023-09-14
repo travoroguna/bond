@@ -147,6 +147,8 @@ namespace bond {
 
     class Object : public GcObject {
     public:
+        static const char *name() { return "Object"; }
+
         Object() = default;
 
         [[nodiscard]] virtual t_string str() const {

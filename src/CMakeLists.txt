@@ -27,6 +27,16 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
+
+CPMAddPackage(
+        NAME cpp-httplib
+        GITHUB_REPOSITORY yhirose/cpp-httplib
+        GIT_TAG v0.14.0
+        EXCLUDE_FROM_ALL YES
+        GIT_SHALLOW YES
+)
+
+
 if (MSVC)
     CPMAddPackage(
             NAME libatomic_ops
@@ -78,7 +88,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
 target_include_directories(bond-lib PUBLIC ${bdwgc_SOURCE_DIR}/include)
 target_include_directories(bond-lib PUBLIC ${fmtlib_SOURCE_DIR}/include)
 
-target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json)
+target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json httplib::httplib)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 

@@ -153,14 +153,14 @@ namespace bond {
 
         bool had_error() { return m_has_error; }
 
+        void reset_error() { m_has_error = false; }
+
         GcPtr<StringMap> get_globals() { return m_globals; }
 
         void set_globals(const GcPtr<StringMap> &globals) { m_globals = globals; }
 
         void call_function(const GcPtr<Function> &function, const t_vector &args,
                            const GcPtr<StringMap> &locals = nullptr);
-
-        GcPtr<Object> call_function_ex(const GcPtr<Function> &function, const t_vector &args);
 
         void exec(uint32_t stop_frame = 0);
 
@@ -198,6 +198,7 @@ namespace bond {
 
         void set_start_event_loop_cb(std::function<void()> cb) { m_start_event_loop_cb = cb; }
 
+        GcPtr<Object> call_function_ex(const GcPtr<Object> &function, const t_vector &args);
 
     private:
         Runtime *m_runtime = nullptr;
@@ -279,6 +280,7 @@ namespace bond {
         std::function<void()> m_start_event_loop_cb;
 
         void process_events_if_needed();
+
     };
 
 }; // namespace bond

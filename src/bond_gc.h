@@ -16,6 +16,11 @@
     #define GC_THREADS
 #endif
 
+#ifdef _WIN32 // Windows
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+#endif
+
 #include <gc.h>
 #include <gc_cpp.h>
 #include <gc/gc_allocator.h>

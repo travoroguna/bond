@@ -97,7 +97,7 @@ namespace bond {
     }
 
 
-    GcPtr<Object> Vm::call_function_ex(const GcPtr<Function> &function, const t_vector &args) {
+    GcPtr<Object> Vm::call_function_ex(const GcPtr<Object> &function, const t_vector &args) {
         std::lock_guard<std::mutex> lock(m_func_ex_lock);
 
         if (m_has_error) {
@@ -105,10 +105,18 @@ namespace bond {
         }
 
         m_stop = false;
-        call_function(function, args);
+        call_object(function, const_cast<t_vector &>(args));
         auto pre_stop_frame = m_stop_frame;
         m_stop_frame = m_frame_pointer;
+
         exec(m_frame_pointer);
+
+        if (m_has_error) {
+            //restore frame_pointer
+            m_frame_pointer = m_stop_frame - 1;
+            m_current_frame = &m_frames[m_frame_pointer];
+        }
+
         m_stop_frame = pre_stop_frame;
         auto res = pop();
         return res;
@@ -519,8 +527,7 @@ namespace bond {
     void Vm::exec(uint32_t stop_frame) {
         if (m_frame_pointer == 0)
             return;
-        while (!m_stop  ) {
-
+        while (!m_stop) {
             auto opcode = m_current_frame->get_opcode();
             switch (opcode) {
                 case Opcode::LOAD_CONST:

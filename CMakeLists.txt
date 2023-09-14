@@ -30,6 +30,7 @@ CPMAddPackage(
 
 add_subdirectory(src)
 add_subdirectory(src/lsp)
+add_subdirectory(src/docserver)
 
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)

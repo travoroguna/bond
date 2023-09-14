@@ -23,8 +23,11 @@ if (BUILD_LIBS MATCHES ON)
     add_library(io SHARED io/io.cpp io/io.h)
     target_link_libraries(io bond-lib uv_a)
 
+    add_library(http SHARED http/http.cpp)
+    target_link_libraries(http bond-lib httplib::httplib)
 
-    INSTALL(TARGETS fs io bnk
+
+    INSTALL(TARGETS fs io bnk http
             LIBRARY DESTINATION libraries
             RUNTIME DESTINATION libraries
             PUBLIC_HEADER DESTINATION libraries)

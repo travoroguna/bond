@@ -54,6 +54,12 @@ namespace bond {
             return module_types[module_name][type_name]->as<NativeStruct>();
         }
 
+        template <typename T, typename ...Args>
+        GcPtr<Object> construct(const t_string& module_name, const t_string& type_name, Args&&... args) {
+            auto type = get_type(module_name, type_name);
+            return type->create_instance<T>(std::forward<Args>(args)...);
+        }
+
         void exit() {
             for (auto& callback: m_exit_callbacks) {
                 callback();
