@@ -14,8 +14,10 @@
 #include <GLFW/glfw3.h>
 #include <fmt/core.h>
 
+void empty_free(void *ptr) {}
+
 #define STBTT_malloc(x,u)    GC_MALLOC((x))
-#define STBTT_free(x,u)      GC_FREE((x))
+#define STBTT_free(x,u)      empty_free((x))
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
