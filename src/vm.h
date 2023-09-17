@@ -97,9 +97,9 @@ namespace bond {
         void clear() {
             m_locals.reset();
             m_globals.reset();
-//            m_function.reset();
-//            m_code.reset();
-//            m_ip = 0;
+            m_function.reset();
+            m_code.reset();
+            m_ip = 0;
         }
 
     private:

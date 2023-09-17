@@ -5,19 +5,19 @@ namespace bond {
     obj_result Instance::bind_method(const t_string &name) {
         auto meth = m_type->get_method(name);
         if (!meth)
-            return ERR("Method " + name + " not found");
+            return runtime_error("Method " + name + " not found");
         auto m = Runtime::ins()->make_bound_method(this, *meth);
         return OK(m);
     }
 
     obj_result Instance::get_method(const t_string &name) {
         if (m_type == nullptr) {
-            return ERR("Type not set");
+            return runtime_error("Type not set");
         }
 
         auto meth = m_type->get_method(name);
         if (!meth)
-            return ERR("Method " + name + " not found");
+            return runtime_error("Method " + name + " not found");
         return OK(*meth);
     }
 
@@ -25,7 +25,7 @@ namespace bond {
         if (m_fields.contains(name)) {
             return OK(m_fields[name]);
         }
-        return ERR("Field " + name + " not found");
+        return runtime_error("Field " + name + " not found");
     }
 
     obj_result Instance::set_field(const t_string &name, const GcPtr<Object> &value) {
@@ -33,12 +33,12 @@ namespace bond {
             m_fields[name] = value;
             return OK(value);
         }
-        return ERR("Field " + name + " not found");
+        return runtime_error("Field " + name + " not found");
     }
 
     obj_result Instance::get_type() {
         if (m_type == nullptr) {
-            return ERR("Type not set");
+            return runtime_error("Type not set");
         }
         return OK(m_type);
     }
@@ -66,7 +66,7 @@ namespace bond {
             if (meth.has_value()) {
                 return OK(meth.value());
             }
-            return ERR("Field " + name->get_value() + " not found");
+            return runtime_error("Field " + name->get_value() + " not found");
         }
 
         return res;
@@ -118,7 +118,7 @@ namespace bond {
             TRY(parse_args(args));
             auto res = self->get_method(slot_name);
             if (!res.has_value()) {
-                return ERR("Method " + slot_name + " not found");
+                return runtime_error("Method " + slot_name + " not found");
             }
             return OK(res.value());
         };

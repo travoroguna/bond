@@ -8,6 +8,8 @@
 #include <optional>
 #include <ranges>
 #include <iostream>
+#include "../builtins.h"
+#include "../runtime.h"
 
 namespace bond {
 
@@ -18,15 +20,12 @@ namespace bond {
             m_scopes->new_scope();
 
             auto span = std::make_shared<Span>(0, 0, 0, 1);
-            const char *builtins[] = {
-                    "println", "print", "dump", "exit",
-                    "help", "type_of", "instance_of", "input",
-                    "Int", "Float", "String", "Bool", "List",
-                    "debug_break", "__future__", "format", "iter", "Future"
-            };
+            auto globs = Runtime::ins()->make_string_map();
+            add_builtins_to_globals(globs);
+            auto builtins = globs->get_value();
 
-            for (auto &builtin: builtins) {
-                m_scopes->declare(builtin, span, false);
+            for (auto &[builtin, _]: builtins) {
+                m_scopes->declare(builtin.c_str(), span, false);
             }
         }
 

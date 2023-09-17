@@ -22,7 +22,7 @@ namespace bond {
         if (res.has_value()) {
             return OK(res.value());
         } else {
-            return ERR(fmt::format("AttributeError: module '{}' has no attribute '{}'", get_path(), name));
+            return runtime_error(fmt::format("AttributeError: module '{}' has no attribute '{}'", get_path(), name));
         }
     }
 
@@ -42,8 +42,8 @@ namespace bond {
         if (res.has_value()) {
             return OK(res.value());
         } else {
-            return ERR(fmt::format("AttributeError: module '{}' has no attribute '{}'", self->get_path(),
-                                   name->get_value()));
+            return runtime_error(fmt::format("AttributeError: module '{}' has no attribute '{}'", self->get_path(),
+                                             name->get_value()));
         }
     }
 

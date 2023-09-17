@@ -9,6 +9,7 @@
 #include "object_helpers.h"
 #include <thread>
 #include <mutex>
+#include <fmt/ranges.h>
 
 
 using custom_str = std::basic_string<char, std::char_traits<char>, gc_allocator<char>>;
@@ -159,6 +160,7 @@ namespace bond {
 
     template<typename T, typename... Args>
     inline GcPtr<T> make(Args &&...args) {
+        GC_collect_a_little();
         return GcPtr<T>(new(GC) T(std::forward<Args>(args)...));
     }
 
@@ -245,7 +247,8 @@ namespace bond {
 
         std::unordered_map<t_string, std::pair<getter, setter>> &get_attributes() { return m_attributes; }
 
-
+        std::expected<NativeFunctionPtr, t_string> get_static_method(const t_string& name);
+        void add_static_method(const t_string &name, const NativeFunctionPtr &s_meth, const t_string &doc);
     protected:
         t_string m_name;
         t_string m_doc;
@@ -255,6 +258,9 @@ namespace bond {
 
         //getter and setter
         std::unordered_map<t_string, std::pair<getter, setter>> m_attributes;
+
+        //static methods
+        std::unordered_map<t_string, std::pair<NativeFunctionPtr, t_string>> m_static_methods;
 
     };
 
@@ -294,7 +300,7 @@ namespace bond {
 
     obj_result OK();
 
-    obj_result ERR(t_string error);
+    obj_result runtime_error(t_string error);
 
 
 
@@ -381,6 +387,22 @@ namespace bond {
         int64_t m_value;
     };
 
+    class Bytes : public NativeInstance {
+    public:
+        INSTANCE(Bytes)
+
+        explicit Bytes(const std::vector<uint8_t> &value) : m_value(value) {}
+
+        Bytes() = default;
+
+        [[nodiscard]] std::vector<uint8_t> get_value() const { return m_value; }
+
+        [[nodiscard]] t_string str() const override { return fmt::format("b'{}'", fmt::join(m_value, ", ")); }
+
+    private:
+        std::vector<uint8_t> m_value;
+    };
+
     class Bool : public NativeInstance {
     public:
         INSTANCE(Bool)
@@ -389,7 +411,7 @@ namespace bond {
 
         [[nodiscard]] bool get_value() const { return m_value; }
 
-        [[nodiscard]] t_string str() const override { return fmt::format("{}", m_value); }
+        [[nodiscard]] t_string str() const override { return m_value ? "true" : "false"; }
 
     private:
         bool m_value;
@@ -812,7 +834,8 @@ namespace bond {
     template<typename... Values>
     obj_result parse_args(const t_vector &args, Values &... values) {
         if (args.size() != sizeof...(Values)) {
-            return ERR(fmt::format("Expected {} arguments, but {} were given", sizeof...(Values), args.size()));
+            return runtime_error(
+                    fmt::format("Expected {} arguments, but {} were given", sizeof...(Values), args.size()));
         }
 
         return assign_args<0>(args, values...);  // Assign arguments to values
@@ -834,8 +857,9 @@ namespace bond {
                 value = val;
             } else {
                 //TODO: find a way to get the type name of ValueType
-                return ERR(fmt::format("Expected argument {} to be of type {}, but got {}", I, typeid(ValueType).name(),
-                                       get_type_name(args[I])));
+                return runtime_error(
+                        fmt::format("Expected argument {} to be of type {}, but got {}", I, typeid(ValueType).name(),
+                                    get_type_name(args[I])));
             }
 
             return assign_args < I + 1 >(args, values...);  // Recursive call to assign the next argument
@@ -877,6 +901,7 @@ namespace bond {
     void init_list();
     void init_hash_map();
     void init_future();
+    void init_bytes();
 
     // result functions
     [[nodiscard]] GcPtr<Result> make_result(const GcPtr<Object>& value, bool is_error);

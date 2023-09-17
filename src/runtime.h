@@ -91,6 +91,7 @@ namespace bond {
             BOUND_METHOD_STRUCT = runtime_ptr->BOUND_METHOD_STRUCT;
             HASHMAP_STRUCT = runtime_ptr->HASHMAP_STRUCT;
             FUTURE_STRUCT = runtime_ptr->FUTURE_STRUCT;
+            BYTES_STRUCT = runtime_ptr->BYTES_STRUCT;
 
             C_TRUE = runtime_ptr->C_TRUE;
             C_FALSE = runtime_ptr->C_FALSE;
@@ -120,7 +121,7 @@ namespace bond {
             init_list();
             init_hash_map();
             init_future();
-
+            init_bytes();
             ins()->init_caches();
 
             C_NONE_RESULT = make_result(C_NONE, false);
@@ -148,6 +149,7 @@ namespace bond {
         GcPtr<NativeStruct> BOUND_METHOD_STRUCT;
         GcPtr<NativeStruct> HASHMAP_STRUCT;
         GcPtr<NativeStruct> FUTURE_STRUCT;
+        GcPtr<NativeStruct> BYTES_STRUCT;
 
 
         GcPtr<Bool> C_TRUE;
@@ -245,6 +247,14 @@ namespace bond {
 
         void add_immortal(const GcPtr<Object>& object) {
             m_immortals.push_back(object);
+        }
+
+        [[nodiscard]] GcPtr<Bytes> make_bytes(const std::vector<uint8_t>& bytes) const {
+            return BYTES_STRUCT->create_instance<Bytes>(bytes);
+        }
+
+        [[nodiscard]] GcPtr<Bytes> make_bytes() const {
+            return BYTES_STRUCT->create_instance<Bytes>();
         }
 
     };

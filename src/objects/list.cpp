@@ -9,14 +9,14 @@ namespace bond {
 
     obj_result List::get_item(int64_t index) {
         if (index < 0 or index > m_elements.size() - 1) {
-            return ERR(fmt::format("Index {} out of range", index));
+            return runtime_error(fmt::format("Index {} out of range", index));
         }
         return m_elements[index];
     }
 
     obj_result List::set_item(int64_t index, const GcPtr<Object> &item) {
         if (index < 0 or index > m_elements.size() - 1) {
-            return ERR(fmt::format("Index {} out of range", index));
+            return runtime_error(fmt::format("Index {} out of range", index));
         }
         m_elements[index] = item;
         return OK();

@@ -262,7 +262,7 @@ namespace bond {
         TRY(opt);
         auto res = self->get(key);
         if (!res.has_value()) {
-            return ERR(res.error());
+            return runtime_error(res.error());
         }
         return OK(res.value());
     }
@@ -275,7 +275,7 @@ namespace bond {
         TRY(opt);
         auto res = self->set(key, value);
         if (!res.has_value()) {
-            return ERR(res.error());
+            return runtime_error(res.error());
         }
         return OK();
     }
@@ -320,7 +320,7 @@ namespace bond {
 
         auto res = self->has(key);
         if (!res.has_value()) {
-            return ERR(res.error());
+            return runtime_error(res.error());
         }
         return AS_BOOL(res.value());
     }
@@ -332,7 +332,7 @@ namespace bond {
 
         auto res = self->remove(key);
         if (!res.has_value()) {
-            return ERR(res.error());
+            return runtime_error(res.error());
         }
         return OK();
     }

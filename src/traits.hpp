@@ -267,8 +267,8 @@ namespace bond {
 
         static return_type wrap_impl(const t_vector &args) {
             if (args.size() != sizeof...(Args)) {
-                return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
-                           std::to_string(args.size()));
+                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                                     std::to_string(args.size()));
             }
 
             if constexpr (std::is_same_v<R, void>) {
@@ -318,8 +318,8 @@ namespace bond {
 
         static return_type wrap_impl(const GcPtr<Object>& self, const t_vector &args) {
             if (args.size() != sizeof...(Args)) {
-                return ERR("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
-                           std::to_string(args.size()));
+                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                                     std::to_string(args.size()));
             }
 
             if constexpr (std::is_same_v<R, void>) {
@@ -419,6 +419,27 @@ namespace bond {
     };
 
 
+    /**
+     * @class Mod
+     * Represents a module in the application.
+     * Each module can have structs, functions, and variables.
+     *
+     * Usage:
+     * Mod mod("filename");
+     * auto module = mod.build();
+     *
+     * struct Mod::StructBuilder
+     * A builder class for creating structs.
+     *
+     * Usage:
+     * Mod::StructBuilder builder("struct_name", "struct_doc");
+     *
+     * builder.method("method_name", function_pointer, "method_doc")
+     *        .constructor(constructor_function_pointer)
+     *        .field("field_name", getter_function_pointer, setter_function_pointer)
+     *        .build();
+     */
+
     class Mod {
     public:
         class StructBuilder {
@@ -493,17 +514,12 @@ namespace bond {
                 auto constructor = m_constructor;
                 auto wrapper = [constructor, st](const t_vector &args) -> obj_result {
                     auto res = constructor(args);
-                    if (!res.has_value()) {
-                        return res;
-                    }
+                    TRY(res);
 
                     auto val = res.value();
 
                     if (val->is<Result>()) {
-                        if (val->as<Result>()->has_value()) {
-                            val->as<Result>()->get_value()->as<NativeInstance>()->set_native_struct(st.get());
-                        }
-                        return val;
+                       return std::unexpected("constructor returned a Result");
                     }
 
                     val->as<NativeInstance>()->set_native_struct(st.get());
@@ -568,10 +584,36 @@ namespace bond {
 
     };
 
+    /**
+     * @brief Creates a new `ok_t` object with the given value of type `T`.
+     *
+     * This function creates a new `ok_t` object with the provided value of type `T`.
+     * The `ok_t` object represents a successful operation with a valid result.
+     *
+     * @param[in] object The value to be stored in the `ok_t` object.
+     *
+     * @tparam T The type of the value to be stored in the `ok_t` object.
+     *
+     * @return The newly created `ok_t` object with the provided value.
+     */
+
     template<typename T>
     inline GcPtr<Result> make_ok_t(T object) {
         return make_ok(bond_traits<T>::wrap(object));
     }
+
+    /**
+     * @brief Creates an error message for the given object.
+     *
+     * This function creates an error message for the given object. The object can be of any type and is passed as an argument.
+     * The function returns a make_error_t structure, which contains the error message.
+     *
+     * @tparam T The type of the object.
+     * @param object The object for which to create the error message.
+     * @return A make_error_t structure containing the error message.
+     *
+     * @see make_error_t
+     */
 
     template<typename T>
     inline GcPtr<Result> make_error_t(T object) {

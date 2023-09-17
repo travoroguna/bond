@@ -141,10 +141,20 @@ namespace bond {
         return m_methods.contains(name);
     }
 
+    void NativeStruct::add_static_method(const t_string& name, const NativeFunctionPtr &s_meth, const t_string &doc) {
+        m_static_methods[name] = {s_meth, doc};
+    }
+
+    std::expected<NativeFunctionPtr, t_string> NativeStruct::get_static_method(const t_string& name) {
+        if (!m_static_methods.contains(name))
+            return std::unexpected(fmt::format("static method {} not found", name));
+        return m_static_methods.at(name).first;
+    }
+
     [[nodiscard]] obj_result NativeInstance::call_method(const t_string &name, const t_vector &args) {
         auto method = m_native_struct->get_method(name);
         if (!method)
-            return ERR(fmt::format("method {} not found", name));
+            return runtime_error(fmt::format("method {} not found", name));
         auto res = (*method)(this, args);
         TRY(res);
         return res;
@@ -154,7 +164,7 @@ namespace bond {
     obj_result NativeInstance::call_slot(Slot slot, const t_vector &args) {
         auto method = m_native_struct->get_slot(slot);
         if (!method)
-            return ERR("not implemented");
+            return runtime_error("not implemented");
         assert(method);
         auto res = method(this, args);
         TRY(res);
@@ -188,7 +198,7 @@ namespace bond {
         return Runtime::ins()->C_NONE;
     }
 
-    obj_result ERR(t_string error) {
+    obj_result runtime_error(t_string error) {
         return std::unexpected(std::move(error));
     }
 

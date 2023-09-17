@@ -385,10 +385,7 @@ namespace bond {
 
         if (!result.has_value()) {
             auto error = vformat(fmt, fmt::make_format_args(fmt_args...));
-            runtime_error(fmt::format(
-                    "{}  \nError {} {}", error,
-                    instance->as<NativeInstance>()->get_native_struct()->get_name(),
-                    result.error()));
+            runtime_error(fmt::format("{}  \nError {}", error, result.error()));
             return nullptr;
         }
 
@@ -502,8 +499,7 @@ namespace bond {
 
         if (m_start_event_loop_cb) {
             m_start_event_loop_cb();
-        }
-        else {
+        } else {
             return;
         }
 
@@ -1095,10 +1091,27 @@ namespace bond {
                     auto &name = pop()->as<String>()->get_value_ref();
                     auto obj = pop();
 
+                    if (obj->is<NativeStruct>()) {
+                        auto o = obj->as<NativeStruct>();
+                        auto static_meth = o->get_static_method(name);
+                        if (!static_meth.has_value()) {
+                            runtime_error(static_meth.error());
+                            break;
+                        }
+                        auto res = static_meth.value()(m_args);
+                        if (!res.has_value()) {
+                            runtime_error(res.error());
+                            break;
+                        }
+                        push(res.value());
+                        break;
+                    }
+
                     if (!obj->is<NativeInstance>()) {
                         runtime_error(
                                 fmt::format("method {} of {} does not exist", name, obj->str()),
                                 RuntimeError::GenericError, m_current_frame->get_span());
+                        break;
                     }
 
                     auto o = obj->as<NativeInstance>();
@@ -1284,7 +1297,6 @@ namespace bond {
         }
 
     }
-
 
 
 } // namespace bond

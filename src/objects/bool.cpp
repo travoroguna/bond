@@ -5,7 +5,7 @@
 namespace bond {
     obj_result Bool_construct(const t_vector &args) {
         if (args.size() != 1) {
-            return ERR("Bool constructor takes exactly one argument");
+            return runtime_error("Bool constructor takes exactly one argument");
         }
 
         const auto& arg = args[0];

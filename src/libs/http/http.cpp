@@ -7,11 +7,11 @@
 
 namespace bond::http {
     // Exceptions why
-    class InternalServerError final: public std::exception {
+    class InternalServerError final : public std::exception {
     public:
         InternalServerError() = default;
 
-        [[nodiscard]] const char* what() const noexcept override {
+        [[nodiscard]] const char *what() const noexcept override {
             return "Internal Server Error";
         }
     };
@@ -21,71 +21,72 @@ namespace bond::http {
         throw InternalServerError();
     }
 
-    class Request final: public NativeInstance {
+    class Request final : public NativeInstance {
     public:
         INSTANCE(Request)
-        explicit Request(const httplib::Request& req)
-        : request(req) {}
 
-        obj_result get_path_param(const t_string& name) {
-           if (!request.path_params.contains(name.c_str())) {
-               return make_error_t(fmt::format("path param '{}' not found", name));
-           }
-           return make_ok(make_string(request.path_params.at(name.c_str())));
+        explicit Request(const httplib::Request &req)
+                : request(req) {}
+
+        obj_result get_path_param(const t_string &name) {
+            if (!request.path_params.contains(name.c_str())) {
+                return make_error_t(fmt::format("path param '{}' not found", name));
+            }
+            return make_ok(make_string(request.path_params.at(name.c_str())));
         }
 
-        obj_result get_query_param(const t_string& name) {
+        obj_result get_query_param(const t_string &name) {
             if (!request.params.contains(name.c_str())) {
                 return make_error_t(fmt::format("query param '{}' not found", name));
             }
             return make_ok(make_string(request.get_param_value(name.c_str())));
         }
 
-        obj_result has_query_param(const t_string& name) {
+        obj_result has_query_param(const t_string &name) {
             return AS_BOOL(request.has_param(name.c_str()));
         }
 
-        obj_result has_path_param(const t_string& name) {
+        obj_result has_path_param(const t_string &name) {
             return AS_BOOL(request.path_params.contains(name.c_str()));
         }
 
-        obj_result get_header(const t_string& name) {
+        obj_result get_header(const t_string &name) {
             if (!request.headers.contains(name.c_str())) {
                 return make_error_t(fmt::format("header '{}' not found", name));
             }
             return make_ok(make_string(request.get_header_value(name.c_str())));
         }
 
-        obj_result has_header(const t_string& name) {
+        obj_result has_header(const t_string &name) {
             return AS_BOOL(request.has_header(name.c_str()));
         }
 
     private:
-        const httplib::Request& request;
+        const httplib::Request &request;
     };
 
 
-
-    class Response final: public NativeInstance {
+    class Response final : public NativeInstance {
     public:
         INSTANCE(Response)
-        explicit Response(httplib::Response& res)
-        : response(res){}
 
-        void set_content(const t_string& content, const t_string& type) {
+        explicit Response(httplib::Response &res)
+                : response(res) {}
+
+        void set_content(const t_string &content, const t_string &type) {
             response.set_content(content.c_str(), content.size(), type.c_str());
         }
 
     private:
-        httplib::Response& response;
+        httplib::Response &response;
     };
 
-    class Server final: public NativeInstance {
+    class Server final : public NativeInstance {
     public:
         INSTANCE(Server)
 
-        void get(const t_string& path, const GcPtr<Object>& callback) {
-            server.Get(path.c_str(), [callback](const httplib::Request& req, httplib::Response& res) {
+        void get(const t_string &path, const GcPtr<Object> &callback) {
+            server.Get(path.c_str(), [callback](const httplib::Request &req, httplib::Response &res) {
                 auto args = t_vector{
                         Runtime::ins()->construct<Request>("http", "Request", req),
                         Runtime::ins()->construct<Response>("http", "Response", res)
@@ -99,7 +100,7 @@ namespace bond::http {
             });
         }
 
-        bool listen(const t_string& host, int port) {
+        bool listen(const t_string &host, int port) {
             fmt::print("server will be started at {}:{}\npress CTRL c to quit\n", host, port);
             return server.listen(host.c_str(), port);
         }
@@ -109,7 +110,7 @@ namespace bond::http {
         }
 
         void set_defaults() {
-            server.set_logger([](const auto& req, const auto& res) {
+            server.set_logger([](const auto &req, const auto &res) {
                 fmt::print("{} - '{} {} {}' [{}]\n", req.local_addr, req.method, req.version, req.path, res.status);
             });
 
@@ -120,7 +121,7 @@ namespace bond::http {
 //                res.set_content(buf, "text/html");
 //            });
 
-            server.set_exception_handler([](const auto& req, auto& res, std::exception_ptr ep) {
+            server.set_exception_handler([](const auto &req, auto &res, std::exception_ptr ep) {
                 auto fmt = "<h1>Error 500</h1><p>%s</p>";
                 char buf[BUFSIZ];
                 try {
@@ -134,22 +135,82 @@ namespace bond::http {
                 res.status = 500;
             });
         }
+
     private:
         httplib::Server server;
     };
 
-    return_type Server_new(const t_vector& args) {
+    return_type Server_new(const t_vector &args) {
         TRY(parse_args(args));
         auto server = Runtime::ins()->construct<Server>("http", "Server");
         server->as<Server>()->set_defaults();
         return server;
     }
+
+    obj_result add(const t_vector &args) {
+        Int *a;
+        Int *b;
+        TRY(parse_args(args, a, b));
+        return make_int(a->get_value() + b->get_value());
+    }
+
+    int add_num(int a, int b) {
+        return a + b;
+    }
+
+    int sum_list(const std::vector<int> &nums) {
+        int sum = 0;
+        for (auto num: nums) {
+            sum += num;
+        }
+        return sum;
+    }
+
 }
 
-EXPORT void bond_module_init(bond::Context *ctx, bond::Vm* current_vm, bond::Mod &mod) {
+namespace bond {
+    template<typename T>
+    struct bond_traits<const std::vector<T> &> {
+        static std::vector<T> unwrap(const GcPtr<Object> &object) {
+            auto the_list = object->as<List>();
+            std::vector<T> list;
+
+            for (const auto &item: the_list->get_elements()) {
+                list.push_back(bond_traits<T>::unwrap(item));
+            }
+
+            return list;
+        }
+
+        static GcPtr<Object> wrap(const std::vector<T> &list) {
+            t_vector elements;
+            for (const auto &item: list) {
+                elements.push_back(bond_traits<T>::wrap(item));
+            }
+
+            return Runtime::ins()->make_list(elements);
+        }
+
+        static bool can_unwrap(const GcPtr<Object> &object) {
+            if (!object->is<List>()) return false;
+            for (const auto &item: object->as<List>()->get_elements()) {
+                if (!bond_traits<T>::can_unwrap(item)) return false;
+            }
+            return true;
+        }
+
+        using type = List;
+    };
+}
+
+EXPORT void bond_module_init(bond::Context *ctx, bond::Vm *current_vm, bond::Mod &mod) {
     GC_INIT();
     bond::Runtime::ins()->set_runtime(current_vm->runtime());
     bond::set_current_vm(current_vm);
+
+    mod.function("add", bond::http::add, "add(a: Int, b: Int) -> Int");
+    mod.function<bond::http::add_num>("add_num", "add_num(a: Int, b: Int) -> Int");
+    mod.function<bond::http::sum_list>("sum_list", "sum_list(nums: List) -> Int");
 
     // server
     auto server = mod.struct_("Server", "Server()")
@@ -171,7 +232,6 @@ EXPORT void bond_module_init(bond::Context *ctx, bond::Vm* current_vm, bond::Mod
             .method<&bond::http::Request::has_query_param>("has_query_param", "has_query_param(name: String) -> Bool")
             .method<&bond::http::Request::get_header>("get_header", "get_header(name: String) -> Result")
             .method<&bond::http::Request::has_header>("has_header", "has_header(name: String) -> Bool");
-
 
 
     auto req_type = request.build();

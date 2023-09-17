@@ -14,11 +14,11 @@ namespace bond {
 
     obj_result check_args_f(const t_vector &args) {
         if (args.size() != 1) {
-            return ERR("Expected 1 argument");
+            return runtime_error("Expected 1 argument");
         }
 
         if (!args[0]->is_one_of<Int, Float>()) {
-            return ERR(fmt::format("Expected Float, got {}", get_type_name(args[0])));
+            return runtime_error(fmt::format("Expected Float, got {}", get_type_name(args[0])));
         }
 
         return OK();
@@ -81,14 +81,14 @@ if (args[0]->is<Float>()) { \
         if (args[0]->is<Float>()) {
             auto other = args[0]->as<Float>();
             if (other->get_value() == 0) {
-                return ERR("Attempted to divide by zero");
+                return runtime_error("Attempted to divide by zero");
             }
 
             return make_float(self_num->get_value() / other->get_value());
         } else {
             auto other = args[0]->as<Int>();
             if (other->get_value() == 0) {
-                return ERR("Attempted to divide by zero");
+                return runtime_error("Attempted to divide by zero");
             }
 
             return make_float(self_num->get_value() / (double)other->get_value());

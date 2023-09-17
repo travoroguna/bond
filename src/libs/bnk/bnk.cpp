@@ -185,7 +185,7 @@ namespace bond::bnk {
             if (Self->values.contains(Name)) {
                 return Self->values.at(Name);
             }
-            return ERR(fmt::format("Enum has no value named {}", Name));
+            return runtime_error(fmt::format("Enum has no value named {}", Name));
         }
     };
 

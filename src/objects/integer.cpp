@@ -13,11 +13,11 @@ namespace bond {
 
     obj_result check_args(const t_vector &args) {
         if (args.size() != 1) {
-            return ERR("Expected 1 argument");
+            return runtime_error("Expected 1 argument");
         }
 
         if (!args[0]->is_one_of<Int, Float>()) {
-            return ERR(fmt::format("Expected Int, got {}", get_type_name(args[0])));
+            return runtime_error(fmt::format("Expected Int, got {}", get_type_name(args[0])));
         }
 
         return OK();
@@ -72,7 +72,6 @@ if (args[0]->is<Int>()) { \
     }
 
 
-
     obj_result Int_div(const GcPtr<Object> &self, const t_vector &args) {
         auto self_num = self->as<Int>();
         TRY(check_args(args));
@@ -80,15 +79,15 @@ if (args[0]->is<Int>()) { \
         if (args[0]->is<Int>()) {
             auto other = args[0]->as<Int>();
             if (other->get_value() == 0)
-                return ERR("Division by zero");
+                return runtime_error("Division by zero");
 
             return make_int(self_num->get_value() / other->get_value());
         } else {
             auto other = args[0]->as<Float>();
             if (other->get_value() == 0)
-                return ERR("Division by zero");
+                return runtime_error("Division by zero");
 
-            return make_float((double)self_num->get_value() / other->get_value());
+            return make_float((double) self_num->get_value() / other->get_value());
         }
     }
 
@@ -100,7 +99,7 @@ if (args[0]->is<Int>()) { \
         TRY(opt);
 
         if (other->get_value() == 0)
-            return ERR("Division by zero");
+            return runtime_error("Division by zero");
 
         return make_int(self_num->get_value() % other->get_value());
     }
@@ -132,9 +131,38 @@ if (args[0]->is<Int>()) { \
     obj_result Int_hash(const GcPtr<Object> &self, const t_vector &args) {
         TRY(parse_args(args));
         auto self_num = self->as<Int>();
-        return make_int((int64_t)std::hash<int64_t>{}(self_num->get_value()));
+        return make_int((int64_t) std::hash<int64_t>{}(self_num->get_value()));
     }
 
+
+    obj_result parse(const t_vector &args) {
+        Object *obj;
+        auto res = parse_args(args, obj);
+
+        if (obj->is<Int>()) {
+            return make_ok(obj);
+        } else if (obj->is<String>()) {
+            try {
+                size_t pos;
+                auto str = obj->as<String>()->get_value();
+                auto the_num = std::stoll(str.c_str(), &pos, 10);
+
+                if (pos != str.size()) {
+                    return make_error(make_string(fmt::format("Cannot parse String, unexpected character '{}', at position {}", str[pos], pos)));
+                }
+
+                return make_ok(make_int(the_num));
+            }
+            catch (std::exception &e) {
+                return make_error(make_string(e.what()));
+            }
+
+        } else if (obj->is<Float>()) {
+            return make_ok(make_int((int64_t) obj->as<Float>()->get_value()));
+        } else {
+            return runtime_error(fmt::format("Cannot parse {}", get_type_name(obj)));
+        }
+    }
 
     void init_int() {
         Runtime::ins()->INT_STRUCT = make_immortal<NativeStruct>("Int", "Int(value)", Int_construct, method_map{
@@ -151,5 +179,6 @@ if (args[0]->is<Int>()) { \
                 {"__ge__",   {Int_ge,   "__ge__(other)"}},
                 {"__hash__", {Int_hash, "__hash__()"}}
         });
+        Runtime::ins()->INT_STRUCT->add_static_method("parse", parse, "parse(obj)");
     }
 }

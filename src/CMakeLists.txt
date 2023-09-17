@@ -82,6 +82,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
         lsp/resolver.h
         runtime.cpp
         runtime.h
+        objects/bytes.cpp
 )
 
 

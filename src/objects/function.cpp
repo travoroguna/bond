@@ -28,7 +28,7 @@ namespace bond {
             return OK(make_string(self->get_name()));
         }
 
-        return ERR(fmt::format("AttributeError: function '{}' has no attribute '{}'", self->get_name(), name)) ;
+        return runtime_error(fmt::format("AttributeError: function '{}' has no attribute '{}'", self->get_name(), name)) ;
     }
 
 

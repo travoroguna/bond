@@ -118,7 +118,7 @@ namespace bond::fs {
         size_t i = 0;
         for (auto &arg: args) {
             if (!arg->is<String>()) {
-                return ERR(fmt::format("expected String at argument {}, got {}", i, get_type_name(arg)));
+                return runtime_error(fmt::format("expected String at argument {}, got {}", i, get_type_name(arg)));
             }
             paths.emplace_back(arg->str());
             i++;

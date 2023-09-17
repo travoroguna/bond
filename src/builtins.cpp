@@ -131,7 +131,7 @@ namespace bond {
         else if (obj->is<NativeInstance>()) {
             return build_help_for_native_struct(obj->as<NativeInstance>()->get_native_struct());
         }
-        return ERR("help() only works on structs and native structs");
+        return runtime_error("help() only works on structs and native structs");
     }
 
     obj_result b_type_of(const t_vector &args) {
@@ -146,7 +146,7 @@ namespace bond {
         else if (obj->is<NativeInstance>()) {
             return obj->as<NativeInstance>()->get_native_struct();
         }
-        return ERR(fmt::format("unable to get type of {}", obj->str()));
+        return runtime_error(fmt::format("unable to get type of {}", obj->str()));
     }
 
     obj_result b_instance_of(const t_vector &args) {
@@ -161,7 +161,7 @@ namespace bond {
             if (struct_->is<NativeStruct>()) {
                 return AS_BOOL(false);
             }
-            return ERR("expected a Type as the second argument");
+            return runtime_error("expected a Type as the second argument");
         }
 
         else if (obj->is<NativeInstance>()) {
@@ -173,10 +173,10 @@ namespace bond {
                 return AS_BOOL(false);
             }
 
-            return ERR("expected a Type as the second argument");
+            return runtime_error("expected a Type as the second argument");
         }
 
-        return ERR("expected an instance as the first argument");
+        return runtime_error("expected an instance as the first argument");
     }
 
     obj_result b_input(const t_vector &args) {
@@ -203,11 +203,11 @@ namespace bond {
 
     obj_result b_format(const t_vector &args) {
         if (args.empty()) {
-            return ERR("expected at least one argument");
+            return runtime_error("expected at least one argument");
         }
 
         if (!args[0]->is<String>()) {
-            return ERR("expected a string as the first argument");
+            return runtime_error("expected a string as the first argument");
         }
 
         auto rest = t_vector(args.begin() + 1, args.end());
@@ -215,7 +215,7 @@ namespace bond {
         auto formatted = bond_format(args[0]->as<String>()->get_value(), rest);
 
         if (!formatted) {
-            return ERR(formatted.error());
+            return runtime_error(formatted.error());
         }
 
         return OK(make_string(*formatted));
@@ -658,7 +658,7 @@ namespace bond {
             auto vm = get_current_vm();
 
             if (!iter->iterable->has_next().value())
-                return ERR("cannot reduce empty iterator");
+                return runtime_error("cannot reduce empty iterator");
 
             auto first = iter->iterable->next();
             TRY(first);
@@ -670,7 +670,7 @@ namespace bond {
                 vm->call_object_ex(func, a);
 
                 if (vm->had_error())
-                    return ERR("error while reducing iterator");
+                    return runtime_error("error while reducing iterator");
                 first = vm->pop();
             }
 
@@ -779,6 +779,7 @@ namespace bond {
                     {"List", Runtime::ins()->LIST_STRUCT},
                     {"Bool", Runtime::ins()->BOOL_STRUCT},
                     {"Nil", Runtime::ins()->NONE_STRUCT},
+                    {"Bytes", Runtime::ins()->BYTES_STRUCT},
                     {"Future", Runtime::ins()->FUTURE_STRUCT},
                     {"iter", Runtime::ins()->make_native_function("iter", "iter(iterable: Any) -> Iter", b_iter)},
                     {"debug_break", Runtime::ins()->make_native_function("debug_break", "debug_break()", b_debug_break)},
