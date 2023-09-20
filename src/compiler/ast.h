@@ -436,7 +436,11 @@ namespace bond {
 
         SharedNode get_expr() { return m_expr; }
 
+        void set_in_err_func(bool in_err) { in_err_func = in_err; }
+        bool is_in_err_func() { return in_err_func; }
+
     private:
+        bool in_err_func {false};
         SharedNode m_expr;
     };
 
@@ -522,6 +526,8 @@ namespace bond {
         std::string get_alias() { return m_alias; }
 
         std::string get_actual_path() { return actual_path; }
+
+        void set_path(const std::string &path) { m_name = path; }
 
         void set_actual_path(const std::string &path) { actual_path = path; }
 

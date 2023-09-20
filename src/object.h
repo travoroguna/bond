@@ -107,7 +107,7 @@ namespace bond {
         CREATE_CLOSURE,
         CREATE_CLOSURE_EX,
         IMPORT_PRE_COMPILED,
-        BUILD_DICT
+        BUILD_DICT, CHECK_RESULT
     };
 
     enum Slot : uint32_t {

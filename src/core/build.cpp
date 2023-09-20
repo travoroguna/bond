@@ -3,7 +3,6 @@
 //
 
 
-#include <iosfwd>
 #include "build.h"
 #include "../import.h"
 
@@ -46,6 +45,15 @@ namespace bond{
 
                 if (!res) {
                     return std::unexpected(res.error());
+                }
+
+                name = res.value();
+
+                if (name.ends_with(".so") || name.ends_with(".dll")) {
+                    fmt::print("Found library: {}\n", name);
+                    compiled_deps.insert(name);
+                    import_def->set_path(std::filesystem::path(name.c_str()).filename().stem().string());
+                    continue;
                 }
 
                 import_def->set_actual_path(res.value().c_str());
@@ -187,8 +195,16 @@ namespace bond{
 
         std::filesystem::copy_file(arch_path.c_str(), dist_dir + arch_name + ".bar", std::filesystem::copy_options::overwrite_existing);
 
+        std::unordered_set<t_string> compiled_units;
 
-        // TODO: copy libraries
+        for (auto &[_, unit]: units) {
+            auto &cmp = unit->get_compiled();
+            compiled_units.insert(cmp.begin(), cmp.end());
+        }
+
+        for (auto& unit: compiled_units) {
+            std::filesystem::copy_file(unit.c_str(), dist_dir + "libraries/" + std::filesystem::path(unit.c_str()).filename().string(), std::filesystem::copy_options::overwrite_existing);
+        }
 
         return {};
     }

@@ -394,6 +394,10 @@ namespace bond {
             stmnt->get_expr()->accept(this);
         }
 
+        if (stmnt->is_in_err_func()) {
+            m_code->add_ins(Opcode::CHECK_RESULT, stmnt->get_span());
+        }
+
         m_code->add_ins(Opcode::RETURN, stmnt->get_span());
     }
 

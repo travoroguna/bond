@@ -559,9 +559,9 @@ namespace bond {
     std::shared_ptr<Node> Parser::return_statement() {
         auto keyword = previous();
 
-        if (is_error_func) {
-            throw ParserError("Cannot return from error function, use ok or err instead", keyword.get_span());
-        }
+//        if (is_error_func) {
+//            throw ParserError("Cannot return from error function, use ok or err instead", keyword.get_span());
+//        }
 
         if (!in_function) {
             throw ParserError("Cannot return outside of a function", keyword.get_span());
@@ -573,7 +573,9 @@ namespace bond {
         }
 
         consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after return value");
-        return std::make_shared<Return>(span_from_spans(keyword.get_span(), previous().get_span()), value);
+        auto val = std::make_shared<Return>(span_from_spans(keyword.get_span(), previous().get_span()), value);
+        val->set_in_err_func(is_error_func);
+        return val;
     }
 
     std::shared_ptr<Node> Parser::for_statement() {

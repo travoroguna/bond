@@ -1288,6 +1288,12 @@ namespace bond {
                     break;
                 }
 
+                case Opcode::CHECK_RESULT:{
+                    if (!peek()->is<Result>()) {
+                        runtime_error(fmt::format("expected result, got {}", get_type_name(peek())));
+                    }
+                    break;
+                }
                 case Opcode::MAKE_ASYNC:
                 case Opcode::AWAIT:
                     runtime_error("asyncio not implemented");

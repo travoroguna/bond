@@ -15,6 +15,8 @@
 #include "../md5.h"
 #include "../runtime.h"
 
+#include <unordered_set>
+
 
 #define BOND_MAGIC_NUMBER 0x424F4E44
 #define BOND_BAR_VERSION 0x00000001
@@ -65,6 +67,8 @@ namespace bond {
 
         std::expected<GcPtr<Code>, t_string> compile();
 
+        std::unordered_set<t_string> &get_compiled() { return compiled_deps; }
+
 
     private:
         t_string path;
@@ -73,6 +77,7 @@ namespace bond {
         size_t unit_id{0};
         std::shared_ptr<Scopes> scopes;
         Context *context;
+        std::unordered_set<t_string> compiled_deps;
     };
 
     template<typename S, typename T, typename=std::is_trivially_copyable<T>>
@@ -317,6 +322,8 @@ namespace bond {
         write_val<S, uint32_t>(stream, (uint32_t)units.size());
 
         size_t i = 1;
+
+
         for (auto &[_, unit]: units) {
             fmt::print("[{}/{}] unit {}, {}\n", i, units.size(), unit->get_unit_id(), _);
             write_val<S, uint32_t>(stream, (uint32_t)unit->get_unit_id());

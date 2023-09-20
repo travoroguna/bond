@@ -114,6 +114,20 @@ namespace bond {
         return make_int(std::hash<t_string>{}(self_str->get_value()));
     }
 
+    obj_result String_is_digit(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        TRY(parse_args(args));
+        auto &val = self_str->get_value_ref();
+        return AS_BOOL(std::all_of(val.begin(), val.end(), ::isdigit));
+    }
+
+    obj_result String_is_alpha(const GcPtr<Object> &self, const t_vector &args) {
+        auto self_str = self->as<String>();
+        TRY(parse_args(args));
+        auto &val = self_str->get_value_ref();
+        return AS_BOOL(std::all_of(val.begin(), val.end(), ::isalpha));
+    }
+
     obj_result String_encode(const GcPtr<Object> &self, const t_vector &args) {
         auto self_str = self->as<String>();
         TRY(parse_args(args));
@@ -134,6 +148,8 @@ namespace bond {
                         {"join",        {String_join,       "join(*args: List<Any>) -> String"}},
                         {"sub_string",  {String_sub_string, "sub_string(start: Int, end: Int) -> String"}},
                         {"encode",      {String_encode,     "encode() -> Bytes"}},
+                        {"is_digit",    {String_is_digit,   "is_digit() -> Bool"}},
+                        {"is_alpha",    {String_is_alpha,   "is_alpha() -> Bool"}},
                 }};
 
         Runtime::ins()->STRING_STRUCT = make_immortal<NativeStruct>("String", "String(value)", String_construct,

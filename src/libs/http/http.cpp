@@ -5,7 +5,10 @@
 #include "../../bond.h"
 #include <httplib.h>
 
+#include <utility>
+
 namespace bond::http {
+
     // Exceptions why
     class InternalServerError final : public std::exception {
     public:
@@ -20,6 +23,72 @@ namespace bond::http {
         get_current_vm()->reset_error();
         throw InternalServerError();
     }
+
+    using Callback = std::function<void(Vm *)>;
+    constexpr bool use_pool = false;
+
+    class HttpRuntime {
+    public:
+        explicit HttpRuntime(Context *ctx) : m_ctx(ctx) {}
+
+        void init() {
+            m_vm_pool.reserve(30);
+
+            for (int i = 0; i < 30; i++) {
+                m_vm_pool.emplace_back(new (GC) Vm(m_ctx));
+            }
+        }
+
+
+        void exec(Callback callback) {
+            if constexpr (use_pool) {
+                std::lock_guard<std::mutex> lock(m_mutex);
+
+                m_callbacks.emplace_back([&callback, this](Vm *vm) {
+                    std::lock_guard<std::mutex> lock(m_mutex);
+                    callback(vm);
+                    if (vm->had_error()) {
+                        server_error();
+                    }
+                    m_vm_pool.emplace_back(vm);
+                });
+            }
+            else {
+                auto vm = get_current_vm();
+                callback(vm);
+                if (vm->had_error()) {
+                    server_error();
+                }
+            }
+        }
+
+        [[noreturn]] void run() {
+            while (true) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::lock_guard<std::mutex> lock(m_mutex);
+                if (m_callbacks.empty()) continue;
+                if (!m_vm_pool.empty()) continue;
+
+                auto callback = m_callbacks.back();
+                m_callbacks.pop_back();
+
+                auto vm = m_vm_pool.back();
+                m_vm_pool.pop_back();
+                callback(vm);
+            }
+        }
+
+    public:
+        Context *m_ctx;
+        std::vector<Callback> m_callbacks;
+        std::vector<Vm*, gc_allocator<Vm*>> m_vm_pool;
+        size_t pool_size = 30;
+        size_t pool = 0;
+        std::mutex m_mutex;
+    };
+
+    HttpRuntime* http_runtime = nullptr;
+
 
     class Request final : public NativeInstance {
     public:
@@ -92,11 +161,9 @@ namespace bond::http {
                         Runtime::ins()->construct<Response>("http", "Response", res)
                 };
 
-                get_current_vm()->call_function_ex(callback, args);
-
-                if (get_current_vm()->had_error()) {
-                    server_error();
-                }
+                http_runtime->exec([callback, args](Vm *vm) {
+                    vm->call_function_ex(callback, args);
+                });
             });
         }
 
@@ -207,6 +274,10 @@ EXPORT void bond_module_init(bond::Context *ctx, bond::Vm *current_vm, bond::Mod
     GC_INIT();
     bond::Runtime::ins()->set_runtime(current_vm->runtime());
     bond::set_current_vm(current_vm);
+
+    bond::http::http_runtime = new (GC) bond::http::HttpRuntime(ctx);
+    bond::http::http_runtime->init();
+    std::thread(&bond::http::HttpRuntime::run, bond::http::http_runtime).detach();
 
     mod.function("add", bond::http::add, "add(a: Int, b: Int) -> Int");
     mod.function<bond::http::add_num>("add_num", "add_num(a: Int, b: Int) -> Int");

@@ -154,6 +154,7 @@ namespace bond {
                 SIMPLE_INSTRUCTION(AWAIT);
                 SIMPLE_INSTRUCTION(MAKE_OK);
                 SIMPLE_INSTRUCTION(MAKE_ERROR);
+                SIMPLE_INSTRUCTION(CHECK_RESULT);
             }
 
         }
