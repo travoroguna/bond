@@ -183,7 +183,7 @@ namespace bond {
 
         std::shared_ptr<Node> await_statement();
 
-        std::shared_ptr<Node> ok_statement() ;
+        std::shared_ptr<Node> ok_statement();
 
         std::shared_ptr<Node> err_statement();
 
@@ -212,5 +212,5 @@ namespace bond {
         SharedTypeNode parse_return_type();
     };
 
-    std::string split_at_last_occur(const std::string& str, char c);
+    std::string split_at_last_occur(const std::string &str, char c);
 } // bond

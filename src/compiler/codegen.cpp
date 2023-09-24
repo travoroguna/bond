@@ -273,23 +273,80 @@ namespace bond {
         m_code->add_ins(Opcode::CALL, expr->get_args().size(), expr->get_span());
     }
 
+    uint32_t CodeGenerator::for_single_var(For *stmnt) {
+        auto &[var, span] = stmnt->get_variables()[0];
+
+        m_scopes->declare(var, span, true, false);
+        auto local_name = m_code->add_constant(make_string(var));
+
+        m_code->add_ins(Opcode::PUSH_NIL, span);
+        m_code->add_ins(Opcode::CREATE_LOCAL, local_name, span);
+
+        stmnt->get_expr()->accept(this);
+        m_code->add_ins(Opcode::ITER, span);
+
+        auto start = m_code->current_index();
+        m_code->add_ins(Opcode::ITER_END, 0, span);
+
+        m_code->add_ins(Opcode::ITER_NEXT, local_name, span);
+
+        return start;
+    }
+
+    uint32_t CodeGenerator::for_unpack(For *stmt) {
+        //declare and create all variables in local scope
+        auto &vars = stmt->get_variables();
+
+        std::unordered_map<std::string, uint32_t> local_names;
+
+        for (auto &var: vars) {
+            // decl
+            m_scopes->declare(var.first, var.second, true, false);
+
+            // create
+            auto local_name = m_code->add_constant(make_string(var.first));
+            m_code->add_ins(Opcode::PUSH_NIL, var.second);
+            m_code->add_ins(Opcode::CREATE_LOCAL, local_name, var.second);
+            local_names[var.first] = local_name;
+        }
+
+        // for loop stuff
+        stmt->get_expr()->accept(this);
+        m_code->add_ins(Opcode::ITER, stmt->get_span());
+
+        auto start = m_code->current_index();
+        m_code->add_ins(Opcode::ITER_END, 0, stmt->get_span());
+
+        // we want to reuse all for loop constructs but add unpacking
+        m_code->add_ins(Opcode::NEXT,stmt->get_span());
+
+        // unpack the value
+        m_code->add_ins(Opcode::UNPACK_SEQ, vars.size(), stmt->get_span());
+
+        // store the unpacked values
+        for (auto &var: std::ranges::reverse_view(vars)) {
+            auto local_name = local_names[var.first];
+            m_code->add_ins(Opcode::STORE_FAST, local_name, var.second);
+
+            // store fast does not consume the stack
+            m_code->add_ins(Opcode::POP_TOP, var.second);
+        }
+
+        return start;
+    }
+
     void CodeGenerator::visit(For *stmnt) {
         start_loop();
         m_scopes->new_scope();
 
-        m_scopes->declare(stmnt->get_name(), stmnt->get_span(), true, false);
-        auto local_name = m_code->add_constant(make_string(stmnt->get_name()));
+        uint32_t start = 0;
 
-        m_code->add_ins(Opcode::PUSH_NIL, stmnt->get_span());
-        m_code->add_ins(Opcode::CREATE_LOCAL, local_name, stmnt->get_span());
-
-        stmnt->get_expr()->accept(this);
-        m_code->add_ins(Opcode::ITER, stmnt->get_span());
-
-        auto start = m_code->current_index();
-        m_code->add_ins(Opcode::ITER_END, 0, stmnt->get_span());
-
-        m_code->add_ins(Opcode::ITER_NEXT, local_name, stmnt->get_span());
+        if (stmnt->get_variables().size() == 1) {
+            start = for_single_var(stmnt);
+        }
+        else {
+            start = for_unpack(stmnt);
+        }
 
         stmnt->get_statement()->accept(this);
         m_code->add_ins(Opcode::JUMP, start, stmnt->get_span());
@@ -298,8 +355,8 @@ namespace bond {
         m_code->patch_code(start + 1, end);
         finish_loop(end, start);
         m_code->add_ins(Opcode::POP_TOP, stmnt->get_span());
-        m_scopes->end_scope();
 
+        m_scopes->end_scope();
     }
 
     void CodeGenerator::visit(FuncDef *stmnt) {

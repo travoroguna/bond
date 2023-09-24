@@ -156,6 +156,7 @@ namespace bond {
                 SIMPLE_INSTRUCTION(MAKE_ERROR);
                 SIMPLE_INSTRUCTION(CHECK_RESULT);
                 SIMPLE_INSTRUCTION(REPL_TOP);
+                SIMPLE_INSTRUCTION(NEXT);
             }
 
         }

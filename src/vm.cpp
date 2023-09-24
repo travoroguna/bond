@@ -897,13 +897,22 @@ namespace bond {
                 }
 
                 case Opcode::ITER_NEXT: {
-                    auto next = call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
+                    auto next= call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
                     if (next.get() == nullptr) {
                         continue;
                     }
                     auto &local =
                             m_current_frame->get_constant()->as<String>()->get_value_ref();
                     m_current_frame->set_local(local, next);
+                    break;
+                }
+
+                case Opcode::NEXT: {
+                    auto next = call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
+                    if (next.get() == nullptr) {
+                        continue;
+                    }
+                    push(next);
                     break;
                 }
 

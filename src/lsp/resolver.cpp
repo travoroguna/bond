@@ -258,7 +258,10 @@ namespace bond::lsp {
 
     void Resolver::visit(For *stmnt) {
         new_scope();
-        declare(stmnt->get_name(), ANY_SYMBOL, stmnt->get_span());
+
+        for (auto &var: stmnt->get_variables()) {
+            declare(var.first, ANY_SYMBOL, stmnt->get_span());
+        }
         stmnt->get_statement()->accept(this);
         pop_scope();
     }

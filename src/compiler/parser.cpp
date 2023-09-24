@@ -585,32 +585,58 @@ namespace bond {
     }
 
     std::shared_ptr<Node> Parser::for_statement() {
-//  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after for keyword");
-//        consume(TokenType::VAR, peek().get_span(), "Expected 'var' after for keyword");
         m_in_loop = true;
 
+        m_scopes->new_scope();
 
-        auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after for keyword");
+        std::vector<std::pair<std::string, SharedSpan>> variables;
+
+        if (peek().get_type() == TokenType::IDENTIFIER) {
+            auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after for keyword");
+            variables.emplace_back(id.get_lexeme(), id.get_span());
+        }
+
+        else if (peek().get_type() == TokenType::LEFT_SQ) {
+            consume(TokenType::LEFT_SQ, peek().get_span(), "Expected '[' after for keyword");
+            auto exprs = expr_list(TokenType::RIGHT_SQ);
+            consume(TokenType::RIGHT_SQ, peek().get_span(), "Expected ']' after expression");
+
+            if (exprs.empty()) {
+                throw ParserError("Expected at least one identifier in declaration", peek().get_span());
+            }
+
+            for (auto &expr: exprs) {
+                if (!instanceof<Identifier>(expr.get())) {
+                    throw ParserError("Expected identifier in declaration", expr.get()->get_span());
+                }
+
+                auto id = std::dynamic_pointer_cast<Identifier>(expr);
+                if (m_scopes->is_declared(id->get_name())) {
+                    if (m_report)
+                        ctx->error(id->get_span(),
+                                   fmt::format("Variable {} is already declared in this scope", id->get_name()));
+                    auto sp = m_scopes->get(id->get_name()).value()->span;
+                    throw ParserError(fmt::format("Note Variable {} is already declared here", id->get_name()), sp);
+                }
+
+                m_scopes->declare(id->get_name(), id->get_span(), true);
+                variables.emplace_back(id->get_name(), id->get_span());
+            }
+        }
 
         consume(TokenType::IN_t, peek().get_span(), "Expected 'in' after variable name");
         auto iterable = expression();
 
-        m_scopes->new_scope();
-        m_scopes->declare(id.get_lexeme(), id.get_span(), true);
-//  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after for condition");
         m_scopes->end_scope();
 
         auto body = statement();
         m_in_loop = false;
-        return std::make_shared<For>(span_from_spans(id.get_span(), previous().get_span()), id.get_lexeme(), iterable,
+        return std::make_shared<For>(span_from_spans(variables[0].second, previous().get_span()), iterable, variables,
                                      body);
     }
 
     std::shared_ptr<Node> Parser::if_stmnt() {
-//  consume(TokenType::LEFT_PAREN, peek().get_span(), "Expected '(' after if keyword");
         auto condition = expression();
-//  consume(TokenType::RIGHT_PAREN, peek().get_span(), "Expected ')' after if condition");
-
         auto then_branch = statement();
 
         std::optional<std::shared_ptr<Node>> else_branch = std::nullopt;

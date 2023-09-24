@@ -104,6 +104,7 @@ namespace bond {
         MAKE_ERROR,
         MAKE_OK,
 
+        NEXT,
         CREATE_CLOSURE,
         CREATE_CLOSURE_EX,
         IMPORT_PRE_COMPILED,

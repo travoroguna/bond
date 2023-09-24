@@ -118,6 +118,10 @@ namespace bond {
         void finish_loop(uint32_t loop_end, uint32_t loop_start);
 
         void func_def(FuncDef *stmnt, bool is_async);
+
+        uint32_t for_unpack(For *stmt);
+
+        uint32_t for_single_var(For *stmt);
     };
 
 } // bond
