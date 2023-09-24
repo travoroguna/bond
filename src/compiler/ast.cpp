@@ -83,7 +83,8 @@ namespace bond {
         visitor->visit(this);
     }
 
-    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr, std::optional<SharedTypeNode> type){
+    NewVar::NewVar(const SharedSpan &span, const std::string &name, const SharedNode &expr,
+                   std::optional<SharedTypeNode> type) {
         m_span = span;
         m_name = name;
         m_expr = expr;
@@ -186,32 +187,34 @@ namespace bond {
         visitor->visit(this);
     }
 
-    CallMethod::CallMethod(const SharedSpan &span, const std::shared_ptr<GetAttribute>& get_attr, const std::vector<SharedNode> &args) {
+    CallMethod::CallMethod(const SharedSpan &span, const std::shared_ptr<GetAttribute> &get_attr,
+                           const std::vector<SharedNode> &args) {
         m_span = span;
         m_get_attr = get_attr;
         m_args = args;
     }
 
-    void CallMethod::accept(NodeVisitor *visitor)  {
+    void CallMethod::accept(NodeVisitor *visitor) {
         visitor->visit(this);
-    }
-
-    For::For(const SharedSpan &span, const std::string &name, const SharedNode &expr, const SharedNode &statement) {
-        m_span = span;
-        m_name = name;
-        m_expr = expr;
-        m_statement = statement;
     }
 
     void For::accept(NodeVisitor *visitor) {
         visitor->visit(this);
     }
 
+    For::For(const SharedSpan &span, const SharedNode &expr,
+             const std::vector<std::pair<std::string, SharedSpan>> &variables, const SharedNode &statement) {
+        m_span = span;
+        m_expr = expr;
+        m_variables = variables;
+        m_statement = statement;
+    }
+
     FuncDef::FuncDef(const SharedSpan &span,
                      const std::string &name,
                      const std::vector<std::shared_ptr<Param>> &params,
                      const SharedNode &body, bool can_error,
-                     const std::optional<SharedTypeNode>& return_type) {
+                     const std::optional<SharedTypeNode> &return_type) {
         m_span = span;
         m_name = name;
         m_params = params;
@@ -221,7 +224,7 @@ namespace bond {
     }
 
     void FuncDef::accept(NodeVisitor *visitor) {
-        visitor->visit(this);
+       visitor->visit(this);
     }
 
     Return::Return(const SharedSpan &span, const SharedNode &expr) {
@@ -233,7 +236,8 @@ namespace bond {
         visitor->visit(this);
     }
 
-    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def, bool is_expression) {
+    ClosureDef::ClosureDef(const SharedSpan &span, const std::string &name, const std::shared_ptr<FuncDef> &func_def,
+                           bool is_expression) {
         m_span = span;
         m_name = name;
         m_func_def = func_def;
@@ -246,7 +250,7 @@ namespace bond {
 
     StructNode::StructNode(const SharedSpan &span,
                            const std::string &name,
-                           const  std::vector<std::shared_ptr<Param>> &params,
+                           const std::vector<std::shared_ptr<Param>> &params,
                            const std::vector<SharedNode> &methods) {
         m_span = span;
         m_name = name;

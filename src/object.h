@@ -240,7 +240,7 @@ namespace bond {
 
         std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &get_methods() { return m_methods; }
 
-        void set_methods(const method_map &methods) { m_methods = methods; }
+        void set_methods(const method_map &methods) { m_methods = methods; set_slots(); }
 
         std::optional<getter> get_getter(const t_string &name) const;
 
@@ -432,8 +432,24 @@ namespace bond {
 
         [[nodiscard]] t_string str() const override { return m_value; }
 
+        // methods
+        obj_result ends_with(const t_string& str);
+        obj_result starts_with(const t_string& str);
+        obj_result find(const t_string& str);
+        obj_result reverse_find(const t_string& str);
+        obj_result replace(const t_string &str, const t_string &rep_str);
+        obj_result split(const t_string& str);
+        obj_result strip();
+        obj_result index(const t_string& str);
+        obj_result is_alpha_numeric();
+        obj_result is_ascii();
+        obj_result is_lower();
+        obj_result is_upper();
+
+
     private:
         t_string m_value;
+
     };
 
     class StringIterator : public NativeInstance {

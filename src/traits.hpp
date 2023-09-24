@@ -661,4 +661,10 @@ namespace bond {
         return make_error(bond_traits<T>::wrap(object));
     }
 
+    template<auto Method>
+    NativeMethodPtr make_method() {
+        using Type = bond::f_wrapper<Method, true>;
+        return bond_traits<Type>::wrap_to_mptr(Type {"", ""});
+    }
+
 }

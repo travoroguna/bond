@@ -385,19 +385,19 @@ namespace bond {
 
     class For : public Node {
     public:
-        For(const SharedSpan &span, const std::string &name, const SharedNode &expr, const SharedNode &statement);
+        For(const SharedSpan &span, const SharedNode &expr, const std::vector<std::pair<std::string, SharedSpan>> &variables, const SharedNode &statement);
 
         void accept(NodeVisitor *visitor) override;
 
-        std::string get_name() { return m_name; }
-
         SharedNode get_expr() { return m_expr; }
+
+        std::vector<std::pair<std::string, SharedSpan>>& get_variables() { return m_variables; }
 
         SharedNode get_statement() { return m_statement; }
 
     private:
-        std::string m_name;
         SharedNode m_expr;
+        std::vector<std::pair<std::string, SharedSpan>> m_variables;
         SharedNode m_statement;
     };
 
