@@ -104,6 +104,7 @@ namespace bond {
         Context *m_ctx;
         Scopes *m_scopes;
         bool m_is_repl = false;
+        bool is_last {false};
 
         void finish_generation(bool can_error);
 

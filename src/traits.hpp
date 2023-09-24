@@ -316,17 +316,12 @@ namespace bond {
             return wrap_impl;
         }
 
-        static return_type wrap_impl(const GcPtr<Object>& self, const t_vector &args) {
-            if (args.size() != sizeof...(Args)) {
-                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
-                                     std::to_string(args.size()));
-            }
+        static setter wrap_to_sptr(const f_wrapper<F, true> &f_w) {
+            return wrap_setter;
+        }
 
-            if constexpr (std::is_same_v<R, void>) {
-                return invoke_and_wrap_void<Args...>(self, args);
-            } else {
-                return invoke_and_wrap<R, Args...>(self, args);
-            }
+        static getter wrap_to_gptr(const f_wrapper<F, true> &f_w) {
+            return wrap_getter;
         }
 
         template<typename Ret, typename... InvokeArgs>
@@ -352,6 +347,45 @@ namespace bond {
             }
 
             return bond_traits<void>::wrap();
+        }
+
+        static return_type wrap_setter(const GcPtr<Object>& self, const GcPtr<Object>& value) {
+            if constexpr (sizeof...(Args) != 1) {
+                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                                     std::to_string(1));
+            }
+
+            if constexpr (std::is_same_v<R, void>) {
+                return invoke_and_wrap_void<Args...>(self, {value});
+            } else {
+                return invoke_and_wrap<R, Args...>(self, {value});
+            }
+        }
+
+        static return_type wrap_getter(const GcPtr<Object>& self) {
+            if constexpr (sizeof...(Args) != 0) {
+                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                                     std::to_string(0));
+            }
+
+            if constexpr (std::is_same_v<R, void>) {
+                return invoke_and_wrap_void<Args...>(self, {});
+            } else {
+                return invoke_and_wrap<R, Args...>(self, {});
+            }
+        }
+
+        static return_type wrap_impl(const GcPtr<Object>& self, const t_vector &args) {
+            if (args.size() != sizeof...(Args)) {
+                return runtime_error("Expected " + std::to_string(sizeof...(Args)) + " arguments, got " +
+                                     std::to_string(args.size()));
+            }
+
+            if constexpr (std::is_same_v<R, void>) {
+                return invoke_and_wrap_void<Args...>(self, args);
+            } else {
+                return invoke_and_wrap<R, Args...>(self, args);
+            }
         }
 
         static bool can_unwrap(const GcPtr<Object> &object) {
@@ -473,22 +507,29 @@ namespace bond {
 
             template<auto Getter, auto Setter>
             StructBuilder &field(const t_string &name) {
-                m_fields[name] = {bond_traits<f_wrapper<Getter, true>>::wrap_to_mptr(f_wrapper<Getter, true>{name}),
-                                  bond_traits<f_wrapper<Setter, true>>::wrap_to_mptr(f_wrapper<Setter, true>{name})};
+                m_fields[name] = {bond_traits<f_wrapper<Getter, true>>::wrap_to_gptr(f_wrapper<Getter, true>{name}),
+                                  bond_traits<f_wrapper<Setter, true>>::wrap_to_sptr(f_wrapper<Setter, true>{name})};
                 return *this;
             }
 
             template<auto Getter>
             StructBuilder &getter(const t_string &name) {
-                m_fields[name] = {bond_traits<f_wrapper<Getter, true>>::wrap_to_mptr(f_wrapper<Getter, true>{name}),
-                                  nullptr};
+                if (m_fields.contains(name)) {
+                    m_fields[name].first = bond_traits<f_wrapper<Getter, true>>::wrap_to_gptr(f_wrapper<Getter, true>{name});
+                } else {
+                    m_fields[name] = std::make_pair(bond_traits<f_wrapper<Getter, true>>::wrap_to_gptr(f_wrapper<Getter, true>{name}), nullptr);
+                }
                 return *this;
             }
 
             template<auto Setter>
             StructBuilder &setter(const t_string &name) {
-                m_fields[name] = {nullptr,
-                                  bond_traits<f_wrapper<Setter, true>>::wrap_to_mptr(f_wrapper<Setter, true>{name})};
+                if (m_fields.contains(name)) {
+                    m_fields[name].second = bond_traits<f_wrapper<Setter, true>>::wrap_to_sptr(f_wrapper<Setter, true>{name});
+                } else {
+                    m_fields[name] = std::make_pair(nullptr, bond_traits<f_wrapper<Setter, true>>::wrap_to_sptr(f_wrapper<Setter, true>{name}));
+                }
+
                 return *this;
             }
 

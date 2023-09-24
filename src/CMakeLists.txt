@@ -59,6 +59,13 @@ CPMAddPackage(
         EXCLUDE_FROM_ALL YES
 )
 
+CPMAddPackage(
+        NAME replxx
+        GITHUB_REPOSITORY AmokHuginnsson/replxx
+        GIT_TAG master
+        EXCLUDE_FROM_ALL YES
+)
+
 
 if(EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -pthread")
@@ -89,7 +96,7 @@ add_library(bond-lib STATIC compiler/lexer.cpp compiler/lexer.h compiler/context
 target_include_directories(bond-lib PUBLIC ${bdwgc_SOURCE_DIR}/include)
 target_include_directories(bond-lib PUBLIC ${fmtlib_SOURCE_DIR}/include)
 
-target_link_libraries(bond-lib PRIVATE gc gctba gccpp fmt::fmt-header-only nlohmann_json httplib::httplib)
+target_link_libraries(bond-lib PRIVATE gc gccpp gctba fmt::fmt-header-only nlohmann_json httplib::httplib replxx::replxx)
 target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" COMPILER_VERSION="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 
@@ -117,10 +124,10 @@ endif ()
 
 #set_target_properties(bond-lib PROPERTIES PUBLIC_HEADER "lexer.h;context.h;span.h;ast.h;parser.h;code.h;vm.h;gc.h;nodevisitor.h;object.h;api.h;bond.h;object_helpers.h;builtins.h;result.h;globs.h;")
 
-INSTALL(TARGETS bond-lib
-        LIBRARY DESTINATION lib
-        PUBLIC_HEADER DESTINATION include/bondlib
-)
+#INSTALL(TARGETS bond-lib
+#        LIBRARY DESTINATION lib
+#        PUBLIC_HEADER DESTINATION include/bondlib
+#)
 
 INSTALL(TARGETS gc
         LIBRARY DESTINATION bin

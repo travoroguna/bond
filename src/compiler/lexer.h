@@ -41,6 +41,8 @@ namespace bond {
 //        return os << static_cast<int>(t);
 //    }
 
+    std::unordered_map<std::string, TokenType> &get_keywords();
+
     class Token {
     public:
         Token(std::shared_ptr<Span> span, TokenType type, std::string lexeme);
@@ -73,15 +75,17 @@ namespace bond {
         uint32_t m_start, m_current, m_module, m_line;
         Context *m_context;
         std::vector<std::pair<std::string, std::shared_ptr<Span>>> m_error_spans = {};
-        void report(const std::string &message, const std::shared_ptr<Span>& span);
+
+        void report(const std::string &message, const std::shared_ptr<Span> &span);
 
     public:
         bool m_report = true;
 
         Lexer(std::string source, Context *context, uint32_t module_id);
+
         void disable_reporting() { m_report = false; }
 
-        std::vector<std::pair<std::string, std::shared_ptr<Span>>>& get_error_spans() { return m_error_spans; }
+        std::vector<std::pair<std::string, std::shared_ptr<Span>>> &get_error_spans() { return m_error_spans; }
 
         std::vector<Token> &tokenize();
 

@@ -27,12 +27,16 @@ namespace bond {
         m_code->add_ins(Opcode::RETURN, std::make_shared<Span>(0, 0, 0, 0));
     }
 
+
     GcPtr<Code> CodeGenerator::generate_code(const std::vector<std::shared_ptr<Node>> &nodes) {
         try {
             m_code = Runtime::ins()->make_code();
 
+            size_t count = 0;
             for (const auto &node: nodes) {
+                is_last = count == nodes.size() - 1;
                 node->accept(this);
+                count++;
             }
 
             finish_generation(false);
@@ -146,7 +150,10 @@ namespace bond {
     void CodeGenerator::visit(ExprStmnt *stmnt) {
         stmnt->get_expr()->accept(this);
 
-        if (!m_is_repl) m_code->add_ins(Opcode::POP_TOP, stmnt->get_span());
+        if (m_is_repl && !m_in_function && is_last)
+            m_code->add_ins(Opcode::REPL_TOP, stmnt->get_span());
+        else
+            m_code->add_ins(Opcode::POP_TOP, stmnt->get_span());
     }
 
     void CodeGenerator::visit(Identifier *expr) {

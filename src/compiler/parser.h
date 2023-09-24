@@ -66,6 +66,8 @@ namespace bond {
 
         void print();
 
+        void remove_if_not_in_list(const std::vector<std::string> &names);
+
     private:
         std::vector<std::unordered_map<std::string, std::shared_ptr<Variable>>> m_scopes;
         Context *m_ctx;

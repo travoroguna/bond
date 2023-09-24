@@ -200,11 +200,14 @@ namespace bond {
 
         GcPtr<Object> call_function_ex(const GcPtr<Object> &function, const t_vector &args);
 
+        std::optional<GcPtr<Object>> get_repl_result() { return repl_result; }
+
     private:
         Runtime *m_runtime = nullptr;
         GcPtr<Object> stack[1024];
         int m_stack_pointer = -1;
 
+        std::optional<GcPtr<Object>> repl_result;
         GcPtr<Bool> m_True;
         GcPtr<Bool> m_False;
         GcPtr<None> m_Nil;

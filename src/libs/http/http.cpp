@@ -35,7 +35,7 @@ namespace bond::http {
             m_vm_pool.reserve(30);
 
             for (int i = 0; i < 30; i++) {
-                m_vm_pool.emplace_back(new (GC) Vm(m_ctx));
+                m_vm_pool.emplace_back(new(GC) Vm(m_ctx));
             }
         }
 
@@ -52,8 +52,7 @@ namespace bond::http {
                     }
                     m_vm_pool.emplace_back(vm);
                 });
-            }
-            else {
+            } else {
                 auto vm = get_current_vm();
                 callback(vm);
                 if (vm->had_error()) {
@@ -81,21 +80,21 @@ namespace bond::http {
     public:
         Context *m_ctx;
         std::vector<Callback> m_callbacks;
-        std::vector<Vm*, gc_allocator<Vm*>> m_vm_pool;
+        std::vector<Vm *, gc_allocator<Vm *>> m_vm_pool;
         size_t pool_size = 30;
         size_t pool = 0;
         std::mutex m_mutex;
     };
 
-    HttpRuntime* http_runtime = nullptr;
+    HttpRuntime *http_runtime = nullptr;
 
 
     class Request final : public NativeInstance {
     public:
         INSTANCE(Request)
 
-        explicit Request(const httplib::Request &req)
-                : request(req) {}
+        explicit Request(httplib::Request req)
+                : request(std::move(req)) {}
 
         obj_result get_path_param(const t_string &name) {
             if (!request.path_params.contains(name.c_str())) {
@@ -131,7 +130,7 @@ namespace bond::http {
         }
 
     private:
-        const httplib::Request &request;
+        const httplib::Request request;
     };
 
 
@@ -146,8 +145,22 @@ namespace bond::http {
             response.set_content(content.c_str(), content.size(), type.c_str());
         }
 
+        obj_result status_getter() {
+            return make_int(res.status);
+        }
+
+        obj_result body_getter() {
+            return make_string(res.body);
+        }
+
+        void set_result(httplib::Response the_res) {
+            res = the_res;
+            response = res;
+        }
+
     private:
-        httplib::Response &response;
+        httplib::Response& response;
+        httplib::Response res;
     };
 
     class Server final : public NativeInstance {
@@ -214,74 +227,81 @@ namespace bond::http {
         return server;
     }
 
-    obj_result add(const t_vector &args) {
-        Int *a;
-        Int *b;
-        TRY(parse_args(args, a, b));
-        return make_int(a->get_value() + b->get_value());
-    }
+    class Client : public NativeInstance {
+    public:
+        INSTANCE(Client);
 
-    int add_num(int a, int b) {
-        return a + b;
-    }
+        Client(const t_string &url) : client(url.c_str()) {}
 
-    int sum_list(const std::vector<int> &nums) {
-        int sum = 0;
-        for (auto num: nums) {
-            sum += num;
+        auto err_to_string(httplib::Error err) -> const char * {
+            switch (err) {
+                case httplib::Error::Success:
+                    return "Success";
+                case httplib::Error::Connection:
+                    return "Connection";
+                case httplib::Error::BindIPAddress:
+                    return "BindIPAddress";
+                case httplib::Error::Read:
+                    return "Read";
+                case httplib::Error::Write:
+                    return "Write";
+                case httplib::Error::ExceedRedirectCount:
+                    return "ExceedRedirectCount";
+                case httplib::Error::Canceled:
+                    return "Canceled";
+                case httplib::Error::SSLConnection:
+                    return "SSLConnection";
+                case httplib::Error::SSLLoadingCerts:
+                    return "SSLLoadingCerts";
+                case httplib::Error::SSLServerVerification:
+                    return "SSLServerVerification";
+                case httplib::Error::UnsupportedMultipartBoundaryChars:
+                    return "UnsupportedMultipartBoundaryChars";
+                case httplib::Error::Compression:
+                    return "Compression";
+                case httplib::Error::Unknown:
+                    return "Unknown";
+                default:
+                    return "Unknown";
+                    break;
+            }
         }
-        return sum;
-    }
 
-}
-
-namespace bond {
-    template<typename T>
-    struct bond_traits<const std::vector<T> &> {
-        static std::vector<T> unwrap(const GcPtr<Object> &object) {
-            auto the_list = object->as<List>();
-            std::vector<T> list;
-
-            for (const auto &item: the_list->get_elements()) {
-                list.push_back(bond_traits<T>::unwrap(item));
+        auto get(const t_string &path) -> obj_result {
+            auto res = client.Get(path.c_str());
+            if (!res) {
+                auto err = err_to_string(res.error());
+                return make_error_t(err);
             }
 
-            return list;
+            auto r = Runtime::ins()->construct<Response>("http", "Response", res.value())->as<Response>();
+            r->set_result(res.value());
+            return make_ok(r);
         }
 
-        static GcPtr<Object> wrap(const std::vector<T> &list) {
-            t_vector elements;
-            for (const auto &item: list) {
-                elements.push_back(bond_traits<T>::wrap(item));
-            }
-
-            return Runtime::ins()->make_list(elements);
-        }
-
-        static bool can_unwrap(const GcPtr<Object> &object) {
-            if (!object->is<List>()) return false;
-            for (const auto &item: object->as<List>()->get_elements()) {
-                if (!bond_traits<T>::can_unwrap(item)) return false;
-            }
-            return true;
-        }
-
-        using type = List;
+    private:
+        httplib::Client client;
     };
+
+    obj_result Client_new(const t_vector &args) {
+        String *url;
+        TRY(parse_args(args, url));
+        return Runtime::ins()->construct<Client>("http", "Client", url->get_value());
+    }
+
 }
+
 
 EXPORT void bond_module_init(bond::Context *ctx, bond::Vm *current_vm, bond::Mod &mod) {
     GC_INIT();
     bond::Runtime::ins()->set_runtime(current_vm->runtime());
     bond::set_current_vm(current_vm);
 
-    bond::http::http_runtime = new (GC) bond::http::HttpRuntime(ctx);
+
+    bond::http::http_runtime = new(GC) bond::http::HttpRuntime(ctx);
     bond::http::http_runtime->init();
     std::thread(&bond::http::HttpRuntime::run, bond::http::http_runtime).detach();
 
-    mod.function("add", bond::http::add, "add(a: Int, b: Int) -> Int");
-    mod.function<bond::http::add_num>("add_num", "add_num(a: Int, b: Int) -> Int");
-    mod.function<bond::http::sum_list>("sum_list", "sum_list(nums: List) -> Int");
 
     // server
     auto server = mod.struct_("Server", "Server()")
@@ -312,7 +332,16 @@ EXPORT void bond_module_init(bond::Context *ctx, bond::Vm *current_vm, bond::Mod
     // response
     auto response = mod.struct_("Response", "Response(res: Response)")
             .constructor(bond::c_Default<bond::http::Response>)
-            .method<&bond::http::Response::set_content>("set_content", "set_content(content: String, type: String)");
-
+            .method<&bond::http::Response::set_content>("set_content", "set_content(content: String, type: String)")
+            .getter<&bond::http::Response::status_getter>("status")
+            .getter<&bond::http::Response::body_getter>("body");
     bond::Runtime::ins()->register_type("http", "Response", response.build());
+
+
+    // client
+    auto client = mod.struct_("Client", "Client(url: String)")
+            .constructor(bond::http::Client_new)
+            .method<&bond::http::Client::get>("get", "get(path: String) -> Result");
+
+    bond::Runtime::ins()->register_type("http", "Client", client.build());
 }

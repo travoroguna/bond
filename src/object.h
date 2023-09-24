@@ -22,7 +22,7 @@ public:
     }
     t_string() = default;
     t_string(const t_string& str) : custom_str(str) {}
-    t_string(t_string&& str) noexcept : custom_str(std::move(str)) {}
+    t_string(t_string&& str) noexcept : custom_str(str) {}
     t_string(const custom_str &str) : custom_str(str) {}
 
     t_string &operator=(const t_string &str) {
@@ -107,7 +107,7 @@ namespace bond {
         CREATE_CLOSURE,
         CREATE_CLOSURE_EX,
         IMPORT_PRE_COMPILED,
-        BUILD_DICT, CHECK_RESULT
+        BUILD_DICT, CHECK_RESULT, REPL_TOP
     };
 
     enum Slot : uint32_t {

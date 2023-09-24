@@ -36,6 +36,10 @@ namespace bond {
 
     };
 
+    std::unordered_map<std::string, TokenType>& get_keywords() {
+        return keywords;
+    }
+
     Span::Span(uint32_t module_id, uint32_t start, uint32_t end, uint32_t line) {
         this->module_id = module_id;
         this->start = start;

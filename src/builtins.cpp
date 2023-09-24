@@ -756,7 +756,7 @@ namespace bond {
 
     void add_builtins_to_globals(const GcPtr<StringMap> &globals) {
         if (!built) {
-            ITER_STRUCT->set_constructor(c_Default<Iter>);
+            ITER_STRUCT->set_constructor(b_iter);
             ITER_STRUCT->set_methods(iter_methods);
 
             auto future = Mod("future");

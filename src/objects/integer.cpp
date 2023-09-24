@@ -138,6 +138,7 @@ if (args[0]->is<Int>()) { \
     obj_result parse(const t_vector &args) {
         Object *obj;
         auto res = parse_args(args, obj);
+        TRY(res);
 
         if (obj->is<Int>()) {
             return make_ok(obj);

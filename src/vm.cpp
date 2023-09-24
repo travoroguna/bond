@@ -646,7 +646,7 @@ namespace bond {
                         auto result = pop()->as<Result>();
                         auto jmp = m_current_frame->get_oprand();
                         if (result->has_error()) {
-                            if (m_frame_pointer == 1) {
+                            if (m_frame_pointer == 1 or m_frame_pointer == stop_frame) {
                                 runtime_error(result->str(), RuntimeError::GenericError,
                                               m_current_frame->get_span());
                                 break;
@@ -908,9 +908,10 @@ namespace bond {
                 }
 
                 case Opcode::ITER_END: {
+                    auto peeked = peek();
                     auto next =
-                            call_slot(Slot::HAS_NEXT, peek(), {}, "unable to get next item on {}",
-                                      get_type_name(peek()));
+                            call_slot(Slot::HAS_NEXT, peeked, {}, "unable to get next item on {}",
+                                      get_type_name(peeked));
                     if (next.get() == nullptr) {
                         continue;
                     }
@@ -995,6 +996,12 @@ namespace bond {
                     push(call_slot(Slot::SET_ATTR, obj, {attr, value},
                                    "unable to set attribute {} of {}", attr->str(),
                                    obj->str()));
+                    break;
+                }
+
+                case Opcode::REPL_TOP: {
+                    // save pop_top result
+                    repl_result = pop();
                     break;
                 }
 
