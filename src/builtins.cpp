@@ -752,7 +752,7 @@ namespace bond {
             return self;
         }
 
-        static obj_result iter(const GcPtr<Object> &self, const t_vector& args) {
+        static obj_result iter(const GcPtr<Object> &self, const t_vector &args) {
             TRY(parse_args(args));
             return self;
         }
@@ -774,20 +774,20 @@ namespace bond {
 
 
     auto iter_methods = method_map{
-            {"take",       {Iter::take,       "take(count: Int) -> Iter\nAn iterator that iterates over he first `count` elements"}},
-            {"map",        {Iter::map,        "map(func: Function) -> Iter\nAn iterator that applies `func` to each element"}},
-            {"filter",     {Iter::filter,     "filter(func: Function) -> Iter\nAn iterator that only yields elements for which `func` returns `true`"}},
-            {"reduce",     {Iter::reduce,     "reduce(func: Function) -> Object\nApplies `func` to each element and returns the result"}},
-            {"step_by",    {Iter::step_by,    "step_by(count: Int) -> Iter\nAn iterator that skips `count` elements between each yield"}},
-            {"skip",       {Iter::skip,       "skip(count: Int) -> Iter\nAn iterator that skips the first `count` elements"}},
-            {"enumerate",  {Iter::enumerate,  "enumerate() -> Iter\nAn iterator that yields tuples of the form `(index, element)`"}},
-            {"chain",      {Iter::chain,      "chain(iter: Iter) -> Iter\nAn iterator that yields elements from `iter` after `self` is exhausted"}},
-            {"to_list",    {Iter::to_list,    "to_list() -> List\nReturns a list of all elements in the iterator"}},
-            {"take_while", {Iter::take_while, "take_while(func: Function) -> Iter\nAn iterator that yields elements until `func` returns `false`"}},
+            {"take",         {Iter::take,       "take(count: Int) -> Iter\nAn iterator that iterates over he first `count` elements"}},
+            {"map",          {Iter::map,        "map(func: Function) -> Iter\nAn iterator that applies `func` to each element"}},
+            {"filter",       {Iter::filter,     "filter(func: Function) -> Iter\nAn iterator that only yields elements for which `func` returns `true`"}},
+            {"reduce",       {Iter::reduce,     "reduce(func: Function) -> Object\nApplies `func` to each element and returns the result"}},
+            {"step_by",      {Iter::step_by,    "step_by(count: Int) -> Iter\nAn iterator that skips `count` elements between each yield"}},
+            {"skip",         {Iter::skip,       "skip(count: Int) -> Iter\nAn iterator that skips the first `count` elements"}},
+            {"enumerate",    {Iter::enumerate,  "enumerate() -> Iter\nAn iterator that yields tuples of the form `(index, element)`"}},
+            {"chain",        {Iter::chain,      "chain(iter: Iter) -> Iter\nAn iterator that yields elements from `iter` after `self` is exhausted"}},
+            {"to_list",      {Iter::to_list,    "to_list() -> List\nReturns a list of all elements in the iterator"}},
+            {"take_while",   {Iter::take_while, "take_while(func: Function) -> Iter\nAn iterator that yields elements until `func` returns `false`"}},
 
-            {"__iter__", {Iter::iter, "__iter__() -> Iter\nReturns the iterator itself"}},
-            {"__next__", {Iter::next, "__next__() -> Object\nReturns the next element in the iterator"}},
-            {"__has_next__", {Iter::has_next, "__has_next__i() -> Bool\nReturns `true` if the iterator has more elements"}},
+            {"__iter__",     {Iter::iter,       "__iter__() -> Iter\nReturns the iterator itself"}},
+            {"__next__",     {Iter::next,       "__next__() -> Object\nReturns the next element in the iterator"}},
+            {"__has_next__", {Iter::has_next,   "__has_next__i() -> Bool\nReturns `true` if the iterator has more elements"}},
     };
 
 

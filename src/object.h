@@ -361,7 +361,12 @@ namespace bond {
 
         hash_vector &get_entries() { return m_entries; }
 
-
+        //methods
+        obj_result clear();
+        obj_result keys();
+        obj_result values();
+        obj_result extend(const GcPtr<HashMap>& other);
+        obj_result pop_item(const GcPtr<Object>& key);
 
     private:
         void expand();
@@ -780,6 +785,13 @@ namespace bond {
         size_t get_size() const;
 
         t_vector &get_elements() { return m_elements; }
+
+        // methods
+        obj_result remove(int64_t index);
+        obj_result clear();
+        obj_result index(const GcPtr<Object> &item);
+        obj_result reverse();
+        obj_result concat(const GcPtr<List> &other);
 
     private:
         t_vector m_elements;

@@ -94,7 +94,9 @@ namespace bond {
         void reset() { m_ptr = nullptr; }
 
         template<typename K>
-        GcPtr(const GcPtr <K> &other) : m_ptr(other.get()) {}
+        GcPtr(const GcPtr<K> &other) : m_ptr(dynamic_cast<T*>(other.get())) {
+            assert(m_ptr != nullptr && "Invalid cast");
+        }
 
 
     private:

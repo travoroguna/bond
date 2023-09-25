@@ -7,8 +7,9 @@ namespace bond {
     auto NONE_CONST = make_immortal<None>();
 
     obj_result None_construct(const t_vector &args) {
-        auto opt = parse_args(args);
-        TRY(opt);
+        if (!args.empty()) {
+            return runtime_error(fmt::format("None() takes 0 arguments, {} given", args.size()));
+        }
         return NONE_CONST;
     }
 

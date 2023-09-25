@@ -20,16 +20,19 @@ namespace bond {
         using type = Object;
     };
 
-    template<>
-    struct bond_traits<const GcPtr<Object>&> {
-        static GcPtr<Object> unwrap(const GcPtr<Object> &object) { return object; }
+    template<typename T>
+    struct bond_traits<const GcPtr<T>&> {
+        static GcPtr<T> unwrap(const GcPtr<T> &object) { return object; }
 
-        static GcPtr<Object> wrap(const GcPtr<Object> &object) { return object; }
+        static GcPtr<T> wrap(const GcPtr<T> &object) { return object; }
 
-        static bool can_unwrap([[maybe_unused]]const GcPtr<Object> &object) { return true; }
+        static bool can_unwrap([[maybe_unused]]const GcPtr<Object> &object) {
+            return object->is<T>();
+        }
 
-        using type = Object;
+        using type = T;
     };
+
 
     template<typename Integer>
     struct bond_traits<Integer, std::enable_if_t<std::is_integral_v<Integer> && sizeof(Integer) <= sizeof(int64_t)>> {

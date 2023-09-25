@@ -7,7 +7,7 @@
 #include "../api.h"
 #include "../vm.h"
 #include "../runtime.h"
-
+#include "../traits.hpp"
 
 #define INITIAL_HASH_CAPACITY 16
 
@@ -224,7 +224,7 @@ namespace bond {
         new_entries.resize(new_cap);
 
         for (auto &entry: new_entries) {
-            entry = new (GC) ht_entry(nullptr, nullptr, 0);
+            entry = new(GC) ht_entry(nullptr, nullptr, 0);
         }
 
         assert(new_entries.size() == new_cap);
@@ -337,6 +337,52 @@ namespace bond {
         return OK();
     }
 
+
+    obj_result HashMap::clear() {
+        m_entries.clear();
+        m_size = 0;
+        return OK();
+    }
+
+    obj_result HashMap::keys() {
+        GcPtr<List> k = Runtime::ins()->make_list({});
+        for (auto &entry: m_entries) {
+            if (entry->key.get() != nullptr) {
+                k->append(entry->key);
+            }
+        }
+        return k;
+    }
+
+    obj_result HashMap::values() {
+        GcPtr<List> k = Runtime::ins()->make_list({});
+        for (auto &entry: m_entries) {
+            if (entry->key.get() != nullptr) {
+                k->append(entry->value);
+            }
+        }
+        return k;
+    }
+
+    obj_result HashMap::extend(const GcPtr<HashMap> &other) {
+        for (auto &entry: other->get_entries()) {
+            if (entry->key.get() != nullptr) {
+                TRY(set_entry(entry->key, entry->value));
+            }
+        }
+        return OK();
+    }
+
+    obj_result HashMap::pop_item(const GcPtr<Object> &key) {
+        auto res = get(key);
+        if (!res.has_value()) {
+            return runtime_error(res.error());
+        }
+        auto val = res.value();
+        TRY(remove(key));
+        return val;
+    }
+
     class HashMapIterator : public NativeInstance {
     public:
         explicit HashMapIterator(const GcPtr<HashMap> &map) {
@@ -399,16 +445,23 @@ namespace bond {
 
 
     void init_hash_map() {
+        auto methods = method_map{
+                {"__getitem__", {HashMap_getitem,  "__getitem__(key: Any) -> Any"}},
+                {"__setitem__", {HashMap_setitem,  "__setitem__(key: Any, value: Any) -> None"}},
+                {"size",        {HashMap_len,      "size() -> Int"}},
+                {"get",         {HashMap_get,      "get(key: Any) -> String!Any"}},
+                {"set",         {HashMap_set,      "set(key: Any, value: Any) -> String!None"}},
+                {"contains",    {HashMap_contains, "contains(key: Any) -> Bool"}},
+                {"remove",      {HashMap_remove,   "remove(key: Any) -> None"}},
+                {"__iter__",    {HashMap_iter,     "__iter__() -> Iterator"}},
+                {"clear",       {make_method<&HashMap::clear>(), "clear() -> None"}},
+                {"keys",        {make_method<&HashMap::keys>(),  "keys() -> List"}},
+                {"values",      {make_method<&HashMap::values>(),  "values() -> List"}},
+                {"extend",      {make_method<&HashMap::extend>(),  "extend(other: HashMap) -> None"}},
+                {"pop_item",    {make_method<&HashMap::pop_item>(),  "pop_item(key: Any) -> Any"}},
+        };
+
         Runtime::ins()->HASHMAP_STRUCT = make<NativeStruct>("HashMap", "HashMap(val: HashMap)", c_Default<HashMap>,
-                                                            method_map{
-                                                                    {"__getitem__", {HashMap_getitem,  "__getitem__(key: Any) -> Any"}},
-                                                                    {"__setitem__", {HashMap_setitem,  "__setitem__(key: Any, value: Any) -> None"}},
-                                                                    {"size",        {HashMap_len,      "size() -> Int"}},
-                                                                    {"get",         {HashMap_get,      "get(key: Any) -> String!Any"}},
-                                                                    {"set",         {HashMap_set,      "set(key: Any, value: Any) -> String!None"}},
-                                                                    {"contains",    {HashMap_contains, "contains(key: Any) -> Bool"}},
-                                                                    {"remove",      {HashMap_remove,   "remove(key: Any) -> None"}},
-                                                                    {"__iter__",    {HashMap_iter,     "__iter__() -> Iterator"}},
-                                                            });
+                                                            methods);
     }
 }

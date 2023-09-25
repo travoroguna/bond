@@ -1,5 +1,6 @@
 #include "../object.h"
 #include "../api.h"
+#include "../traits.hpp"
 
 
 namespace bond {
@@ -124,6 +125,42 @@ namespace bond {
         return Runtime::ins()->C_FALSE;
     }
 
+    obj_result List::remove(int64_t index) {
+        if (index < 0 or index > m_elements.size() - 1) {
+            return runtime_error(fmt::format("Index {} out of range", index));
+        }
+        m_elements.erase(m_elements.begin() + index);
+        return OK();
+    }
+
+    obj_result List::clear() {
+        m_elements.clear();
+        return OK();
+    }
+
+    obj_result List::index(const GcPtr<Object> &item) {
+        auto vm = get_current_vm();
+        for (int i = 0; i < m_elements.size(); i++) {
+            auto res = vm->call_slot(Slot::EQ, m_elements[i], {item});
+            TRY(res);
+            if (TO_BOOL(res.value())->as<Bool>()->get_value()) {
+                return make_ok(make_int(i));
+            }
+        }
+        return make_error_t("Item not found");
+    }
+
+    obj_result List::reverse() {
+        std::reverse(m_elements.begin(), m_elements.end());
+        return OK();
+    }
+
+    obj_result List::concat(const GcPtr<List> &other) {
+        auto &other_l = other->get_elements();
+        m_elements.insert(m_elements.end(), other_l.begin(), other_l.end());
+        return OK();
+    }
+
     obj_result list_iterator_next(const GcPtr<Object> &Self, const t_vector &args) {
         auto self = Self->as<ListIterator>();
         TRY(parse_args(args));
@@ -160,6 +197,12 @@ namespace bond {
                 {"insert",      {List_insert,   "insert(index: Int, item: Any)\ninserts an item at the given index"}},
                 {"pop",         {List_pop,      "pop()\nremoves and returns the last item in the list"}},
                 {"contains",    {List_contains, "contains(item: Any)\nreturns true if the list contains the item"}},
+                {"remove",      {make_method<&List::remove>(), "remove(index: Int)\nremoves the item at the given index"}},
+                {"clear",       {make_method<&List::clear>(),  "clear()\nremoves all items from the list"}},
+                {"index",       {make_method<&List::index>(),  "index(item: Any)\nreturns the index of the item in the list"}},
+                {"reverse",     {make_method<&List::reverse>(), "reverse()\nreverses the list"}},
+                {"concat",      {make_method<&List::concat>(),  "concat(other: List)\nappends the other list to this one"}},
+
         });
     }
 

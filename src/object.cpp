@@ -5,6 +5,7 @@ namespace bond {
     void
     NativeStruct::add_methods(const std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &methods) {
         m_methods = methods;
+        set_slots();
     }
 
     std::optional<NativeMethodPtr> NativeStruct::get_method(const t_string &name) const {
