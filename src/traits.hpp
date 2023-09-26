@@ -261,10 +261,10 @@ namespace bond {
     template<typename R, typename... Args, R (*F)(Args...)>
     struct bond_traits<f_wrapper<F, false>> {
         static GcPtr<NativeFunction> wrap(const f_wrapper<F, false> &f_w) {
-            return make<NativeFunction>(f_w.name, f_w.doc, wrap_impl);
+            return Runtime::ins()->make_native_function(f_w.name, f_w.doc, wrap_impl);
         }
 
-        static NativeFunctionPtr wrap_to_fptr(const f_wrapper<F, false> &f_w) {
+        static NativeFunctionPtr wrap_to_fptr([[maybe_unused]]const f_wrapper<F, false> &f_w) {
             return wrap_impl;
         }
 
@@ -311,19 +311,19 @@ namespace bond {
 
     template<typename R, typename T, typename... Args, R (T::*F)(Args...)>
     struct bond_traits<f_wrapper<F, true>> {
-        static NativeMethodPtr wrap(const f_wrapper<F, true> &f_w) {
+        static NativeMethodPtr wrap([[maybe_unused]]const f_wrapper<F, true> &f_w) {
             return wrap_impl;
         }
 
-        static NativeMethodPtr wrap_to_mptr(const f_wrapper<F, true> &f_w) {
+        static NativeMethodPtr wrap_to_mptr([[maybe_unused]]const f_wrapper<F, true> &f_w) {
             return wrap_impl;
         }
 
-        static setter wrap_to_sptr(const f_wrapper<F, true> &f_w) {
+        static setter_fn wrap_to_sptr([[maybe_unused]]const f_wrapper<F, true> &f_w) {
             return wrap_setter;
         }
 
-        static getter wrap_to_gptr(const f_wrapper<F, true> &f_w) {
+        static getter_fn wrap_to_gptr([[maybe_unused]]const f_wrapper<F, true> &f_w) {
             return wrap_getter;
         }
 
@@ -391,7 +391,7 @@ namespace bond {
             }
         }
 
-        static bool can_unwrap(const GcPtr<Object> &object) {
+        static bool can_unwrap([[maybe_unused]]const GcPtr<Object> &object) {
             assert("false" && "what are the use cases for this? please open an issue on github");
             return false;
         }
@@ -436,7 +436,7 @@ namespace bond {
 
 
     template<const char *t_name, typename Any>
-    struct bond::bond_traits<const AnyOpaque<t_name, Any> &> {
+    struct bond_traits<const AnyOpaque<t_name, Any> &> {
         static auto wrap(const AnyOpaque<t_name, Any> &any) -> bond::GcPtr<AnyOpaque<t_name, Any>> {
             auto p_struct = bond::Runtime::ins()->get_type(any.module, any.name)->template as<bond::NativeStruct>()->
                     template create_instance<AnyOpaque<t_name, Any>>();
@@ -485,7 +485,7 @@ namespace bond {
 
         public:
             method_map m_methods;
-            std::unordered_map<t_string, std::pair<getter, setter>> m_fields;
+            std::unordered_map<t_string, std::pair<getter_fn, setter_fn>> m_fields;
             t_string m_name;
             t_string m_doc;
             NativeFunctionPtr m_constructor { nullptr };
@@ -503,7 +503,7 @@ namespace bond {
                 return *this;
             }
 
-            StructBuilder &field(const t_string &name, const getter &get, const setter &set) {
+            StructBuilder &field(const t_string &name, const getter_fn &get, const setter_fn &set) {
                 m_fields[name] = {get, set};
                 return *this;
             }

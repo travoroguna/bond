@@ -6,6 +6,7 @@
 #include <optional>
 #include <utility>
 #include <cassert>
+#include <condition_variable>
 #include "object_helpers.h"
 #include <thread>
 #include <mutex>
@@ -37,7 +38,7 @@ public:
 };
 
 template <>
-struct ::std::hash<t_string> {
+struct std::hash<t_string> {
     std::size_t operator()(const t_string& k) const {
         return std::hash<std::string>()(k.c_str());
     }
@@ -177,8 +178,8 @@ namespace bond {
     class NativeInstance;
 
     using slot_array = std::array<NativeMethodPtr, Slot::SIZE>;
-    using getter = std::function<obj_result(const GcPtr<Object> &)>;
-    using setter = std::function<obj_result(const GcPtr<Object> &, const GcPtr<Object> &)>;
+    using getter_fn = std::function<obj_result(const GcPtr<Object> &)>;
+    using setter_fn = std::function<obj_result(const GcPtr<Object> &, const GcPtr<Object> &)>;
     using method_map = std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>>;
 
 
@@ -195,7 +196,7 @@ namespace bond {
 
         NativeStruct(t_string name, t_string doc, NativeFunctionPtr constructor,
                      const std::unordered_map<t_string, std::pair<NativeMethodPtr, t_string>> &methods,
-                     std::unordered_map<t_string, std::pair<getter, setter>> &properties)
+                     std::unordered_map<t_string, std::pair<getter_fn, setter_fn>> &properties)
                 : m_name(std::move(name)), m_doc(std::move(doc)), m_methods(methods),
                   m_constructor(std::move(constructor)), m_attributes(properties) { set_slots(); }
 
@@ -242,11 +243,11 @@ namespace bond {
 
         void set_methods(const method_map &methods) { m_methods = methods; set_slots(); }
 
-        std::optional<getter> get_getter(const t_string &name) const;
+        std::optional<getter_fn> get_getter(const t_string &name) const;
 
-        std::optional<setter> get_setter(const t_string &name) const;
+        std::optional<setter_fn> get_setter(const t_string &name) const;
 
-        std::unordered_map<t_string, std::pair<getter, setter>> &get_attributes() { return m_attributes; }
+        std::unordered_map<t_string, std::pair<getter_fn, setter_fn>> &get_attributes() { return m_attributes; }
 
         std::expected<NativeFunctionPtr, t_string> get_static_method(const t_string& name);
         void add_static_method(const t_string &name, const NativeFunctionPtr &s_meth, const t_string &doc);
@@ -257,8 +258,8 @@ namespace bond {
         NativeFunctionPtr m_constructor;
         slot_array m_slots;
 
-        //getter and setter
-        std::unordered_map<t_string, std::pair<getter, setter>> m_attributes;
+        //getter_fn and setter_fn
+        std::unordered_map<t_string, std::pair<getter_fn, setter_fn>> m_attributes;
 
         //static methods
         std::unordered_map<t_string, std::pair<NativeFunctionPtr, t_string>> m_static_methods;
@@ -278,7 +279,9 @@ namespace bond {
 
         bool has_method(const t_string &name);
 
-        void set_native_struct(NativeStruct *native_struct) { m_native_struct = native_struct; }
+        void set_native_struct(NativeStruct *native_struct) {
+            m_native_struct = native_struct;
+        }
 
         obj_result call_slot(Slot slot, const t_vector &args);
 

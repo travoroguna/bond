@@ -4,7 +4,11 @@
 
 #define _WINSOCKAPI_
 #include "io.h"
-#include <io.h>
+
+#ifdef _WIN32
+    #include <io.h>
+#endif
+
 #include <uv.h>
 
 namespace bond::io {

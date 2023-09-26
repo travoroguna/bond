@@ -16,7 +16,12 @@ int main(int32_t argc, char **argv) {
 
     fmt::print("lib_path: {}\n", lib_path);
 #else
-    auto lib_path = "/usr/local/libraries/bond/";
+    std::string lib_path = "/usr/local/libraries/";
+
+    if (!std::filesystem::exists(lib_path)) {
+        lib_path = std::filesystem::path(bond::get_exe_path()).parent_path().string() + "/";
+    }
+
 #endif
 
     auto args =

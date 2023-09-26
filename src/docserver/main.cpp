@@ -1,5 +1,7 @@
+#ifdef _WIN32
 //do not remove the include below
 #include <winsock2.h>
+#endif
 
 #include "../bond.h"
 #include <cstdint>

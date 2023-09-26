@@ -6,6 +6,18 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(FMT_INSTALL OFF CACHE INTERNAL "")
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
+
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    if (MSVC)
+        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
+    else ()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
+    endif ()
+else ()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion -Wpedantic -fexceptions -pthread -Wno-changes-meaning")
+endif ()
+
 CPMAddPackage(
         NAME nlohmann_json
         VERSION 3.11.2
@@ -102,6 +114,7 @@ target_compile_definitions(bond-lib PRIVATE BOND_VERSION="${PROJECT_VERSION}" CO
 
 #copy the dlls to the output directory
 
+
 set_target_properties(gc PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -129,18 +142,19 @@ endif ()
 #        PUBLIC_HEADER DESTINATION include/bondlib
 #)
 
+
 INSTALL(TARGETS gc
-        LIBRARY DESTINATION bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_RPATH}
         PUBLIC_HEADER DESTINATION include/gc
 )
 
 INSTALL(TARGETS gccpp
-        LIBRARY DESTINATION bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_RPATH}
         PUBLIC_HEADER DESTINATION include/gc
 )
 
 INSTALL(TARGETS gctba
-        LIBRARY DESTINATION bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_RPATH}
         PUBLIC_HEADER DESTINATION include/gc
 )
 

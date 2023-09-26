@@ -122,7 +122,7 @@ namespace bond {
         return m_slots[slot];
     }
 
-    std::optional<getter> NativeStruct::get_getter(const t_string &name) const {
+    std::optional<getter_fn> NativeStruct::get_getter(const t_string &name) const {
         if (!m_attributes.contains(name))
             return std::nullopt;
         auto attr = m_attributes.at(name);
@@ -130,7 +130,7 @@ namespace bond {
         return attr.first;
     }
 
-    std::optional<setter> NativeStruct::get_setter(const t_string &name) const {
+    std::optional<setter_fn> NativeStruct::get_setter(const t_string &name) const {
         if (!m_attributes.contains(name))
             return std::nullopt;
         auto attr = m_attributes.at(name);

@@ -38,18 +38,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     enable_language("RC")
     set(WIN32_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/bond.rc)
-    add_executable(bond src/main.cpp ${WIN32_RESOURCES})
+
+    SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/bin")
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
     if (MSVC)
         set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
     else ()
-        set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
     endif ()
 
+    add_executable(bond src/main.cpp ${WIN32_RESOURCES})
     message("Windows")
 else ()
+    SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion -Wpedantic -fexceptions -pthread -Wno-changes-meaning")
     add_executable(bond src/main.cpp)
-    set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -fexceptions -pthread -dl")
     message("Linux")
 endif ()
 

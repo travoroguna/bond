@@ -130,7 +130,7 @@ namespace bond{
 
 
     std::vector<t_string> required_files = {
-            "gc.dll", "gccpp.dll", "gctba.dll"
+            "gc", "gccpp", "gctba"
     };
 
     std::vector<t_string> optional_debug = {
@@ -156,7 +156,12 @@ namespace bond{
 
         std::filesystem::create_directory(dist_dir + "/libraries");
 
+
+#ifdef _WIN32
         auto b_path = exe_path + "bootstrap.exe";
+#else
+        auto b_path = exe_path + "bootstrap";
+#endif
         // copy bootstrap and rename to dist dir
         if (!std::filesystem::exists(b_path)) {
             return std::unexpected(fmt::format("bootstrap not found: {}", b_path));
@@ -169,11 +174,18 @@ namespace bond{
 //            std::filesystem::copy_file(context.get_lib_path() + "bootstrap.pdb", dist_dir + arch_name + ".pdb", std::filesystem::copy_options::overwrite_existing);
 //        }
 
+#ifdef _WIN32
         std::filesystem::copy_file(b_path, dist_dir + arch_name + ".exe", std::filesystem::copy_options::overwrite_existing);
-
+#else
+        std::filesystem::copy_file(b_path, dist_dir + arch_name, std::filesystem::copy_options::overwrite_existing);
+#endif
         // copy required files
         for (auto& file : required_files) {
-            auto the_lib = exe_path + file.c_str();
+#ifdef _WIN32
+            auto the_lib = exe_path + ".dll" + file.c_str();
+#else
+            std::string the_lib = fmt::format("/usr/local/lib/lib{}.so", file);
+#endif
             if (!std::filesystem::exists(the_lib)) {
                 return std::unexpected(fmt::format("required file not found: {}", the_lib));
             }
