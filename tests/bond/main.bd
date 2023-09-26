@@ -32,9 +32,9 @@ fn test_all() {
     println("collecting tests ...");
 
     for mod in all_tests {
-        for export in mod.get_exports() {
-            if core.is_function(export[1]) {
-                collection.append(export[1]);
+        for [_, export] in mod.get_exports() {
+            if core.is_function(export) {
+                collection.append(export);
             }
         }
     }
@@ -59,6 +59,7 @@ fn test_all() {
 
     println("Passed: " + core.to_string(passed));
     println("Failed: " + core.to_string(failed));
+    
 }
 
 test_all();

@@ -11,9 +11,9 @@
 
 namespace bond {
 
-    int levenshteinDist(const std::string &word1, const std::string &word2) {
-        int size1 = word1.size();
-        int size2 = word2.size();
+    size_t levenshteinDist(const std::string &word1, const std::string &word2) {
+        size_t size1 = word1.size();
+        size_t size2 = word2.size();
         //int verif[size1 + 1][size2 + 1]; // Verification matrix i.e. 2D array which will store the calculated distance.
 
         std::vector<std::vector<int>> verif(size1 + 1, std::vector<int>(size2 + 1));
