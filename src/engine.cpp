@@ -359,7 +359,7 @@ namespace bond {
         GC_set_all_interior_pointers(1);
 
         GC_set_warn_proc([](char *msg, GC_word arg) {
-            fmt::print("{} {}\n", msg, arg);
+            printf(msg,  arg);
         });
 
         Runtime::ins()->init();
