@@ -4,6 +4,8 @@ project(bond VERSION 0.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -45,7 +47,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     if (MSVC)
         set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
     else ()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wconversion  -Wpedantic -fexceptions -pthread -dl")
     endif ()
 
     add_executable(bond src/main.cpp ${WIN32_RESOURCES})
@@ -54,12 +56,15 @@ else ()
     SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
     SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion -Wpedantic -fexceptions -pthread -Wno-changes-meaning")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wconversion -Wpedantic -fexceptions -pthread -Wno-changes-meaning")
     add_executable(bond src/main.cpp)
     message("Linux")
 endif ()
 
-
+set_target_properties(bond PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED ON
+)
 
 if(EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -pthread")
@@ -69,10 +74,10 @@ if(EMSCRIPTEN)
 endif()
 
 
-target_link_libraries(bond PRIVATE bond-lib Argumentum::headers)
+target_link_libraries(bond PRIVATE bond-lib Argumentum::headers fmt::fmt-header-only )
 
 add_executable(bootstrap src/bootstrap.cpp)
-target_link_libraries(bootstrap PRIVATE bond-lib)
+target_link_libraries(bootstrap PRIVATE bond-lib fmt::fmt-header-only)
 
 install(TARGETS bootstrap DESTINATION bin)
 

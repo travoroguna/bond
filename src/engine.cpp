@@ -333,7 +333,7 @@ namespace bond {
 
         if (m_context.has_error()) return;
 
-        fmt::print("{}\n", bytecode->disassemble());
+//        fmt::print("{}\n", bytecode->disassemble());
 
         auto file = std::ofstream("out.bond");
         file << bytecode->disassemble();

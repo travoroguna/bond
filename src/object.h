@@ -556,7 +556,7 @@ namespace bond {
         std::vector<std::shared_ptr<Span>> m_spans;
         t_vector m_constants{};
 
-        size_t simple_instruction(std::stringstream &ss, const char *name, size_t offset) const;
+        static size_t simple_instruction(std::stringstream &ss, const char *name, size_t offset) ;
 
         size_t constant_instruction(std::stringstream &ss, const char *name, size_t offset) const;
 

@@ -109,7 +109,7 @@ namespace bond {
         auto pre_stop_frame = m_stop_frame;
         m_stop_frame = m_frame_pointer;
 
-        exec(m_frame_pointer);
+        exec((uint32_t )m_frame_pointer);
 
         if (m_has_error) {
             //restore frame_pointer
@@ -175,7 +175,7 @@ namespace bond {
     }
 
     void Vm::runtime_error(const t_string &error, RuntimeError e,
-                           const SharedSpan &span) {
+                           [[maybe_unused]]const SharedSpan &span) {
 
         t_string err;
         switch (e) {
@@ -370,7 +370,7 @@ namespace bond {
 
             auto args_ = const_cast<t_vector &>(args);
             setup_bound_call(instance, result.value()->as<Function>(), args_);
-            exec(m_frame_pointer);
+            exec((uint32_t )m_frame_pointer);
 
             if (m_stop) {
                 auto err = vformat(fmt, fmt::make_format_args(fmt_args...));
@@ -394,7 +394,7 @@ namespace bond {
 
     bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
         call_object(obj, args);
-        exec(m_frame_pointer);
+        exec((uint32_t)m_frame_pointer);
         return had_error();
     }
 
@@ -406,6 +406,7 @@ namespace bond {
                                 Slot_to_string(slot), get_type_name(instance)));
         }
 
+
         if (instance->is<Instance>() and slot != Slot::GET_ATTR and
             slot != Slot::SET_ATTR) {
             auto res = instance->as<Instance>()->call_slot(slot, {});
@@ -413,7 +414,7 @@ namespace bond {
 
             auto args_ = const_cast<t_vector &>(args);
             setup_bound_call(instance, res.value()->as<Function>(), args_);
-            exec(m_frame_pointer);
+            exec((uint32_t )m_frame_pointer);
 
             if (m_stop) {
                 return std::unexpected("");
@@ -422,7 +423,8 @@ namespace bond {
             return pop();
         }
 
-        auto res = instance->as<NativeInstance>()->call_slot(slot, args);
+        auto native_ins = instance->as<NativeInstance>();
+        auto res = native_ins->call_slot(slot, args);
         TRY(res);
 
         return *res;
@@ -513,7 +515,7 @@ namespace bond {
 
                 std::swap(m_yield_frames[i], m_yield_frames.back());
                 m_yield_frames.pop_back();
-                exec(m_frame_pointer);
+                exec((uint32_t)m_frame_pointer);
             }
         }
 
@@ -778,7 +780,7 @@ namespace bond {
                     auto size = m_current_frame->get_oprand();
                     auto list = Runtime::ins()->make_list({});
 
-                    for (int i = 0; i < size; i++) {
+                    for (uint32_t i = 0; i < size; i++) {
                         list->prepend(pop());
                     }
                     push(list);
@@ -897,35 +899,37 @@ namespace bond {
                 }
 
                 case Opcode::ITER_NEXT: {
-                    auto next= call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
-                    if (next.get() == nullptr) {
+                    auto next = call_slot(Slot::NEXT, peek(), {});
+                    if (not next.has_value()) {
+                        runtime_error("unable to get next item");
                         continue;
                     }
                     auto &local =
                             m_current_frame->get_constant()->as<String>()->get_value_ref();
-                    m_current_frame->set_local(local, next);
+                    m_current_frame->set_local(local, next->get());
                     break;
                 }
 
                 case Opcode::NEXT: {
-                    auto next = call_slot(Slot::NEXT, peek(), {}, "unable to get next item");
-                    if (next.get() == nullptr) {
+                    auto next = call_slot(Slot::NEXT, peek(), {});
+                    if (!next.has_value()) {
+                        runtime_error("unable to get next item");
                         continue;
                     }
-                    push(next);
+                    push(next.value());
                     break;
                 }
 
                 case Opcode::ITER_END: {
                     auto peeked = peek();
-                    auto next =
-                            call_slot(Slot::HAS_NEXT, peeked, {}, "unable to get next item on {}",
-                                      get_type_name(peeked));
-                    if (next.get() == nullptr) {
+                    auto next = call_slot(Slot::HAS_NEXT, peeked, {});
+                    if (!next.has_value()) {
+                        runtime_error(fmt::format("unable to get next item on {}",
+                                                  get_type_name(peeked)));
                         continue;
                     }
                     auto jump_pos = m_current_frame->get_oprand();
-                    auto jump_condition = TO_BOOL(next);
+                    auto jump_condition = TO_BOOL(next.value());
 
                     if (!jump_condition->get_value()) {
                         m_current_frame->jump_absolute(jump_pos);
@@ -1144,8 +1148,8 @@ namespace bond {
                     }
 
                     if (obj->is<Instance>()) {
-                        auto o = obj->as<Instance>();
-                        auto meth = o->get_method(name);
+                        auto the_obj = obj->as<Instance>();
+                        auto meth = the_obj->get_method(name);
 
                         if (!meth.has_value()) {
                             auto attr = call_slot(Slot::GET_ATTR, obj, {make_string(name)});
@@ -1160,27 +1164,27 @@ namespace bond {
                             break;
                         }
 
-                        setup_bound_call(o, meth.value()->as<Function>(), m_args);
+                        setup_bound_call(the_obj, meth.value()->as<Function>(), m_args);
                         break;
                     } else if (obj->is<Struct>()) {
-                        auto o = obj->as<Struct>();
-                        auto meth = o->get_method(name);
+                        auto the_obj = obj->as<Struct>();
+                        auto meth = the_obj->get_method(name);
 
                         if (!meth.has_value()) {
                             runtime_error(
                                     fmt::format("static method {} does not exist in struct {}", name,
-                                                o->get_name()));
+                                                the_obj->get_name()));
                             break;
                         }
                         call_function(meth.value(), m_args);
                         break;
                     } else if (obj->is<Module>()) {
-                        auto o = obj->as<Module>();
-                        auto meth = o->get_attribute(name);
+                        auto the_obj = obj->as<Module>();
+                        auto meth = the_obj->get_attribute(name);
 
                         if (!meth.has_value()) {
                             runtime_error(fmt::format("method {} does not exist in module {}",
-                                                      name, o->get_path()));
+                                                      name, the_obj->get_path()));
                             break;
                         }
                         call_object(meth.value(), m_args);
@@ -1290,7 +1294,7 @@ namespace bond {
                     auto count = m_current_frame->get_oprand();
                     auto dict = Runtime::ins()->HASHMAP_STRUCT->create_instance<HashMap>();
 
-                    for (int i = 0; i < count; i++) {
+                    for (uint32_t i = 0; i < count; i++) {
                         auto value = pop();
                         auto key = pop();
                         auto res = dict->set(key, value);
@@ -1304,7 +1308,7 @@ namespace bond {
                     break;
                 }
 
-                case Opcode::CHECK_RESULT:{
+                case Opcode::CHECK_RESULT: {
                     if (!peek()->is<Result>()) {
                         runtime_error(fmt::format("expected result, got {}", get_type_name(peek())));
                     }

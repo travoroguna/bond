@@ -7,7 +7,7 @@
 
 
 namespace bond {
-    size_t Code::simple_instruction(std::stringstream &ss, const char *name, size_t offset) const {
+    size_t Code::simple_instruction(std::stringstream &ss, const char *name, size_t offset) {
         ss << fmt::format("{}\n", name);
         return offset + 1;
     }

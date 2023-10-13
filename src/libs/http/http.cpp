@@ -284,7 +284,7 @@ namespace bond::http {
     };
 
     obj_result Client_new(const t_vector &args) {
-        String *url;
+        String *url {nullptr};
         TRY(parse_args(args, url));
         return Runtime::ins()->construct<Client>("http", "Client", url->get_value());
     }

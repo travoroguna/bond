@@ -7,7 +7,6 @@ set(FMT_INSTALL OFF CACHE INTERNAL "")
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 
-
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     if (MSVC)
         set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
@@ -17,7 +16,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 else ()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion -Wpedantic -fexceptions -pthread -Wno-changes-meaning")
 endif ()
-
+ 
 CPMAddPackage(
         NAME nlohmann_json
         VERSION 3.11.2
