@@ -102,6 +102,10 @@ namespace bond {
             m_ip = 0;
         }
 
+        t_string& local_name(size_t index) {
+            return m_code->get_identifier(index);
+        }
+
     private:
         GcPtr<Function> m_function;
         GcPtr<Code> m_code;
@@ -202,6 +206,7 @@ namespace bond {
 
         std::optional<GcPtr<Object>> get_repl_result() { return repl_result; }
 
+        void init_bin_funcs();
     private:
         Runtime *m_runtime = nullptr;
         GcPtr<Object> stack[1024];
@@ -220,7 +225,6 @@ namespace bond {
         Frame *m_current_frame = nullptr;
         t_vector m_args;
 
-        void init_bin_funcs();
 
 
         GcPtr<StringMap> m_globals;
@@ -273,7 +277,7 @@ namespace bond {
         NativeMethodPtr f_mul;
         NativeMethodPtr f_div;
 
-        t_vector alt;
+        t_vector alt = {nullptr};
 
         std::mutex m_func_ex_lock;
         size_t m_stop_frame = 0;

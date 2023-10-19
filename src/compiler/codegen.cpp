@@ -158,16 +158,17 @@ namespace bond {
 
     void CodeGenerator::visit(Identifier *expr) {
         auto var = m_scopes->get(expr->get_name());
-        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
 
         if (var.has_value()) {
             auto v = var.value();
 
             if (v->is_global) {
+                auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
                 m_code->add_ins(Opcode::LOAD_GLOBAL, idx, expr->get_span());
                 return;
             }
 
+            auto idx = m_code->add_or_get_identifier(expr->get_name());
             m_code->add_ins(Opcode::LOAD_FAST, idx, expr->get_span());
             return;
         }
@@ -184,6 +185,7 @@ namespace bond {
             return;
         }
 
+        idx = m_code->add_or_get_identifier(stmnt->get_name());
         m_scopes->declare(stmnt->get_name(), stmnt->get_span(), true, false);
         m_code->add_ins(Opcode::CREATE_LOCAL, idx, stmnt->get_span());
     }
@@ -191,14 +193,15 @@ namespace bond {
     void CodeGenerator::visit(Assign *stmnt) {
         stmnt->get_expr()->accept(this);
         auto var = m_scopes->get(stmnt->get_name());
-        auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (var.has_value()) {
             auto v = var.value();
             if (v->is_global) {
+                auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
                 m_code->add_ins(Opcode::STORE_GLOBAL, idx, stmnt->get_span());
                 return;
             }
+            auto idx = m_code->add_or_get_identifier(stmnt->get_name());
             m_code->add_ins(Opcode::STORE_FAST, idx, stmnt->get_span());
             return;
         }
@@ -277,7 +280,7 @@ namespace bond {
         auto &[var, span] = stmnt->get_variables()[0];
 
         m_scopes->declare(var, span, true, false);
-        auto local_name = m_code->add_constant(make_string(var));
+        auto local_name = m_code->add_or_get_identifier(var);
 
         m_code->add_ins(Opcode::PUSH_NIL, span);
         m_code->add_ins(Opcode::CREATE_LOCAL, local_name, span);
@@ -304,7 +307,7 @@ namespace bond {
             m_scopes->declare(var.first, var.second, true, false);
 
             // create
-            auto local_name = m_code->add_constant(make_string(var.first));
+            auto local_name = m_code->add_or_get_identifier(var.first);
             m_code->add_ins(Opcode::PUSH_NIL, var.second);
             m_code->add_ins(Opcode::CREATE_LOCAL, local_name, var.second);
             local_names[var.first] = local_name;
@@ -326,10 +329,7 @@ namespace bond {
         // store the unpacked values
         for (auto &var: std::ranges::reverse_view(vars)) {
             auto local_name = local_names[var.first];
-            m_code->add_ins(Opcode::STORE_FAST, local_name, var.second);
-
-            // store fast does not consume the stack
-            m_code->add_ins(Opcode::POP_TOP, var.second);
+            m_code->add_ins(Opcode::CREATE_LOCAL, local_name, var.second);
         }
 
         return start;
@@ -388,7 +388,6 @@ namespace bond {
         m_scopes->end_scope();
         auto fn = Runtime::ins()->make_function(stmnt->get_name(), stmnt->get_params(), code);
         auto idx = m_code->add_constant(fn);
-        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (is_async) {
             m_code->add_ins(Opcode::MAKE_ASYNC, idx, stmnt->get_span());
@@ -397,10 +396,13 @@ namespace bond {
         }
 
         if (var.has_value()) {
+            auto name = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
             m_code->add_ins(Opcode::CREATE_GLOBAL, name, stmnt->get_span());
             m_in_function = false;
             return;
         }
+
+        auto name = m_code->add_or_get_identifier(stmnt->get_name());
         m_code->add_ins(Opcode::STORE_FAST, name, stmnt->get_span());
         m_in_function = false;
 
@@ -502,12 +504,15 @@ namespace bond {
         }
 
         m_code->add_ins(Opcode::CREATE_STRUCT, idx, stmnt->get_span());
-        auto struct_idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
 
         if (var.has_value()) {
+            auto struct_idx = m_code->add_constant(Runtime::ins()->make_string_cache(stmnt->get_name()));
             m_code->add_ins(Opcode::CREATE_GLOBAL, struct_idx, stmnt->get_span());
             return;
         }
+
+        // we should not be able to declare a struct in a function
+        auto struct_idx = m_code->add_or_get_identifier(stmnt->get_name());
         m_code->add_ins(Opcode::STORE_FAST, struct_idx, stmnt->get_span());
     }
 
@@ -611,9 +616,9 @@ namespace bond {
         m_code->add_ins(Opcode::UNPACK_SEQ, targets.size(), stmnt->get_span());
 
         for (auto &[name, is_global]: std::ranges::reverse_view(targets)) {
-            auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(name));
 
             if (is_global) {
+                auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(name));
                 m_code->add_ins(Opcode::CREATE_GLOBAL, idx, stmnt->get_span());
             } else {
                 // TODO: this might be safe to do as the parser should have already
@@ -621,6 +626,8 @@ namespace bond {
                 // we do this for local variables as we did not keep track of the
                 // local variables in the scope
                 // in the future we should keep track of the local variables
+
+                auto idx = m_code->add_or_get_identifier(name);
                 m_scopes->declare(name, stmnt->get_span(), true);
                 m_code->add_ins(Opcode::CREATE_LOCAL, idx, stmnt->get_span());
             }

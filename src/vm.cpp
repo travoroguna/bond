@@ -735,8 +735,7 @@ namespace bond {
                 }
 
                 case Opcode::CREATE_LOCAL: {
-                    auto &name =
-                            m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name = m_current_frame->local_name(m_current_frame->get_oprand());
                     auto expr = pop();
 
                     m_current_frame->set_local(name, expr);
@@ -744,23 +743,14 @@ namespace bond {
                 }
 
                 case Opcode::STORE_FAST: {
-                    auto &name =
-                            m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &name = m_current_frame->local_name(m_current_frame->get_oprand());
                     auto expr = peek();
-
                     m_current_frame->set_local(name, expr);
                     break;
                 }
 
                 case Opcode::LOAD_FAST: {
-                    auto &name =
-                            m_current_frame->get_constant()->as<String>()->get_value_ref();
-                    //        if (!m_current_frame->has_local(name)) {
-                    //          auto err = fmt::format("Local variable {} does not exist",
-                    //          name->as<String>()->get_value()); runtime_error(err,
-                    //          RuntimeError::GenericError, m_current_frame->get_span());
-                    //          continue;
-                    //        }
+                    auto &name = m_current_frame->local_name(m_current_frame->get_oprand());
                     push(m_current_frame->get_local(name));
                     break;
                 }
@@ -904,8 +894,8 @@ namespace bond {
                         runtime_error("unable to get next item");
                         continue;
                     }
-                    auto &local =
-                            m_current_frame->get_constant()->as<String>()->get_value_ref();
+                    auto &local = m_current_frame->local_name(m_current_frame->get_oprand());
+
                     m_current_frame->set_local(local, next->get());
                     break;
                 }

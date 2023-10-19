@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include <argumentum/argparse-h.h>
 
+
 int main(int32_t argc, char **argv) {
 #ifdef _WIN32
   auto lib_path =
@@ -35,6 +36,7 @@ int main(int32_t argc, char **argv) {
   std::string file;
   bool build;
   bool experimental_type_checker;
+  bool enable_generational_gc;
 
   using namespace argumentum;
   auto parser = argument_parser{};
@@ -50,7 +52,14 @@ int main(int32_t argc, char **argv) {
       .nargs(0)
       .help("turn on experimental type checking");
 
+  params.add_parameter(enable_generational_gc, "--enable-generational-gc")
+      .nargs(0)
+      .help("turn on generational garbage collection");
+
   auto engine = bond::create_engine(lib_path, args);
+  if (enable_generational_gc) {
+      GC_enable_incremental();
+  }
 
   if (argc == 1) {
     engine->run_repl();

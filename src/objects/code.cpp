@@ -18,6 +18,12 @@ namespace bond {
         return offset + 2;
     }
 
+    size_t Code::local_instruction(std::stringstream &ss, const char *name, size_t offset) const {
+        auto constant = m_identifier_table[m_instructions[offset + 1]];
+        ss << fmt::format("{:<16} {:0>4}, {:<16}\n", name, m_instructions[offset + 1], constant);
+        return offset + 2;
+    }
+
     size_t Code::oprand_instruction(std::stringstream &ss, const char *name, size_t offset) const {
         ss << fmt::format("{:<16} {:<4}\n", name, m_instructions[offset + 1]);
         return offset + 2;
@@ -80,6 +86,12 @@ namespace bond {
             count = oprand_instruction(ss, #name, count);\
             break
 
+#define LOCAL_INSTRUCTION(name) \
+        case Opcode::name:    \
+            count = local_instruction(ss, #name, count);\
+            break
+
+
         size_t pre_line = 0;
 
         while (count < m_instructions.size()) {
@@ -98,9 +110,6 @@ namespace bond {
                 CONSTANT_INSTRUCTION(STORE_GLOBAL);
                 CONSTANT_INSTRUCTION(LOAD_GLOBAL);
                 CONSTANT_INSTRUCTION(CREATE_GLOBAL);
-                CONSTANT_INSTRUCTION(CREATE_LOCAL);
-                CONSTANT_INSTRUCTION(STORE_FAST);
-                CONSTANT_INSTRUCTION(LOAD_FAST);
                 CONSTANT_INSTRUCTION(ITER_NEXT);
                 CONSTANT_INSTRUCTION(GET_ATTRIBUTE);
                 CONSTANT_INSTRUCTION(SET_ATTRIBUTE);
@@ -109,6 +118,10 @@ namespace bond {
                 CONSTANT_INSTRUCTION(CREATE_CLOSURE);
                 CONSTANT_INSTRUCTION(CREATE_CLOSURE_EX);
 
+
+                LOCAL_INSTRUCTION(CREATE_LOCAL);
+                LOCAL_INSTRUCTION(STORE_FAST);
+                LOCAL_INSTRUCTION(LOAD_FAST);
 
                 OPRAND_INSTRUCTION(UNPACK_SEQ);
                 OPRAND_INSTRUCTION(BUILD_LIST);
@@ -180,6 +193,20 @@ namespace bond {
             }
         }
         return ss.str();
+    }
+
+    uint32_t Code::add_or_get_identifier(const t_string &identifier) {
+        auto pos = std::find(m_identifier_table.begin(), m_identifier_table.end(), identifier);
+        if (pos == m_identifier_table.end()) {
+            m_identifier_table.push_back(identifier);
+            return m_identifier_table.size() - 1;
+        } else {
+            return pos - m_identifier_table.begin();
+        }
+    }
+
+    t_string& Code::get_identifier(uint32_t index)  {
+        return m_identifier_table[index];
     }
 
 
