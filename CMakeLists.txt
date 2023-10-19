@@ -45,7 +45,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
     if (MSVC)
-        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
+        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc")
     else ()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wconversion  -Wpedantic -fexceptions -pthread -dl")
     endif ()
@@ -74,7 +74,7 @@ if(EMSCRIPTEN)
 endif()
 
 
-target_link_libraries(bond PRIVATE bond-lib Argumentum::headers fmt::fmt-header-only )
+target_link_libraries(bond PRIVATE bond-lib Argumentum::headers fmt::fmt-header-only)
 
 add_executable(bootstrap src/bootstrap.cpp)
 target_link_libraries(bootstrap PRIVATE bond-lib fmt::fmt-header-only)

@@ -9,7 +9,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     if (MSVC)
-        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc /analyze")
+        set(CMAKE_CXX_FLAGS "/W4 /cgthreads8 /EHsc")
     else ()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wconversion  -Wpedantic -fexceptions -pthread -dl")
     endif ()
