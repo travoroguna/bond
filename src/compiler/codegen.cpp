@@ -132,7 +132,7 @@ namespace bond {
         size_t idx = 0;
 
         if (expr->is_int()) idx = m_code->add_constant(Runtime::ins()->make_int(std::stoi(expr->get_value())));
-        else idx = m_code->add_constant(Runtime::ins()->make_float(std::stof(expr->get_value())));
+        else idx = m_code->add_constant(Runtime::ins()->make_float(std::stod(expr->get_value())));
 
         m_code->add_ins(Opcode::LOAD_CONST, idx, expr->get_span());
     }
@@ -525,7 +525,6 @@ namespace bond {
         auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
         expr->get_value()->accept(this);
         m_code->add_ins(Opcode::SET_ATTRIBUTE, name, expr->get_span());
-
     }
 
     void CodeGenerator::visit(ImportDef *stmnt) {
