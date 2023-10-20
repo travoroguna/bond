@@ -516,7 +516,7 @@ namespace bond {
 
     void CodeGenerator::visit(GetAttribute *expr) {
         expr->get_expr()->accept(this);
-        auto name = m_code->add_or_get_identifier(expr->get_name());
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
         m_code->add_ins(Opcode::GET_ATTRIBUTE, name, expr->get_span());
     }
 

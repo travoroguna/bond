@@ -1006,17 +1006,13 @@ namespace bond {
                     auto obj = pop();
 
                     if (obj->is<NativeInstance>()) {
-                        auto result = obj->as<NativeInstance>()->get_attr(
-                                attr->as<String>()->get_value_ref());
+                        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value_ref());
+
                         if (result.has_value()) {
                             auto res = result.value();
                             if (res.has_value()) {
                                 push(res.value());
                                 break;
-                            } else {
-                                runtime_error(fmt::format("unable to get attribute {} of {}\n  {}",
-                                                          attr->str(), obj->str(), res.error()));
-                                continue;
                             }
                         }
                     }
@@ -1028,9 +1024,11 @@ namespace bond {
                                                   attr->str(), obj->str()));
                         continue;
                     }
+
                     push(call_res.value());
                     break;
                 }
+
                 case Opcode::SET_ATTRIBUTE: {
                     auto attr = m_current_frame->get_constant();
 
