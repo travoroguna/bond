@@ -35,23 +35,23 @@ namespace bond {
             if (m_int_map.contains(value)) {
                 return m_int_map[value];
             } else {
-                m_int_map[value] = m_constants.size();
+                m_int_map[value] = (uint32_t)m_constants.size();
                 m_constants.push_back(obj);
-                return m_constants.size() - 1;
+                return (uint32_t)m_constants.size() - 1;
             }
         } else if (instanceof<Float>(obj.get())) {
             auto value = obj->as<Float>()->get_value();
             if (m_float_map.contains(value)) {
                 return m_float_map[value];
             } else {
-                m_float_map[value] = m_constants.size();
+                m_float_map[value] = (uint32_t)m_constants.size();
                 m_constants.push_back(obj);
-                return m_constants.size() - 1;
+                return (uint32_t)m_constants.size() - 1;
             }
         }
 
         m_constants.push_back(obj);
-        return m_constants.size() - 1;
+        return (uint32_t)m_constants.size() - 1;
     }
 
 
@@ -210,9 +210,9 @@ namespace bond {
         auto pos = std::find(m_identifier_table.begin(), m_identifier_table.end(), identifier);
         if (pos == m_identifier_table.end()) {
             m_identifier_table.push_back(identifier);
-            return m_identifier_table.size() - 1;
+            return (uint32_t)m_identifier_table.size() - 1;
         } else {
-            return pos - m_identifier_table.begin();
+            return (uint32_t)(pos - m_identifier_table.begin());
         }
     }
 

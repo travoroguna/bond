@@ -294,7 +294,7 @@ namespace bond {
             return fmt::format("<instance of {} at {}>", m_native_struct->get_name(), (void *) this);
         }
 
-        std::optional<obj_result> get_attr(const t_string &name);
+        virtual std::optional<obj_result> get_attr(const t_string &name);
 
         std::optional<obj_result> set_attr(const t_string &name, const GcPtr<Object> &value);
 
@@ -592,7 +592,7 @@ namespace bond {
 
         std::vector<t_string> m_identifier_table;
 
-        std::unordered_map<uint64_t, uint32_t> m_int_map;
+        std::unordered_map<int64_t, uint32_t> m_int_map;
         std::unordered_map<double, uint32_t> m_float_map;
         std::unordered_map<t_string, uint32_t> m_string_map;
 
@@ -693,6 +693,7 @@ namespace bond {
 
         t_string str() const override { return fmt::format("<struct {}>", m_name); }
 
+        std::optional<obj_result> get_attr(const t_string &name) override;
 
     private:
         t_string m_name;
@@ -1048,7 +1049,7 @@ struct fmt::formatter<bond::GcPtr<bond::Object>> {
 // Variadic template to convert vector elements to a format argument pack.
 template<typename... Args>
 t_string format_impl(const t_string &format_string, const std::vector<fmt::format_context::format_arg> &args) {
-    return fmt::vformat(format_string, fmt::basic_format_args<fmt::format_context>(args.data(), args.size()));
+    return fmt::vformat(format_string, fmt::basic_format_args<fmt::format_context>(args.data(), (int)args.size()));
 }
 
 

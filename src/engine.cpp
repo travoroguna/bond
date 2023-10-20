@@ -59,8 +59,8 @@ namespace bond {
         auto globals = Runtime::ins()->MAP_STRUCT->create_instance<StringMap>();
         Scopes scopes(&m_context);
 
-        auto vm = bond::Vm(&m_context, globals);
-        bond::set_current_vm(&vm);
+        auto vm0 = bond::Vm(&m_context, globals);
+        bond::set_current_vm(&vm0);
 
         replxx::Replxx rx;
         rx.install_window_change_handler();
@@ -118,7 +118,7 @@ namespace bond {
         });
 
 
-        rx.set_completion_callback([&](std::string const &input, int &contextLen) -> replxx::Replxx::completions_t {
+        rx.set_completion_callback([&](std::string const &input, [[maybe_unused]]int &contextLen) -> replxx::Replxx::completions_t {
             if (input.starts_with(".")) return {};
 
             std::vector<replxx::Replxx::Completion> hints;
@@ -137,7 +137,7 @@ namespace bond {
         });
 
 
-        rx.set_hint_callback([&](std::string const &input, int &contextLen, Color &color) -> replxx::Replxx::hints_t {
+        rx.set_hint_callback([&](std::string const &input, [[maybe_unused]]int &contextLen, [[maybe_unused]]Color &color) -> replxx::Replxx::hints_t {
             if (input.starts_with(".")) return {};
             std::vector<std::string> hints;
 
@@ -238,7 +238,7 @@ namespace bond {
                 if (commands.contains(input)) {
                     commands[input]();
                     continue;
-                    rx.history_add(input);
+//                    rx.history_add(input);
                 }
                 fmt::print("unknown command {}\n", input);
                 continue;
@@ -356,8 +356,6 @@ namespace bond {
     Engine *
     create_engine(const std::string &lib_path, const std::vector<std::string, gc_allocator<std::string>> &args) {
         GC_INIT();
-
-        GC_set_all_interior_pointers(1);
 
         GC_set_warn_proc([](char *msg, GC_word arg) {
             printf(msg,  arg);

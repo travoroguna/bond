@@ -83,13 +83,12 @@ namespace bond {
 
     std::shared_ptr<Node> Parser::async_declaration() {
         throw ParserError("Asyncio not implemented", previous().get_span());
-
-        auto pre = m_in_async;
-        m_in_async = true;
-        consume(TokenType::FUN, peek().get_span(), "Expected function after async keyword");
-        auto function = function_declaration(false, false);
-        m_in_async = pre;
-        return std::make_shared<AsyncDef>(function->get_span(), function);
+//        auto pre = m_in_async;
+//        m_in_async = true;
+//        consume(TokenType::FUN, peek().get_span(), "Expected function after async keyword");
+//        auto function = function_declaration(false, false);
+//        m_in_async = pre;
+//        return std::make_shared<AsyncDef>(function->get_span(), function);
     }
 
 
@@ -138,18 +137,20 @@ namespace bond {
 
         //capture instance variables
         std::vector<std::shared_ptr<Param>> instance_variables;
+        std::unordered_map<std::string, SharedSpan> instances;
 
         while (check(TokenType::VAR)) {
             consume(TokenType::VAR, peek().get_span(), "");
 
             auto var = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected instance variable name");
-            auto exists = std::find_if(instance_variables.begin(), instance_variables.end(), [&var](const auto &param) {
-                return param->name == var.get_lexeme();
-            });
 
-            if (exists != instance_variables.end()) {
-                throw ParserError(fmt::format("Instance Variable {} is already declared", var.get_lexeme()),
-                                  var.get_span());
+            if (instances.contains(var.get_lexeme())) {
+                if (m_report)
+                    ctx->error(var.get_span(),
+                               fmt::format("Instance Variable {} is already declared", var.get_lexeme()));
+                auto sp = instances[var.get_lexeme()];
+                throw ParserError(fmt::format("Note Instance Variable {} is already declared here", var.get_lexeme()),
+                                  sp);
             }
 
             std::optional<std::shared_ptr<TypeNode>> type = std::nullopt;
@@ -159,6 +160,7 @@ namespace bond {
             }
 
             instance_variables.push_back(std::make_shared<Param>(var.get_lexeme(), type, var.get_span()));
+            instances[var.get_lexeme()] = var.get_span();
 
             consume(TokenType::SEMICOLON, peek().get_span(), "Expected ';' after instance variable declaration");
         }
@@ -175,6 +177,7 @@ namespace bond {
                 consume(TokenType::FUN, peek().get_span(), "");
                 auto method = function_declaration(true, false);
                 methods.push_back(method);
+
 
                 if (instance_methods.contains(dynamic_cast<FuncDef *>(method.get())->get_name())) {
                     if (m_report)
@@ -529,12 +532,12 @@ namespace bond {
     std::shared_ptr<Node> Parser::await_statement() {
         if (match({TokenType::AWAIT})) {
             throw ParserError("Asyncio not implemented", previous().get_span());
-            if (!m_in_async and in_function) {
-                throw ParserError("Cannot await outside of an async function", previous().get_span());
-            }
-            auto await_expr = await_statement();
-            auto span = span_from_spans(await_expr->get_span(), previous().get_span());
-            return std::make_shared<Await>(span, await_expr);
+//            if (!m_in_async and in_function) {
+//                throw ParserError("Cannot await outside of an async function", previous().get_span());
+//            }
+//            auto await_expr = await_statement();
+//            auto span = span_from_spans(await_expr->get_span(), previous().get_span());
+//            return std::make_shared<Await>(span, await_expr);
         }
 
         return try_statement();

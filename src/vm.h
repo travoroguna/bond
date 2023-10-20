@@ -103,7 +103,7 @@ namespace bond {
         }
 
         t_string& local_name(size_t index) {
-            return m_code->get_identifier(index);
+            return m_code->get_identifier((uint32_t)index);
         }
 
     private:

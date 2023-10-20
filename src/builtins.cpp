@@ -33,7 +33,7 @@ namespace bond {
         return OK();
     }
 
-    obj_result b_dump(const t_vector &args) {
+    obj_result b_dump([[maybe_unused]]const t_vector &args) {
 #ifdef DEBUG
         //        GC_dump();
         //        GC_generate_random_backtrace();
@@ -45,8 +45,7 @@ namespace bond {
     obj_result b_exit(const t_vector &args) {
         Int *code;
         TRY(parse_args(args, code));
-        exit(code->get_value());
-        return OK();
+        exit((int)code->get_value());
     }
 
 
@@ -200,7 +199,7 @@ namespace bond {
         return OK(make_string(input));
     }
 
-    obj_result b_debug_break(const t_vector &args) {
+    obj_result b_debug_break([[maybe_unused]]const t_vector &args) {
         debug_break();
         return OK();
     }
@@ -405,7 +404,6 @@ namespace bond {
         }
 
         obj_result next() override {
-            auto vm = get_current_vm();
             auto next = it->as<Iterator>()->next();
             TRY(next);
             count--;
@@ -464,7 +462,6 @@ namespace bond {
         }
 
         obj_result next() override {
-            auto vm = get_current_vm();
             while (count > 0 && it->as<Iterator>()->has_next().value()) {
                 auto next = it->as<Iterator>()->next();
                 TRY(next);
@@ -534,7 +531,6 @@ namespace bond {
         }
 
         obj_result next() override {
-            auto vm = get_current_vm();
             if (it->as<Iterator>()->has_next().value())
                 return it->as<Iterator>()->next();
 
@@ -669,7 +665,7 @@ namespace bond {
             return self;
         }
 
-        static obj_result to_list(const GcPtr<Object> &self, const t_vector &args) {
+        static obj_result to_list(const GcPtr<Object> &self, [[maybe_unused]]const t_vector &args) {
             auto iter = self->as<Iter>();
             auto value = iter->iterable->to_list();
             TRY(value);
@@ -757,14 +753,14 @@ namespace bond {
             return self;
         }
 
-        static obj_result next(const GcPtr<Object> &self, const t_vector &args) {
+        static obj_result next(const GcPtr<Object> &self, [[maybe_unused]]const t_vector &args) {
             auto iter = self->as<Iter>();
             auto next = iter->iterable->next();
             TRY(next);
             return next.value();
         }
 
-        static obj_result has_next(const GcPtr<Object> &self, const t_vector &args) {
+        static obj_result has_next(const GcPtr<Object> &self, [[maybe_unused]]const t_vector &args) {
             auto iter = self->as<Iter>();
             auto next = iter->iterable->has_next();
             TRY(next);

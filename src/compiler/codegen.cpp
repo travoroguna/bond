@@ -129,7 +129,7 @@ namespace bond {
     }
 
     void CodeGenerator::visit(NumberLiteral *expr) {
-        size_t idx = 0;
+        uint32_t idx = 0;
 
         if (expr->is_int()) idx = m_code->add_constant(Runtime::ins()->make_int(std::stoi(expr->get_value())));
         else idx = m_code->add_constant(Runtime::ins()->make_float(std::stod(expr->get_value())));
@@ -220,7 +220,7 @@ namespace bond {
         for (auto &e: expr->get_nodes()) {
             e->accept(this);
         }
-        m_code->add_ins(Opcode::BUILD_LIST, expr->get_nodes().size(), expr->get_span());
+        m_code->add_ins(Opcode::BUILD_LIST, (uint32_t)expr->get_nodes().size(), expr->get_span());
     }
 
     void CodeGenerator::visit(GetItem *expr) {
@@ -273,7 +273,7 @@ namespace bond {
         for (auto &e: expr->get_args()) {
             e->accept(this);
         }
-        m_code->add_ins(Opcode::CALL, expr->get_args().size(), expr->get_span());
+        m_code->add_ins(Opcode::CALL, (uint32_t)expr->get_args().size(), expr->get_span());
     }
 
     uint32_t CodeGenerator::for_single_var(For *stmnt) {
@@ -324,7 +324,7 @@ namespace bond {
         m_code->add_ins(Opcode::NEXT, stmt->get_span());
 
         // unpack the value
-        m_code->add_ins(Opcode::UNPACK_SEQ, vars.size(), stmt->get_span());
+        m_code->add_ins(Opcode::UNPACK_SEQ, (uint32_t)vars.size(), stmt->get_span());
 
         // store the unpacked values
         for (auto &var: std::ranges::reverse_view(vars)) {
@@ -610,7 +610,7 @@ namespace bond {
         }
 
         stmnt->get_value()->accept(this);
-        m_code->add_ins(Opcode::UNPACK_SEQ, targets.size(), stmnt->get_span());
+        m_code->add_ins(Opcode::UNPACK_SEQ, (uint32_t)targets.size(), stmnt->get_span());
 
         for (auto &[name, is_global]: std::ranges::reverse_view(targets)) {
 
@@ -644,7 +644,7 @@ namespace bond {
             arg->accept(this);
         }
 
-        m_code->add_ins(Opcode::CALL_METHOD, expr->get_args().size(), expr->get_span());
+        m_code->add_ins(Opcode::CALL_METHOD, (uint32_t)expr->get_args().size(), expr->get_span());
     }
 
     void CodeGenerator::visit(ResultStatement *expr) {
@@ -658,7 +658,7 @@ namespace bond {
             e.first->accept(this);
             e.second->accept(this);
         }
-        m_code->add_ins(Opcode::BUILD_DICT, expr->get_pairs().size(), expr->get_span());
+        m_code->add_ins(Opcode::BUILD_DICT, (uint32_t)expr->get_pairs().size(), expr->get_span());
     }
 
 

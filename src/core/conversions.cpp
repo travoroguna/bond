@@ -10,17 +10,16 @@ namespace bond {
         TRY(parse_args(args, obj));
 
         if (obj->is<Int>()) return make_ok(obj);
-        if (obj->is<Float>()) return make_ok(make_int(obj->as<Float>()->get_value()));
+        if (obj->is<Float>()) return make_ok(make_int((int64_t)obj->as<Float>()->get_value()));
         if (obj->is<String>()) {
             auto str = obj->as<String>()->get_value();
             try {
                 return make_ok(make_int(std::stoll(str.c_str())));
-            } catch (std::invalid_argument &e) {
+            } catch ([[maybe_unused]]std::invalid_argument &e) {
                 return make_error(make_string("invalid int"));
-            } catch (std::out_of_range &e) {
+            } catch ([[maybe_unused]]std::out_of_range &e) {
                 return make_error(make_string("int out of range"));
             }
-            assert(false);
         }
         return make_error(make_string(fmt::format("unable to convert {} to int", obj->str())));
     }

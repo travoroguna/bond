@@ -16,6 +16,18 @@ namespace bond {
     }
 
 
+    std::optional<obj_result> Struct::get_attr(const t_string &name) {
+        auto attr = NativeInstance::get_attr(name);
+        if (attr.has_value()) {
+            return attr;
+        }
+
+        if (!m_methods.contains(name))
+            return std::nullopt;
+
+        return m_methods.at(name);
+    }
+
     std::optional<GcPtr<Function>> Struct::get_method(const t_string &name) const {
         if (!m_methods.contains(name))
             return std::nullopt;

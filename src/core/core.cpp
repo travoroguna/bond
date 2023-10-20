@@ -34,17 +34,17 @@ namespace bond {
             return OK(make<Range>(start, end, step));
         }
 
-        static obj_result iter(const GcPtr<Object> &Self, const t_vector &args) {
+        static obj_result iter(const GcPtr<Object> &Self, [[maybe_unused]]const t_vector &args) {
             auto self = Self->as<Range>();
             return self;
         }
 
-        static obj_result has_next(const GcPtr<Object> &Self, const t_vector &args) {
+        static obj_result has_next(const GcPtr<Object> &Self, [[maybe_unused]]const t_vector &args) {
             auto self = Self->as<Range>();
             return OK(AS_BOOL(self->m_start < self->m_end));
         }
 
-        static obj_result next(const GcPtr<Object> &Self, const t_vector &args) {
+        static obj_result next(const GcPtr<Object> &Self, [[maybe_unused]]const t_vector &args) {
             auto self = Self->as<Range>();
             auto res = self->m_start;
             self->m_start += self->m_step;

@@ -22,8 +22,8 @@ uint32_t Context::new_module(std::string const &path) {
 
     if (val==std::end(m_modules)) {
         auto l = m_modules.size();
-        m_modules[l] = path;
-        return l;
+        m_modules[(uint32_t)l] = path;
+        return (uint32_t)l;
     }
 
     return val->first;
@@ -60,11 +60,11 @@ void Context::error(const std::shared_ptr<Span> &span, const std::basic_string<c
     fmt::print("  {}\n", line_source);
 
     fmt::print("  ");
-    for (int i = 0; i < span->start - line_start - diff; i++) {
+    for (uint32_t i = 0; i < span->start - line_start - diff; i++) {
         fmt::print(" ");
     }
 
-    for (int i = 0; i < span->end - span->start; i++) {
+    for (uint32_t i = 0; i < span->end - span->start; i++) {
         fmt::print("^");
     }
 

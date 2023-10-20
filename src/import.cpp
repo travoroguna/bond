@@ -57,7 +57,7 @@ namespace bond {
     }
 
     std::expected<GcPtr<Module>, t_string>
-    load_dynamic_lib(Context *ctx, const t_string &path, const t_string &alias) {
+    load_dynamic_lib(Context *ctx, const t_string &path, [[maybe_unused]]const t_string &alias) {
         auto mod = bond::Mod(path);
 
 #ifdef _WIN32

@@ -14,7 +14,7 @@ namespace bond{
 
         auto src = Context::read_file(path.c_str());
         unit_id = context->new_module(path.c_str());
-        auto lexer = Lexer(src, context, unit_id);
+        auto lexer = Lexer(src, context, (uint32_t)unit_id);
         auto tokens = lexer.tokenize();
 
         auto parser = Parser(tokens, context);

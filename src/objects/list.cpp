@@ -9,14 +9,14 @@ namespace bond {
     }
 
     obj_result List::get_item(int64_t index) {
-        if (index < 0 or index > m_elements.size() - 1) {
+        if (index < 0 or index > (int64_t)m_elements.size() - 1) {
             return runtime_error(fmt::format("Index {} out of range", index));
         }
         return m_elements[index];
     }
 
     obj_result List::set_item(int64_t index, const GcPtr<Object> &item) {
-        if (index < 0 or index > m_elements.size() - 1) {
+        if (index < 0 or index > (int64_t)m_elements.size() - 1) {
             return runtime_error(fmt::format("Index {} out of range", index));
         }
         m_elements[index] = item;
@@ -126,7 +126,7 @@ namespace bond {
     }
 
     obj_result List::remove(int64_t index) {
-        if (index < 0 or index > m_elements.size() - 1) {
+        if (index < 0 or index > (int64_t)m_elements.size() - 1) {
             return runtime_error(fmt::format("Index {} out of range", index));
         }
         m_elements.erase(m_elements.begin() + index);
@@ -170,7 +170,7 @@ namespace bond {
     obj_result list_iterator_has_next(const GcPtr<Object> &Self, const t_vector &args) {
         auto self = Self->as<ListIterator>();
         TRY(parse_args(args));
-        return OK(AS_BOOL(self->m_index < self->m_list->get_size()));
+        return OK(AS_BOOL(self->m_index < (int64_t)self->m_list->get_size()));
     }
 
     GcPtr<NativeStruct> LIST_ITERATOR_STRUCT = make_immortal<NativeStruct>("ListIterator", "ListIterator(list: List)",
