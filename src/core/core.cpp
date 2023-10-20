@@ -78,7 +78,7 @@ namespace bond {
                      "is_callable(object: Any) -> Bool\nreturns true if the object is callable");
         mod.function("is_function", is_function, "is_function(object: Any) -> Bool\nreturns true if the object is a function");
 
-        mod.struct_("Range", "Range(start: Int, end: Int, step: Int)")
+        mod.struct_("range", "range(start: Int, end: Int, step: Int)")
                 .constructor(Range::c_Range)
                 .method("__iter__", Range::iter, "__iter__() -> Range\nreturns an iterator for the range")
                 .method("__has_next__", Range::has_next,
