@@ -20,6 +20,42 @@ namespace bond {
         visitor->visit(this);
     }
 
+
+    InplaceOp::InplaceOp(const SharedSpan &span, const std::string &left, Token op,
+              const SharedNode &right): m_op(std::move(op)) {
+        m_span = span;
+        m_left = left;
+        m_right = right;
+    }
+
+    void InplaceOp::accept(NodeVisitor *visitor) {
+        visitor->visit(this);
+    }
+
+    InplaceOpItem::InplaceOpItem(const SharedSpan &span, const SharedNode &expr,
+                  const SharedNode &index, Token op, const SharedNode &value) :m_op(std::move(op)) {
+        m_span = span;
+        m_expr = expr;
+        m_index = index;
+        m_value = value;
+    }
+
+    void InplaceOpItem::accept(NodeVisitor *visitor) {
+       visitor->visit(this);
+    }
+
+
+    InplaceOpAttribute::InplaceOpAttribute(const SharedSpan &span, const SharedNode &expr,
+                       const std::string &name, Token op, const SharedNode &value) : m_op(std::move(op)) {
+        m_span = span;
+        m_expr = expr;
+        m_name = name;
+        m_value = value;
+    }
+
+    void InplaceOpAttribute::accept(NodeVisitor *visitor){
+        visitor->visit(this);
+    }
     Unary::Unary(const SharedSpan &span, Token op, const SharedNode &expr)
             : m_op(std::move(op)) {
         m_span = span;

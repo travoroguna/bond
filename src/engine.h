@@ -24,7 +24,7 @@ namespace bond {
         std::vector<std::string, gc_allocator<std::string>> m_args;
         Context m_context;
         bool m_check{false};
-
+        bool m_disassemble{false};
 
     public:
         Engine(std::string lib_path, std::vector<std::string, gc_allocator<std::string>> args)
@@ -38,6 +38,7 @@ namespace bond {
         void run_file(const std::string &path);
         static void add_core_module(const GcPtr<Module>& mod);
         void set_checker(bool check) { m_check = check; }
+        void set_disassembler(bool disassemble) { m_disassemble = disassemble; }
     };
 
     Engine* create_engine(const std::string& lib_path, const std::vector<std::string, gc_allocator<std::string>>& args);

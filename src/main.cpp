@@ -37,6 +37,7 @@ int main(int32_t argc, char **argv) {
   bool build;
   bool experimental_type_checker;
   bool enable_generational_gc;
+  bool enable_disasembler;
 
   using namespace argumentum;
   auto parser = argument_parser{};
@@ -56,7 +57,12 @@ int main(int32_t argc, char **argv) {
       .nargs(0)
       .help("turn on generational garbage collection");
 
+  params.add_parameter(enable_disasembler, "--disassemble")
+      .nargs(0)
+      .help("turn on disassembler");
+
   auto engine = bond::create_engine(lib_path, args);
+
   if (enable_generational_gc) {
       GC_enable_incremental();
   }
@@ -71,6 +77,7 @@ int main(int32_t argc, char **argv) {
   }
 
   engine->set_checker(experimental_type_checker);
+  engine->set_disassembler(enable_disasembler);
 
   if (!std::filesystem::exists(file)) {
     fmt::print("File not found: {}\n", file);

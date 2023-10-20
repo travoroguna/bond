@@ -34,7 +34,11 @@ namespace bond {
 
         OK, ERROR_t,
 
-        COLON, QUESTION
+        COLON, QUESTION,
+
+        // inplace operators
+        PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, MOD_EQ, BITWISE_OR_EQ, BITWISE_AND_EQ, BITWISE_XOR_EQ,
+
     };
 
 //    std::ostream &operator<<(std::ostream& os, TokenType t) {

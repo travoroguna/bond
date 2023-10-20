@@ -31,12 +31,12 @@ namespace bond {
             {"continue", TokenType::CONTINUE},
             {"async",    TokenType::ASYNC},
             {"await",    TokenType::AWAIT},
-            {"ok", TokenType::OK},
-            {"err", TokenType::ERROR_t}
+            {"ok",       TokenType::OK},
+            {"err",      TokenType::ERROR_t}
 
     };
 
-    std::unordered_map<std::string, TokenType>& get_keywords() {
+    std::unordered_map<std::string, TokenType> &get_keywords() {
         return keywords;
     }
 
@@ -126,8 +126,7 @@ namespace bond {
         while (peek() != '"' || isEscaped) {
             if (peek() == '\n' && !isEscaped) m_line++;
 
-            if (peek() == '\\' && !isEscaped)
-            {
+            if (peek() == '\\' && !isEscaped) {
                 isEscaped = true;
             } else {
                 isEscaped = false;
@@ -155,15 +154,16 @@ namespace bond {
     }
 
     std::unordered_map<char, char> replacement = {
-            {'n', '\n'},
-            {'t', '\t'},
-            {'r', '\r'},
-            {'0', '\0'},
+            {'n',  '\n'},
+            {'t',  '\t'},
+            {'r',  '\r'},
+            {'0',  '\0'},
             {'\\', '\\'},
             {'\'', '\''},
-            {'"', '"'}
+            {'"',  '"'}
     };
-    void Lexer::replaceEscapedSequences(std::string& str) {
+
+    void Lexer::replaceEscapedSequences(std::string &str) {
         size_t position = 0;
 
         for (auto [c, rep]: replacement) {
@@ -229,26 +229,28 @@ namespace bond {
             ADD_TOKEN('}', TokenType::RIGHT_BRACE);
             ADD_TOKEN(',', TokenType::COMMA);
             ADD_TOKEN('.', TokenType::DOT);
-            ADD_TOKEN('-', TokenType::MINUS);
-            ADD_TOKEN('+', TokenType::PLUS);
-            ADD_TOKEN('%', TokenType::MOD);
             ADD_TOKEN(';', TokenType::SEMICOLON);
-            ADD_TOKEN('*', TokenType::STAR);
             ADD_TOKEN('[', TokenType::LEFT_SQ);
             ADD_TOKEN(']', TokenType::RIGHT_SQ);
-            ADD_TOKEN('|', TokenType::BITWISE_OR);
-            ADD_TOKEN('&', TokenType::BITWISE_AND);
-            ADD_TOKEN('^', TokenType::BITWISE_XOR);
             ADD_TOKEN(':', TokenType::COLON);
             ADD_TOKEN('?', TokenType::QUESTION);
             ADD_IF('!', '=', TokenType::BANG, TokenType::BANG_EQUAL);
             ADD_IF('=', '=', TokenType::EQUAL, TokenType::EQUAL_EQUAL);
             ADD_IF('<', '=', TokenType::LESS, TokenType::LESS_EQUAL);
             ADD_IF('>', '=', TokenType::GREATER, TokenType::GREATER_EQUAL);
+            ADD_IF('+', '=', TokenType::PLUS, TokenType::PLUS_EQ);
+            ADD_IF('-', '=', TokenType::MINUS, TokenType::MINUS_EQ);
+            ADD_IF('*', '=', TokenType::STAR, TokenType::STAR_EQ);
+            ADD_IF('%', '=', TokenType::MOD, TokenType::MOD_EQ);
+            ADD_IF('|', '=', TokenType::BITWISE_OR, TokenType::BITWISE_OR_EQ);
+            ADD_IF('&', '=', TokenType::BITWISE_AND, TokenType::BITWISE_AND_EQ);
+            ADD_IF('^', '=', TokenType::BITWISE_XOR, TokenType::BITWISE_XOR_EQ);
 
             case '/':
                 if (match('/')) {
                     while (peek() != '\n' && !is_at_end()) advance();
+                } else if (match('=')) {
+                    new_token(TokenType::SLASH_EQ);
                 } else {
                     new_token(TokenType::SLASH);
                 }
@@ -282,8 +284,7 @@ namespace bond {
     void Lexer::report(const std::string &message, const std::shared_ptr<Span> &span) {
         if (m_report) {
             m_context->error(span, message);
-        }
-        else {
+        } else {
             m_error_spans.emplace_back(message, span);
         }
     }

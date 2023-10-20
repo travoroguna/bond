@@ -24,92 +24,17 @@ namespace bond {
     }
 
 
-    std::unordered_map<Slot, t_string> swap_map(const std::unordered_map<t_string, Slot> &map) {
-        std::unordered_map<Slot, t_string> res;
-        for (auto const &[key, value]: map) {
-            res[value] = key;
-        }
-        return res;
-    }
-
-
     t_string Slot_to_string(Slot slot) {
-        const std::unordered_map<t_string, Slot> method_mappings = {
-                {"__ne__",       Slot::NE},
-                {"__eq__",       Slot::EQ},
-                {"__lt__",       Slot::LT},
-                {"__gt__",       Slot::GT},
-                {"__le__",       Slot::LE},
-                {"__ge__",       Slot::GE},
-                {"__add__",      Slot::BIN_ADD},
-                {"__sub__",      Slot::BIN_SUB},
-                {"__mul__",      Slot::BIN_MUL},
-                {"__div__",      Slot::BIN_DIV},
-                {"__mod__",      Slot::BIN_MOD},
-                {"__getattr__",  Slot::GET_ATTR},
-                {"__setattr__",  Slot::SET_ATTR},
-                {"__getitem__",  Slot::GET_ITEM},
-                {"__setitem__",  Slot::SET_ITEM},
-                {"__iter__",     Slot::ITER},
-                {"__next__",     Slot::NEXT},
-                {"__has_next__", Slot::HAS_NEXT},
-                {"__hash__",     Slot::HASH},
-        };
-
-        const std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
-        return slot_str_map.at(slot);
+        return Runtime::ins()->slot_str_map.at(slot);
     }
 
     bool Instance::has_slot(Slot slot) {
-        const std::unordered_map<t_string, Slot> method_mappings = {
-                {"__ne__",       Slot::NE},
-                {"__eq__",       Slot::EQ},
-                {"__lt__",       Slot::LT},
-                {"__gt__",       Slot::GT},
-                {"__le__",       Slot::LE},
-                {"__ge__",       Slot::GE},
-                {"__add__",      Slot::BIN_ADD},
-                {"__sub__",      Slot::BIN_SUB},
-                {"__mul__",      Slot::BIN_MUL},
-                {"__div__",      Slot::BIN_DIV},
-                {"__mod__",      Slot::BIN_MOD},
-                {"__getattr__",  Slot::GET_ATTR},
-                {"__setattr__",  Slot::SET_ATTR},
-                {"__getitem__",  Slot::GET_ITEM},
-                {"__setitem__",  Slot::SET_ITEM},
-                {"__iter__",     Slot::ITER},
-                {"__next__",     Slot::NEXT},
-                {"__has_next__", Slot::HAS_NEXT},
-                {"__hash__",     Slot::HASH},
-        };
-
-        const std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
-        return m_type->has_method(slot_str_map.at(slot));
+        return m_type->has_method(Runtime::ins()->slot_str_map.at(slot));
     }
 
 
     void NativeStruct::set_slots() {
-        const std::unordered_map<t_string, Slot> method_mappings = {
-                {"__ne__",       Slot::NE},
-                {"__eq__",       Slot::EQ},
-                {"__lt__",       Slot::LT},
-                {"__gt__",       Slot::GT},
-                {"__le__",       Slot::LE},
-                {"__ge__",       Slot::GE},
-                {"__add__",      Slot::BIN_ADD},
-                {"__sub__",      Slot::BIN_SUB},
-                {"__mul__",      Slot::BIN_MUL},
-                {"__div__",      Slot::BIN_DIV},
-                {"__mod__",      Slot::BIN_MOD},
-                {"__getattr__",  Slot::GET_ATTR},
-                {"__setattr__",  Slot::SET_ATTR},
-                {"__getitem__",  Slot::GET_ITEM},
-                {"__setitem__",  Slot::SET_ITEM},
-                {"__iter__",     Slot::ITER},
-                {"__next__",     Slot::NEXT},
-                {"__has_next__", Slot::HAS_NEXT},
-                {"__hash__",     Slot::HASH},
-        };
+        auto &method_mappings = Runtime::ins()->method_mappings;
         std::fill_n(m_slots.data(), Slot::SIZE, nullptr);
 
         for (auto &[name, method]: m_methods) {

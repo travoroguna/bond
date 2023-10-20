@@ -210,6 +210,8 @@ namespace bond {
         std::shared_ptr<Param> parse_parameter();
 
         SharedTypeNode parse_return_type();
+
+        std::shared_ptr<Node> inplace_op(const std::shared_ptr<Node> &expr);
     };
 
     std::string split_at_last_occur(const std::string &str, char c);

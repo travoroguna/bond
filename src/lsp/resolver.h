@@ -217,6 +217,11 @@ namespace bond::lsp {
 
         void visit(DictLiteral *expr) override;
 
+        void visit(InplaceOpItem *expr) override;
+
+        void visit(InplaceOpAttribute *expr) override;
+
+        void visit(InplaceOp *expr) override;
 
 //        void push(const std::shared_ptr<Type> &type);
 //        std::shared_ptr<Type> pop();

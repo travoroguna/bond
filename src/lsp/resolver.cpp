@@ -32,6 +32,18 @@ namespace bond::lsp {
         push(BOOL_SYMBOL);
     }
 
+    void Resolver::visit([[maybe_unused]]InplaceOpItem *expr) {
+
+    }
+
+    void Resolver::visit([[maybe_unused]]InplaceOpAttribute *expr) {
+
+    }
+
+    void Resolver::visit([[maybe_unused]]InplaceOp *expr) {
+
+    }
+
     void Resolver::visit(FalseLiteral *expr) {
         push(BOOL_SYMBOL);
     }

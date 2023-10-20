@@ -288,6 +288,11 @@ namespace bond {
 
         void process_events_if_needed();
 
+        void bit_or();
+
+        void bit_and();
+
+        void bit_xor();
     };
 
 }; // namespace bond

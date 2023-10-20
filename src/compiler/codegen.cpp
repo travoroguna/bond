@@ -321,7 +321,7 @@ namespace bond {
         m_code->add_ins(Opcode::ITER_END, 0, stmt->get_span());
 
         // we want to reuse all for loop constructs but add unpacking
-        m_code->add_ins(Opcode::NEXT,stmt->get_span());
+        m_code->add_ins(Opcode::NEXT, stmt->get_span());
 
         // unpack the value
         m_code->add_ins(Opcode::UNPACK_SEQ, vars.size(), stmt->get_span());
@@ -343,8 +343,7 @@ namespace bond {
 
         if (stmnt->get_variables().size() == 1) {
             start = for_single_var(stmnt);
-        }
-        else {
+        } else {
             start = for_unpack(stmnt);
         }
 
@@ -477,8 +476,7 @@ namespace bond {
 
         if (stmnt->is_expression()) {
             m_code->add_ins(Opcode::CREATE_CLOSURE_EX, idx, stmnt->get_span());
-        }
-        else {
+        } else {
             m_scopes->declare(stmnt->get_name(), stmnt->get_span(), false, false);
             m_code->add_ins(Opcode::CREATE_CLOSURE, idx, stmnt->get_span());
         }
@@ -489,7 +487,7 @@ namespace bond {
     void CodeGenerator::visit(StructNode *stmnt) {
         auto var = m_scopes->get(stmnt->get_name());
         std::vector<t_string> params;
-        for (auto&param: stmnt->get_params()) {
+        for (auto &param: stmnt->get_params()) {
             params.emplace_back(param->name);
         }
 
@@ -518,7 +516,7 @@ namespace bond {
 
     void CodeGenerator::visit(GetAttribute *expr) {
         expr->get_expr()->accept(this);
-        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
+        auto name = m_code->add_or_get_identifier(expr->get_name());
         m_code->add_ins(Opcode::GET_ATTRIBUTE, name, expr->get_span());
     }
 
@@ -664,5 +662,76 @@ namespace bond {
         m_code->add_ins(Opcode::BUILD_DICT, expr->get_pairs().size(), expr->get_span());
     }
 
+
+    void CodeGenerator::inp_op(TokenType type, const SharedSpan &span) {
+#define INPLACE_OP(TOK, OP) \
+   case TokenType:: ##TOK: \
+        m_code->add_ins(Opcode:: ##OP, span); \
+        break
+
+        switch (type) {
+            INPLACE_OP(PLUS_EQ, I_ADD);
+            INPLACE_OP(MINUS_EQ, I_SUB);
+            INPLACE_OP(STAR_EQ, I_MUL);
+            INPLACE_OP(SLASH_EQ, I_DIV);
+            INPLACE_OP(MOD_EQ, I_MOD);
+            INPLACE_OP(BITWISE_OR_EQ, I_BIT_OR);
+            INPLACE_OP(BITWISE_AND_EQ, I_BIT_AND);
+            INPLACE_OP(BITWISE_XOR_EQ, I_BIT_XOR);
+            default:
+                break;
+        }
+    }
+
+    void CodeGenerator::visit(InplaceOpItem *expr) {
+        expr->get_expr()->accept(this);
+        expr->get_index()->accept(this);
+        m_code->add_ins(Opcode::DUPE_TWO, expr->get_span());
+
+        m_code->add_ins(Opcode::GET_ITEM, expr->get_span());
+
+        expr->get_value()->accept(this);
+        inp_op(expr->get_op().get_type(), expr->get_span());
+
+        m_code->add_ins(Opcode::SET_ITEM, expr->get_span());
+    }
+
+
+    void CodeGenerator::visit(InplaceOpAttribute *expr) {
+        expr->get_expr()->accept(this);
+        m_code->add_ins(Opcode::DUPE, expr->get_span());
+
+        auto name = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_name()));
+        m_code->add_ins(Opcode::GET_ATTRIBUTE, name, expr->get_span());
+
+        expr->get_value()->accept(this);
+        inp_op(expr->get_op().get_type(), expr->get_span());
+
+        m_code->add_ins(Opcode::SET_ATTRIBUTE, name, expr->get_span());
+    }
+
+    void CodeGenerator::visit(InplaceOp *expr) {
+        auto is_glob = m_scopes->is_global(expr->get_left());
+
+        if (is_glob) {
+            auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_left()));
+            m_code->add_ins(Opcode::LOAD_GLOBAL, idx, expr->get_span());
+        } else {
+            auto idx = m_code->add_or_get_identifier(expr->get_left());
+            m_code->add_ins(Opcode::LOAD_FAST, idx, expr->get_span());
+        }
+
+        expr->get_right()->accept(this);
+
+        inp_op(expr->get_op().get_type(), expr->get_span());
+
+        if (is_glob) {
+            auto idx = m_code->add_constant(Runtime::ins()->make_string_cache(expr->get_left()));
+            m_code->add_ins(Opcode::CREATE_GLOBAL, idx, expr->get_span());
+        } else {
+            auto idx = m_code->add_or_get_identifier(expr->get_left());
+            m_code->add_ins(Opcode::CREATE_LOCAL, idx, expr->get_span());
+        }
+    }
 
 } // bond

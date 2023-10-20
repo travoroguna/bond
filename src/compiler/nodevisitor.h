@@ -76,6 +76,12 @@ namespace bond {
 
     class DictLiteral;
 
+    class InplaceOp;
+
+    class InplaceOpItem;
+
+    class InplaceOpAttribute;
+
     class NodeVisitor {
     public:
         NodeVisitor();
@@ -83,6 +89,12 @@ namespace bond {
         virtual ~NodeVisitor();
 
         virtual void visit(BinaryOp *expr) = 0;
+
+        virtual void visit(InplaceOpItem *expr) = 0;
+
+        virtual void visit(InplaceOpAttribute *expr) = 0;
+
+        virtual void visit(InplaceOp *expr) = 0;
 
         virtual void visit(Unary *expr) = 0;
 

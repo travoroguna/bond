@@ -158,7 +158,7 @@ namespace bond {
     obj_result List::concat(const GcPtr<List> &other) {
         auto &other_l = other->get_elements();
         m_elements.insert(m_elements.end(), other_l.begin(), other_l.end());
-        return OK();
+        return this;
     }
 
     obj_result list_iterator_next(const GcPtr<Object> &Self, const t_vector &args) {
@@ -201,7 +201,8 @@ namespace bond {
                 {"clear",       {make_method<&List::clear>(),  "clear()\nremoves all items from the list"}},
                 {"index",       {make_method<&List::index>(),  "index(item: Any)\nreturns the index of the item in the list"}},
                 {"reverse",     {make_method<&List::reverse>(), "reverse()\nreverses the list"}},
-                {"concat",      {make_method<&List::concat>(),  "concat(other: List)\nappends the other list to this one"}},
+                {"concat",      {make_method<&List::concat>(),  "concat(other: List) -> List\nappends the other list to this one"}},
+                {"__i_add__", {make_method<&List::concat>(), "__i_add__(other: List) -> List\nappends the other list to this one"}},
 
         });
     }

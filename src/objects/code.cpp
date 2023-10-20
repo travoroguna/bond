@@ -145,6 +145,8 @@ namespace bond {
                 SIMPLE_INSTRUCTION(BIN_ADD);
                 SIMPLE_INSTRUCTION(BIN_SUB);
                 SIMPLE_INSTRUCTION(BIN_MUL);
+                SIMPLE_INSTRUCTION(DUPE_TWO);
+                SIMPLE_INSTRUCTION(DUPE);
                 SIMPLE_INSTRUCTION(NOT);
                 SIMPLE_INSTRUCTION(UNARY_SUB);
                 SIMPLE_INSTRUCTION(BIN_DIV);
@@ -170,6 +172,15 @@ namespace bond {
                 SIMPLE_INSTRUCTION(CHECK_RESULT);
                 SIMPLE_INSTRUCTION(REPL_TOP);
                 SIMPLE_INSTRUCTION(NEXT);
+
+                SIMPLE_INSTRUCTION(I_ADD);
+                SIMPLE_INSTRUCTION(I_SUB);
+                SIMPLE_INSTRUCTION(I_DIV);
+                SIMPLE_INSTRUCTION(I_MOD);
+                SIMPLE_INSTRUCTION(I_MUL);
+                SIMPLE_INSTRUCTION(I_BIT_OR);
+                SIMPLE_INSTRUCTION(I_BIT_AND);
+                SIMPLE_INSTRUCTION(I_BIT_XOR);
             }
 
         }

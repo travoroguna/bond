@@ -594,9 +594,7 @@ namespace bond {
         if (peek().get_type() == TokenType::IDENTIFIER) {
             auto id = consume(TokenType::IDENTIFIER, peek().get_span(), "Expected variable name after for keyword");
             variables.emplace_back(id.get_lexeme(), id.get_span());
-        }
-
-        else if (peek().get_type() == TokenType::LEFT_SQ) {
+        } else if (peek().get_type() == TokenType::LEFT_SQ) {
             consume(TokenType::LEFT_SQ, peek().get_span(), "Expected '[' after for keyword");
             auto exprs = expr_list(TokenType::RIGHT_SQ);
             consume(TokenType::RIGHT_SQ, peek().get_span(), "Expected ']' after expression");
@@ -681,10 +679,42 @@ namespace bond {
         return res;
     }
 
+
+    std::shared_ptr<Node> Parser::inplace_op(const std::shared_ptr<Node> &expr) {
+        if (!match({TokenType::PLUS_EQ, TokenType::MINUS_EQ, TokenType::STAR_EQ, TokenType::SLASH_EQ,
+                    TokenType::MOD_EQ, TokenType::BITWISE_AND_EQ, TokenType::BITWISE_OR_EQ,
+                    TokenType::BITWISE_XOR_EQ})) {
+            consume(TokenType::SEMICOLON, expr->get_span(), "Expected semicolon, ';' after expression");
+        }
+
+        auto op = previous();
+        auto right = expression();
+        consume(TokenType::SEMICOLON, right->get_span(), "Expected semicolon, ';' after expression");
+
+        if (instanceof<Identifier>(expr.get())) {
+            auto sp = span_from_spans(expr->get_span(), right->get_span());
+            auto e = dynamic_cast<Identifier *>(expr.get());
+            return std::make_shared<InplaceOp>(sp, e->get_name(), op, right);
+        } else if (instanceof<GetItem>(expr.get())) {
+            auto sp = span_from_spans(expr->get_span(), right->get_span());
+            auto e = dynamic_cast<GetItem *>(expr.get());
+            return std::make_shared<InplaceOpItem>(sp, e->get_expr(), e->get_index(), op, right);
+        } else if (instanceof<GetAttribute>(expr.get())) {
+            auto sp = span_from_spans(expr->get_span(), right->get_span());
+            auto e = dynamic_cast<GetAttribute *>(expr.get());
+            return std::make_shared<InplaceOpAttribute>(sp, e->get_expr(), e->get_name(), op, right);
+        } else {
+            throw ParserError("invalid inplace operation target", expr->get_span());
+        }
+
+    }
+
     std::shared_ptr<Node> Parser::expr_stmnt() {
         auto expr = expression();
-        consume(TokenType::SEMICOLON, expr->get_span(), "Expected semicolon, ';' after expression");
-        return std::make_shared<ExprStmnt>(expr->get_span(), expr);
+        if (match({TokenType::SEMICOLON})) {
+            return std::make_shared<ExprStmnt>(expr->get_span(), expr);
+        }
+        return inplace_op(expr);
     }
 
 

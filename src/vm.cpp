@@ -109,7 +109,7 @@ namespace bond {
         auto pre_stop_frame = m_stop_frame;
         m_stop_frame = m_frame_pointer;
 
-        exec((uint32_t )m_frame_pointer);
+        exec((uint32_t) m_frame_pointer);
 
         if (m_has_error) {
             //restore frame_pointer
@@ -370,7 +370,7 @@ namespace bond {
 
             auto args_ = const_cast<t_vector &>(args);
             setup_bound_call(instance, result.value()->as<Function>(), args_);
-            exec((uint32_t )m_frame_pointer);
+            exec((uint32_t) m_frame_pointer);
 
             if (m_stop) {
                 auto err = vformat(fmt, fmt::make_format_args(fmt_args...));
@@ -394,7 +394,7 @@ namespace bond {
 
     bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
         call_object(obj, args);
-        exec((uint32_t)m_frame_pointer);
+        exec((uint32_t) m_frame_pointer);
         return had_error();
     }
 
@@ -414,7 +414,7 @@ namespace bond {
 
             auto args_ = const_cast<t_vector &>(args);
             setup_bound_call(instance, res.value()->as<Function>(), args_);
-            exec((uint32_t )m_frame_pointer);
+            exec((uint32_t) m_frame_pointer);
 
             if (m_stop) {
                 return std::unexpected("");
@@ -515,10 +515,55 @@ namespace bond {
 
                 std::swap(m_yield_frames[i], m_yield_frames.back());
                 m_yield_frames.pop_back();
-                exec((uint32_t)m_frame_pointer);
+                exec((uint32_t) m_frame_pointer);
             }
         }
 
+    }
+
+    void Vm::bit_or() {
+        auto right = pop();
+        auto left = pop();
+
+        if (!right->is<Int>() or !left->is<Int>()) {
+            runtime_error(fmt::format("unable to apply | to {} and {}", left->str(),
+                                      right->str()),
+                          RuntimeError::GenericError, m_current_frame->get_span());
+            return;
+        }
+
+        auto res = left->as<Int>()->get_value() | right->as<Int>()->get_value();
+        push(make_int(res));
+    }
+
+    void Vm::bit_and() {
+        auto right = pop();
+        auto left = pop();
+
+        if (!right->is<Int>() or !left->is<Int>()) {
+            runtime_error(fmt::format("unable to apply & to {} and {}", left->str(),
+                                      right->str()),
+                          RuntimeError::GenericError, m_current_frame->get_span());
+            return;
+        }
+
+        auto res = left->as<Int>()->get_value() & right->as<Int>()->get_value();
+        push(make_int(res));
+    }
+
+    void Vm::bit_xor() {
+        auto right = pop();
+        auto left = pop();
+
+        if (!right->is<Int>() or !left->is<Int>()) {
+            runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(),
+                                      right->str()),
+                          RuntimeError::GenericError, m_current_frame->get_span());
+            return;
+        }
+
+        auto res = left->as<Int>()->get_value() ^ right->as<Int>()->get_value();
+        push(make_int(res));
     }
 
 
@@ -785,6 +830,17 @@ namespace bond {
                     break;
                 }
 
+                case Opcode::DUPE_TWO: {
+                    push(peek(1));
+                    push(peek(1));
+                    break;
+                }
+
+                case Opcode::DUPE: {
+                    push(peek());
+                    break;
+                }
+
                 case Opcode::SET_ITEM: {
                     auto value = pop();
                     auto index = pop();
@@ -1042,50 +1098,17 @@ namespace bond {
                 }
 
                 case Opcode::BIT_OR: {
-                    auto right = pop();
-                    auto left = pop();
-
-                    if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply | to {} and {}", left->str(),
-                                                  right->str()),
-                                      RuntimeError::GenericError, m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto res = left->as<Int>()->get_value() | right->as<Int>()->get_value();
-                    push(make_int(res));
+                    bit_or();
                     break;
                 }
 
                 case Opcode::BIT_AND: {
-                    auto right = pop();
-                    auto left = pop();
-
-                    if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply & to {} and {}", left->str(),
-                                                  right->str()),
-                                      RuntimeError::GenericError, m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto res = left->as<Int>()->get_value() & right->as<Int>()->get_value();
-                    push(make_int(res));
+                    bit_and();
                     break;
                 }
 
                 case Opcode::BIT_XOR: {
-                    auto right = pop();
-                    auto left = pop();
-
-                    if (!right->is<Int>() or !left->is<Int>()) {
-                        runtime_error(fmt::format("unable to apply ^ to {} and {}", left->str(),
-                                                  right->str()),
-                                      RuntimeError::GenericError, m_current_frame->get_span());
-                        continue;
-                    }
-
-                    auto res = left->as<Int>()->get_value() ^ right->as<Int>()->get_value();
-                    push(make_int(res));
+                    bit_xor();
                     break;
                 }
 
@@ -1304,6 +1327,47 @@ namespace bond {
                     }
                     break;
                 }
+
+                case Opcode::I_ADD: {
+                    bin_op(Slot::I_ADD, "inplace add");
+                    break;
+                }
+
+                case Opcode::I_SUB: {
+                    bin_op(Slot::I_SUB, "inplace sub");
+                    break;
+                }
+
+                case Opcode::I_MUL: {
+                    bin_op(Slot::I_MUL, "inplace mul");
+                    break;
+                }
+
+                case Opcode::I_DIV: {
+                    bin_op(Slot::I_DIV, "inplace div");
+                    break;
+                }
+
+                case Opcode::I_MOD: {
+                    bin_op(Slot::I_MOD, "inplace mod");
+                    break;
+                }
+
+                case Opcode::I_BIT_OR: {
+                    bit_or();
+                    break;
+                }
+
+                case Opcode::I_BIT_AND: {
+                    bit_and();
+                    break;
+                }
+
+                case Opcode::I_BIT_XOR: {
+                    bit_xor();
+                    break;
+                }
+
                 case Opcode::MAKE_ASYNC:
                 case Opcode::AWAIT:
                     runtime_error("asyncio not implemented");

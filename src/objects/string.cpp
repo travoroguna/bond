@@ -227,6 +227,7 @@ namespace bond {
     void init_string() {
         auto methods = method_map{
                 {"__add__",      {String_add,                           "__add__(other: String) -> String"}},
+                {"__i_add__",      {String_add,                           "__i_add__(other: String) -> String"}},
                 {"__iter__",     {String_iter,                          "__iter__() -> StringIterator"}},
                 {"__getitem__",  {String_get_item,                      "__get_item__(index: Int) -> String"}},
                 {"__eq__",       {String_eq,                            "__eq__(other: String) -> Bool"}},

@@ -95,6 +95,12 @@ namespace bond {
 
         void visit(DictLiteral *expr) override;
 
+        void visit(InplaceOpItem *expr) override;
+
+        void visit(InplaceOpAttribute *expr) override;
+
+        void visit(InplaceOp *expr) override;
+
         bool m_in_function = false;
         bool m_in_closure = false;
 
@@ -104,7 +110,7 @@ namespace bond {
         Context *m_ctx;
         Scopes *m_scopes;
         bool m_is_repl = false;
-        bool is_last {false};
+        bool is_last{false};
 
         void finish_generation(bool can_error);
 
@@ -122,6 +128,8 @@ namespace bond {
         uint32_t for_unpack(For *stmt);
 
         uint32_t for_single_var(For *stmt);
+
+        void inp_op(TokenType type, const SharedSpan &span);
     };
 
 } // bond

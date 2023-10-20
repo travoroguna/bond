@@ -26,3 +26,12 @@ std::string bond::get_exe_path() {
 #endif
     return path;
 }
+
+
+std::unordered_map<bond::Slot, t_string> bond::swap_map(const std::unordered_map<t_string, bond::Slot> &map) {
+    std::unordered_map<Slot, t_string> res;
+    for (auto const &[key, value]: map) {
+        res[value] = key;
+    }
+    return res;
+}

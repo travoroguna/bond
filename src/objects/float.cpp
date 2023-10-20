@@ -127,20 +127,27 @@ if (args[0]->is<Float>()) { \
 
 
     void init_float() {
-        Runtime::ins()->FLOAT_STRUCT = make_immortal<NativeStruct>("Float", "Float(value)", Float_construct,
-                                                                       method_map{
-                                                                               {"__add__",  {Float_add,  "add(other)"}},
-                                                                               {"__sub__",  {Float_sub,  "sub(other)"}},
-                                                                               {"__mul__",  {Float_mul,  "mul(other)"}},
-                                                                               {"__div__",  {Float_div,  "div(other)"}},
-                                                                               {"__eq__",   {Float_eq,   "__eq__"}},
-                                                                               {"__ne__",   {Float_ne,   "__ne__"}},
-                                                                               {"__gt__",   {Float_gt,   "__gt__"}},
-                                                                               {"__lt__",   {Float_lt,   "__lt__"}},
-                                                                               {"__le__",   {Float_le,   "__le__"}},
-                                                                               {"__ge__",   {Float_ge,   "__ge__"}},
-                                                                               {"__hash__", {Float_hash, "__hash__"}},
-                                                                       });
+        auto methods = method_map{
+                {"__add__",  {Float_add,  "add(other)"}},
+                {"__sub__",  {Float_sub,  "sub(other)"}},
+                {"__mul__",  {Float_mul,  "mul(other)"}},
+                {"__div__",  {Float_div,  "div(other)"}},
+
+                {"__i_add__", {Float_add, "iadd(other)"}},
+                {"__i_sub__", {Float_sub, "isub(other)"}},
+                {"__i_mul__", {Float_mul, "imul(other)"}},
+                {"__i_div__", {Float_div, "idiv(other)"}},
+
+                {"__eq__",   {Float_eq,   "__eq__"}},
+                {"__ne__",   {Float_ne,   "__ne__"}},
+                {"__gt__",   {Float_gt,   "__gt__"}},
+                {"__lt__",   {Float_lt,   "__lt__"}},
+                {"__le__",   {Float_le,   "__le__"}},
+                {"__ge__",   {Float_ge,   "__ge__"}},
+                {"__hash__", {Float_hash, "__hash__"}},
+        };
+
+        Runtime::ins()->FLOAT_STRUCT = make_immortal<NativeStruct>("Float", "Float(value)", Float_construct, methods);
     }
 
 }

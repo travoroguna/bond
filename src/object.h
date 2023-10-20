@@ -116,34 +116,26 @@ namespace bond {
         CREATE_CLOSURE,
         CREATE_CLOSURE_EX,
         IMPORT_PRE_COMPILED,
-        BUILD_DICT, CHECK_RESULT, REPL_TOP
+        BUILD_DICT, CHECK_RESULT, REPL_TOP,
+
+        DUPE_TWO,
+
+        // inplace operators
+        I_ADD, I_SUB, I_DIV, I_MOD, I_MUL, I_BIT_OR, I_BIT_AND, I_BIT_XOR, DUPE
     };
 
     enum Slot : uint32_t {
-        NE = 0,
-        EQ,
-        LE,
-        GT,
-        GE,
-        LT,
+        NE = 0, EQ, LE, GT, GE, LT,
 
-        BIN_ADD,
-        BIN_SUB,
-        BIN_MUL,
-        BIN_DIV,
-        BIN_MOD,
-        UNARY_SUB,
+        BIN_ADD, BIN_SUB, BIN_MUL, BIN_DIV, BIN_MOD, UNARY_SUB,
 
-        GET_ATTR,
-        SET_ATTR,
-        GET_ITEM,
-        SET_ITEM,
+        GET_ATTR, SET_ATTR, GET_ITEM, SET_ITEM,
 
-        ITER,
-        NEXT,
-        HAS_NEXT,
+        ITER, NEXT, HAS_NEXT,
 
         HASH,
+
+        I_ADD, I_SUB, I_DIV, I_MOD, I_MUL, I_BIT_OR, I_BIT_AND, I_BIT_XOR,
 
         SIZE
     };
@@ -933,6 +925,14 @@ namespace bond {
         return dynamic_cast<T *>(obj.get());
     }
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4702)
+#pragma warning(disable: 4100)
+#pragma warning(disable: 4244)
+#pragma warning(disable: 4189)
+#endif
+
     template<size_t I, typename... Values>
     obj_result assign_args(const t_vector &args, Values &... values) {
         constexpr size_t N = sizeof...(Values);
@@ -954,6 +954,10 @@ namespace bond {
 
         return OK();
     }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
     GcPtr<Float> make_float(double value);
 

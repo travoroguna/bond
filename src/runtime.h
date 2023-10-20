@@ -20,6 +20,8 @@
 namespace bond {
     std::string get_exe_path();
 
+    std::unordered_map<Slot, t_string> swap_map(const std::unordered_map<t_string, Slot> &map);
+
     class Runtime {
         GcPtr<Int> int_cache[256];
         std::unordered_map<t_string, GcPtr<String>> string_cache;
@@ -28,6 +30,39 @@ namespace bond {
         std::unordered_map<t_string, t_map> module_types;
 
     public:
+        std::unordered_map<t_string, Slot> method_mappings = {
+                {"__ne__",       Slot::NE},
+                {"__eq__",       Slot::EQ},
+                {"__lt__",       Slot::LT},
+                {"__gt__",       Slot::GT},
+                {"__le__",       Slot::LE},
+                {"__ge__",       Slot::GE},
+                {"__add__",      Slot::BIN_ADD},
+                {"__sub__",      Slot::BIN_SUB},
+                {"__mul__",      Slot::BIN_MUL},
+                {"__div__",      Slot::BIN_DIV},
+                {"__mod__",      Slot::BIN_MOD},
+                {"__getattr__",  Slot::GET_ATTR},
+                {"__setattr__",  Slot::SET_ATTR},
+                {"__getitem__",  Slot::GET_ITEM},
+                {"__setitem__",  Slot::SET_ITEM},
+                {"__iter__",     Slot::ITER},
+                {"__next__",     Slot::NEXT},
+                {"__has_next__", Slot::HAS_NEXT},
+                {"__hash__",     Slot::HASH},
+
+                {"__i_add__", Slot::I_ADD},
+                {"__i_sub__", Slot::I_SUB},
+                {"__i_div__", Slot::I_DIV},
+                {"__i_mul__", Slot::I_MUL},
+                {"__i_mod__", Slot::I_MOD},
+                {"__i_bit_and__", Slot::I_BIT_AND},
+                {"__i_bit_or__", Slot::I_BIT_OR},
+                {"__i_bit_xor__", Slot::I_BIT_XOR},
+        };
+
+        std::unordered_map<Slot, t_string> slot_str_map = swap_map(method_mappings);
+
         static Runtime* ins() {
             static Runtime runtime;
             return &runtime;
