@@ -43,7 +43,7 @@ fn test_all() {
 
     var count = 1;
     for test in collection {
-        print(format("\r[{}/{}] {}", count, collection.size(), test.__name__));
+        println(format("[{}/{}] {}", count, collection.size(), test.__name__));
 
         var res = test();
         if res.is_ok() {
