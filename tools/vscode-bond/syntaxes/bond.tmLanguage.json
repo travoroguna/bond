@@ -50,6 +50,14 @@
         {
           "name": "variable.parameter.bond",
           "match": "\\b(self)\\b"
+        },
+        {
+          "name": "storage.type.bond",
+          "match": "\\b(Int|Float|Bool|Nil|String|HashMap|List)\\b"
+        },
+        {
+          "name": "storage.modifier.bond",
+          "match": "\\b(\\<|\\>)\\b"
         }
       ]
     },
