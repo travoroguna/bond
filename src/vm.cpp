@@ -95,7 +95,8 @@ void Vm::call_function(const GcPtr<Function> &function, const t_vector &args,
   m_current_frame = frame;
 }
 
-GcPtr<Object> Vm::call_function_ex(const GcPtr<Object> &function, const t_vector &args) {
+GcPtr<Object> Vm::call_function_ex(const GcPtr<Object> &function,
+                                   const t_vector &args) {
   std::lock_guard<std::mutex> lock(m_func_ex_lock);
 
   if (m_has_error) {
@@ -107,10 +108,10 @@ GcPtr<Object> Vm::call_function_ex(const GcPtr<Object> &function, const t_vector
   auto pre_stop_frame = m_stop_frame;
   m_stop_frame = m_frame_pointer;
 
-  exec((uint32_t) m_frame_pointer);
+  exec((uint32_t)m_frame_pointer);
 
   if (m_has_error) {
-    //restore frame_pointer
+    // restore frame_pointer
     m_frame_pointer = m_stop_frame - 1;
     m_current_frame = &m_frames[m_frame_pointer];
   }
@@ -125,7 +126,8 @@ void Vm::setup_bound_call(const GcPtr<Object> &instance,
   auto params = function->get_arguments();
   if (params.size() - 1 != args.size()) {
     runtime_error(fmt::format("fn {} expected {} arguments, got {}",
-                              function->get_name(), params.size() - 1, args.size()),
+                              function->get_name(), params.size() - 1,
+                              args.size()),
                   RuntimeError::GenericError, m_current_frame->get_span());
     return;
   }
@@ -173,18 +175,23 @@ void Vm::create_instance(const GcPtr<Struct> &_struct, const t_vector &args) {
 }
 
 void Vm::runtime_error(const t_string &error, RuntimeError e,
-                       [[maybe_unused]]const SharedSpan &span) {
+                       [[maybe_unused]] const SharedSpan &span) {
 
   t_string err;
   switch (e) {
-  case RuntimeError::TypeError:err = fmt::format("TypeError: {}", error);
+  case RuntimeError::TypeError:
+    err = fmt::format("TypeError: {}", error);
     break;
-  case RuntimeError::Unimplemented:err = fmt::format("Unimplemented: {}", error);
+  case RuntimeError::Unimplemented:
+    err = fmt::format("Unimplemented: {}", error);
     break;
-  case RuntimeError::DivisionByZero:err = fmt::format("Division by zero, {}", error);
+  case RuntimeError::DivisionByZero:
+    err = fmt::format("Division by zero, {}", error);
     break;
-  case RuntimeError::AttributeNotFound:err = fmt::format("Attribute not found, {}", error);
-  default:err = error;
+  case RuntimeError::AttributeNotFound:
+    err = fmt::format("Attribute not found, {}", error);
+  default:
+    err = error;
     break;
   }
 
@@ -339,7 +346,7 @@ void Vm::compare_op(Slot slot, const t_string &op_name) {
  * if there was an error.
  */
 
-template<typename... T>
+template <typename... T>
 [[nodiscard]] GcPtr<Object>
 Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args,
               fmt::format_string<T...> fmt, T &&...fmt_args) {
@@ -362,7 +369,7 @@ Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args,
 
     auto args_ = const_cast<t_vector &>(args);
     setup_bound_call(instance, result.value()->as<Function>(), args_);
-    exec((uint32_t) m_frame_pointer);
+    exec((uint32_t)m_frame_pointer);
 
     if (m_stop) {
       auto err = vformat(fmt, fmt::make_format_args(fmt_args...));
@@ -386,7 +393,7 @@ Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args,
 
 bool Vm::call_object_ex(const GcPtr<Object> &obj, t_vector &args) {
   call_object(obj, args);
-  exec((uint32_t) m_frame_pointer);
+  exec((uint32_t)m_frame_pointer);
   return had_error();
 }
 
@@ -405,7 +412,7 @@ Vm::call_slot(Slot slot, const GcPtr<Object> &instance, const t_vector &args) {
 
     auto args_ = const_cast<t_vector &>(args);
     setup_bound_call(instance, res.value()->as<Function>(), args_);
-    exec((uint32_t) m_frame_pointer);
+    exec((uint32_t)m_frame_pointer);
 
     if (m_stop) {
       return std::unexpected("");
@@ -437,7 +444,6 @@ void Vm::call_object(const GcPtr<Object> &func, t_vector &args) {
   } else {
     runtime_error(fmt::format("{} is not callable", func->str()));
   }
-
 }
 
 void Vm::call_native_function(const GcPtr<Object> &func, t_vector &args) {
@@ -504,10 +510,9 @@ void Vm::process_events_if_needed() {
 
       std::swap(m_yield_frames[i], m_yield_frames.back());
       m_yield_frames.pop_back();
-      exec((uint32_t) m_frame_pointer);
+      exec((uint32_t)m_frame_pointer);
     }
   }
-
 }
 
 void Vm::bit_or() {
@@ -567,7 +572,8 @@ void Vm::exec(uint32_t stop_frame) {
 #endif
 
     switch (opcode) {
-    case Opcode::LOAD_CONST:push(m_current_frame->get_constant());
+    case Opcode::LOAD_CONST:
+      push(m_current_frame->get_constant());
       break;
 
     case Opcode::CREATE_FUNCTION: {
@@ -659,20 +665,27 @@ void Vm::exec(uint32_t stop_frame) {
       bin_op(Slot::BIN_DIV, "divide");
       break;
 
-    case Opcode::BIN_MOD:bin_op(Slot::BIN_MOD, "modulo");
+    case Opcode::BIN_MOD:
+      bin_op(Slot::BIN_MOD, "modulo");
       break;
 
-    case Opcode::NE:compare_op(Slot::NE, "compare (!=)");
+    case Opcode::NE:
+      compare_op(Slot::NE, "compare (!=)");
       break;
-    case Opcode::EQ:compare_op(Slot::EQ, "compare (==)");
+    case Opcode::EQ:
+      compare_op(Slot::EQ, "compare (==)");
       break;
-    case Opcode::LT:bin_op(Slot::LT, "compare (<)");
+    case Opcode::LT:
+      bin_op(Slot::LT, "compare (<)");
       break;
-    case Opcode::LE:bin_op(Slot::LE, "compare (<=)");
+    case Opcode::LE:
+      bin_op(Slot::LE, "compare (<=)");
       break;
-    case Opcode::GT:bin_op(Slot::GT, "compare (>)");
+    case Opcode::GT:
+      bin_op(Slot::GT, "compare (>)");
       break;
-    case Opcode::GE:bin_op(Slot::GE, "compare (>=)");
+    case Opcode::GE:
+      bin_op(Slot::GE, "compare (>=)");
       break;
     case Opcode::TRY: {
       if (peek()->is<Result>()) {
@@ -727,11 +740,14 @@ void Vm::exec(uint32_t stop_frame) {
       process_events_if_needed();
       break;
     }
-    case Opcode::PUSH_TRUE:push(m_True);
+    case Opcode::PUSH_TRUE:
+      push(m_True);
       break;
-    case Opcode::PUSH_FALSE:push(m_False);
+    case Opcode::PUSH_FALSE:
+      push(m_False);
       break;
-    case Opcode::PUSH_NIL:push(m_Nil);
+    case Opcode::PUSH_NIL:
+      push(m_Nil);
       break;
     case Opcode::LOAD_GLOBAL: {
       auto &name =
@@ -791,8 +807,7 @@ void Vm::exec(uint32_t stop_frame) {
         continue;
       }
       pop();
-    }
-      break;
+    } break;
 
     case Opcode::BUILD_LIST: {
 
@@ -839,7 +854,8 @@ void Vm::exec(uint32_t stop_frame) {
       auto position = m_current_frame->get_oprand();
       auto cond = pop();
 
-      auto res = Runtime::ins()->BOOL_STRUCT->create({cond}).value()->as<Bool>();
+      auto res =
+          Runtime::ins()->BOOL_STRUCT->create({cond}).value()->as<Bool>();
 
       if (!res->get_value()) {
         m_current_frame->jump_absolute(position);
@@ -858,7 +874,8 @@ void Vm::exec(uint32_t stop_frame) {
       auto right = pop();
       auto left = pop();
 
-      auto res = Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
+      auto res =
+          Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
 
       if (res->get_value()) {
         push(left);
@@ -873,8 +890,10 @@ void Vm::exec(uint32_t stop_frame) {
       auto right = pop();
       auto left = pop();
 
-      auto l_bool = Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
-      auto r_bool = Runtime::ins()->BOOL_STRUCT->create({right}).value()->as<Bool>();
+      auto l_bool =
+          Runtime::ins()->BOOL_STRUCT->create({left}).value()->as<Bool>();
+      auto r_bool =
+          Runtime::ins()->BOOL_STRUCT->create({right}).value()->as<Bool>();
 
       auto l = l_bool->get_value();
       auto r = r_bool->get_value();
@@ -990,7 +1009,8 @@ void Vm::exec(uint32_t stop_frame) {
       auto obj = pop();
 
       if (obj->is<NativeInstance>()) {
-        auto result = obj->as<NativeInstance>()->get_attr(attr->as<String>()->get_value_ref());
+        auto result = obj->as<NativeInstance>()->get_attr(
+            attr->as<String>()->get_value_ref());
 
         if (result.has_value()) {
           auto res = result.value();
@@ -1047,7 +1067,8 @@ void Vm::exec(uint32_t stop_frame) {
     }
 
     case Opcode::BREAK:
-    case Opcode::CONTINUE:m_current_frame->jump_absolute(m_current_frame->get_oprand());
+    case Opcode::CONTINUE:
+      m_current_frame->jump_absolute(m_current_frame->get_oprand());
       break;
     case Opcode::MAKE_OK: {
       push(make_result(pop(), false));
@@ -1304,7 +1325,8 @@ void Vm::exec(uint32_t stop_frame) {
 
     case Opcode::CHECK_RESULT: {
       if (!peek()->is<Result>()) {
-        runtime_error(fmt::format("expected result, got {}", get_type_name(peek())));
+        runtime_error(
+            fmt::format("expected result, got {}", get_type_name(peek())));
       }
       break;
     }
@@ -1350,17 +1372,18 @@ void Vm::exec(uint32_t stop_frame) {
     }
 
     case Opcode::MAKE_ASYNC:
-    case Opcode::AWAIT:runtime_error("asyncio not implemented");
+    case Opcode::AWAIT:
+      runtime_error("asyncio not implemented");
       break;
     }
 
 #ifdef STORE_OPCODES
     auto stop = std::chrono::high_resolution_clock::now();
-    m_opcodes.push_back(std::make_pair(opcode, std::chrono::duration_cast<std::chrono::microseconds>(stop - start)));
+    m_opcodes.push_back(std::make_pair(
+        opcode,
+        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)));
 #endif
-
   }
-
 }
 
 } // namespace bond

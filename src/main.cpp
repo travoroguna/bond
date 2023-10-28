@@ -9,12 +9,12 @@ int main(int32_t argc, char **argv) {
 #ifdef _WIN32
   auto lib_path =
       std::filesystem::path(bond::get_exe_path()).parent_path().string() +
-          "/../libraries/";
+      "/../libraries/";
 
   if (!std::filesystem::exists(lib_path)) {
     lib_path =
         std::filesystem::path(bond::get_exe_path()).parent_path().string() +
-            "/";
+        "/";
   }
 
   fmt::print("lib_path: {}\n", lib_path);
@@ -29,7 +29,8 @@ int main(int32_t argc, char **argv) {
 
 #endif
 
-  auto args = std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
+  auto args =
+      std::vector<std::string, gc_allocator<std::string>>(argv, argv + argc);
   auto engine = bond::create_engine(lib_path, args);
 
   std::string file;
@@ -127,7 +128,8 @@ int main(int32_t argc, char **argv) {
   }
 
 #ifdef STORE_OPCODES
-  std::unordered_map<bond::Opcode, std::pair<size_t, std::chrono::microseconds>> opcodes;
+  std::unordered_map<bond::Opcode, std::pair<size_t, std::chrono::microseconds>>
+      opcodes;
   for (auto &[opcode, time] : vm.m_opcodes) {
     opcodes[opcode].first++;
     opcodes[opcode].second += time;
@@ -135,12 +137,9 @@ int main(int32_t argc, char **argv) {
 
   auto total = std::chrono::microseconds::zero();
   for (auto &[opcode, count] : opcodes) {
-    auto call_to_time_avg = (double) count.second.count() / count.first;
-    fmt::print("{:16}: {:012} {}, {}\n",
-               bond::opcode_to_string(opcode),
-               count.first,
-               count.second.count(),
-               call_to_time_avg);
+    auto call_to_time_avg = (double)count.second.count() / count.first;
+    fmt::print("{:16}: {:012} {}, {}\n", bond::opcode_to_string(opcode),
+               count.first, count.second.count(), call_to_time_avg);
     total += count.second;
   }
 

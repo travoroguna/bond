@@ -3,28 +3,31 @@
 //
 
 #include "engine.h"
+#include "compiler/lexer.h"
 #include "import.h"
 #include "lsp/resolver.h"
-#include <replxx.hxx>
-#include "compiler/lexer.h"
 #include <cmath>
+#include <replxx.hxx>
 
 namespace bond {
 
 size_t levenshteinDist(const std::string &word1, const std::string &word2) {
   size_t size1 = word1.size();
   size_t size2 = word2.size();
-  //int verif[size1 + 1][size2 + 1]; // Verification matrix i.e. 2D array which will store the calculated distance.
+  // int verif[size1 + 1][size2 + 1]; // Verification matrix i.e. 2D array which
+  // will store the calculated distance.
 
   std::vector<std::vector<int>> verif(size1 + 1, std::vector<int>(size2 + 1));
 
-  // If one of the words has zero length, the distance is equal to the size of the other word.
+  // If one of the words has zero length, the distance is equal to the size of
+  // the other word.
   if (size1 == 0)
     return size2;
   if (size2 == 0)
     return size1;
 
-  // Sets the first row and the first column of the verification matrix with the numerical order from 0 to the length of each word.
+  // Sets the first row and the first column of the verification matrix with the
+  // numerical order from 0 to the length of each word.
   for (int i = 0; i <= size1; i++)
     verif[i][0] = i;
   for (int j = 0; j <= size2; j++)
@@ -34,17 +37,17 @@ size_t levenshteinDist(const std::string &word1, const std::string &word2) {
   for (int i = 1; i <= size1; i++) {
     for (int j = 1; j <= size2; j++) {
       // Sets the modification cost.
-      // 0 means no modification (i.e. equal letters) and 1 means that a modification is needed (i.e. unequal letters).
+      // 0 means no modification (i.e. equal letters) and 1 means that a
+      // modification is needed (i.e. unequal letters).
       int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
 
-      // Sets the current position of the matrix as the minimum value between a (deletion), b (insertion) and c (substitution).
-      // a = the upper adjacent value plus 1: verif[i - 1][j] + 1
-      // b = the left adjacent value plus 1: verif[i][j - 1] + 1
-      // c = the upper left adjacent value plus the modification cost: verif[i - 1][j - 1] + cost
-      verif[i][j] = std::min(
-          std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
-          verif[i - 1][j - 1] + cost
-      );
+      // Sets the current position of the matrix as the minimum value between a
+      // (deletion), b (insertion) and c (substitution). a = the upper adjacent
+      // value plus 1: verif[i - 1][j] + 1 b = the left adjacent value plus 1:
+      // verif[i][j - 1] + 1 c = the upper left adjacent value plus the
+      // modification cost: verif[i - 1][j - 1] + cost
+      verif[i][j] = std::min(std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
+                             verif[i - 1][j - 1] + cost);
     }
   }
 
@@ -101,7 +104,8 @@ void bond::Engine::run_repl() {
         for (auto &token : tokens) {
           if (keywords.contains(token.get_lexeme())) {
             assign_range(token.get_span(), Color::BRIGHTMAGENTA);
-          } else if (token.get_type() == TokenType::INTEGER or token.get_type() == TokenType::FLOAT) {
+          } else if (token.get_type() == TokenType::INTEGER or
+              token.get_type() == TokenType::FLOAT) {
             assign_range(token.get_span(), Color::BRIGHTBLUE);
           } else if (token.get_type() == TokenType::STRING) {
             assign_range(token.get_span(), Color::BRIGHTCYAN);
@@ -115,76 +119,76 @@ void bond::Engine::run_repl() {
             assign_range(token.get_span(), Color::DEFAULT);
           }
         }
-
       });
 
-  rx.set_completion_callback([&](std::string const &input,
-                                 [[maybe_unused]]int &contextLen) -> replxx::Replxx::completions_t {
-    if (input.starts_with("."))
-      return {};
+  rx.set_completion_callback(
+      [&](std::string const &input,
+          [[maybe_unused]] int &contextLen) -> replxx::Replxx::completions_t {
+        if (input.starts_with("."))
+          return {};
 
-    std::vector<replxx::Replxx::Completion> hints;
+        std::vector<replxx::Replxx::Completion> hints;
 
-    for (auto &[name, _] : globals->get_value()) {
-      if (levenshteinDist(name.c_str(), input) < 5)
-        hints.emplace_back(name.c_str());
-    }
+        for (auto &[name, _] : globals->get_value()) {
+          if (levenshteinDist(name.c_str(), input) < 5)
+            hints.emplace_back(name.c_str());
+        }
 
-    for (auto &[name, _] : keywords) {
-      if (levenshteinDist(name, input) < 5)
-        hints.emplace_back(name, comp_green);
-    }
+        for (auto &[name, _] : keywords) {
+          if (levenshteinDist(name, input) < 5)
+            hints.emplace_back(name, comp_green);
+        }
 
-    return hints;
-  });
+        return hints;
+      });
 
-  rx.set_hint_callback([&](std::string const &input,
-                           [[maybe_unused]]int &contextLen,
-                           [[maybe_unused]]Color &color) -> replxx::Replxx::hints_t {
-    if (input.starts_with("."))
-      return {};
-    std::vector<std::string> hints;
+  rx.set_hint_callback(
+      [&](std::string const &input, [[maybe_unused]] int &contextLen,
+          [[maybe_unused]] Color &color) -> replxx::Replxx::hints_t {
+        if (input.starts_with("."))
+          return {};
+        std::vector<std::string> hints;
 
-    for (auto &[name, _] : globals->get_value()) {
-      if (levenshteinDist(name.c_str(), input) < 5)
-        hints.emplace_back(name.c_str());
-    }
+        for (auto &[name, _] : globals->get_value()) {
+          if (levenshteinDist(name.c_str(), input) < 5)
+            hints.emplace_back(name.c_str());
+        }
 
-    for (auto &[name, _] : keywords) {
-      if (levenshteinDist(name, input) < 5)
-        hints.emplace_back(name);
-    }
+        for (auto &[name, _] : keywords) {
+          if (levenshteinDist(name, input) < 5)
+            hints.emplace_back(name);
+        }
 
-    return hints;
-//            if (input.starts_with(".")) return {};
-//
-//            std::vector<std::string> hints{""};
-//
-//            Lexer lexer(input, &m_context, id);
-//            lexer.disable_reporting();
-//
-//            Parser parser(lexer.tokenize(), &m_context);
-//
-//            for (auto &[rep, _]: lexer.get_error_spans()) {
-//                hints.emplace_back(rep);
-//            }
-//
-//            if (m_context.has_error()) {
-//                m_context.reset_error();
-//                return hints;
-//            }
-//
-//            parser.set_scopes(&scopes);
-//            parser.disable_reporting();
-//            parser.parse();
-//
-//            for (auto &[rep, _]: parser.get_diagnostics()) {
-//                hints.emplace_back(rep);
-//            }
-//
-//            m_context.reset_error();
-//            return hints;
-  });
+        return hints;
+        //            if (input.starts_with(".")) return {};
+        //
+        //            std::vector<std::string> hints{""};
+        //
+        //            Lexer lexer(input, &m_context, id);
+        //            lexer.disable_reporting();
+        //
+        //            Parser parser(lexer.tokenize(), &m_context);
+        //
+        //            for (auto &[rep, _]: lexer.get_error_spans()) {
+        //                hints.emplace_back(rep);
+        //            }
+        //
+        //            if (m_context.has_error()) {
+        //                m_context.reset_error();
+        //                return hints;
+        //            }
+        //
+        //            parser.set_scopes(&scopes);
+        //            parser.disable_reporting();
+        //            parser.parse();
+        //
+        //            for (auto &[rep, _]: parser.get_diagnostics()) {
+        //                hints.emplace_back(rep);
+        //            }
+        //
+        //            m_context.reset_error();
+        //            return hints;
+      });
 
   rx.set_indent_multiline(true);
   rx.set_complete_on_empty(true);
@@ -200,9 +204,7 @@ void bond::Engine::run_repl() {
 
   std::unordered_map<std::string, command> commands;
 
-  commands[".exit"] = [&]() {
-    run = false;
-  };
+  commands[".exit"] = [&]() { run = false; };
 
   commands[".diss"] = [&]() {
     diss = !diss;
@@ -220,9 +222,7 @@ void bond::Engine::run_repl() {
             <CTRL><R>     - reverse search history
         )";
 
-  commands[".help"] = [&]() {
-    fmt::print("{}\n", help);
-  };
+  commands[".help"] = [&]() { fmt::print("{}\n", help); };
 
   fmt::print("enter .help for help\n");
   while (run) {
@@ -241,7 +241,7 @@ void bond::Engine::run_repl() {
       if (commands.contains(input)) {
         commands[input]();
         continue;
-//                    rx.history_add(input);
+        //                    rx.history_add(input);
       }
       fmt::print("unknown command {}\n", input);
       continue;
@@ -299,11 +299,11 @@ void bond::Engine::run_repl() {
     auto top = vm.get_repl_result();
 
     if (top.has_value()) {
-      assert(top.value().get() != nullptr && "top is null, report this as a bug");
+      assert(top.value().get() != nullptr &&
+          "top is null, report this as a bug");
       fmt::print("{}\n", top.value()->str());
     }
   }
-
 }
 
 void Engine::execute_source(std::string &source, const char *path, Vm &vm) {
@@ -346,7 +346,6 @@ void Engine::execute_source(std::string &source, const char *path, Vm &vm) {
   }
 
   vm.run(bytecode);
-
 }
 
 void Engine::run_file(const std::string &path) {
@@ -359,12 +358,11 @@ void Engine::add_core_module(const GcPtr<Module> &mod) {
 }
 
 Engine *
-create_engine(const std::string &lib_path, const std::vector<std::string, gc_allocator<std::string>> &args) {
+create_engine(const std::string &lib_path,
+              const std::vector<std::string, gc_allocator<std::string>> &args) {
   GC_INIT();
 
-  GC_set_warn_proc([](char *msg, GC_word arg) {
-    printf(msg, arg);
-  });
+  GC_set_warn_proc([](char *msg, GC_word arg) { printf(msg, arg); });
 
   Runtime::ins()->init();
   bond::build_core_module();
@@ -374,6 +372,7 @@ create_engine(const std::string &lib_path, const std::vector<std::string, gc_all
 }
 
 Engine *create_engine(const std::string &lib_path) {
-  return create_engine(lib_path, std::vector<std::string, gc_allocator<std::string>>());
+  return create_engine(lib_path,
+                       std::vector<std::string, gc_allocator<std::string>>());
 }
-}
+} // namespace bond

@@ -6,24 +6,30 @@
 #include <sstream>
 
 namespace bond {
-size_t Code::simple_instruction(std::stringstream &ss, const char *name, size_t offset) {
+size_t Code::simple_instruction(std::stringstream &ss, const char *name,
+                                size_t offset) {
   ss << fmt::format("{}\n", name);
   return offset + 1;
 }
 
-size_t Code::constant_instruction(std::stringstream &ss, const char *name, size_t offset) const {
+size_t Code::constant_instruction(std::stringstream &ss, const char *name,
+                                  size_t offset) const {
   auto constant = m_constants[m_instructions[offset + 1]];
-  ss << fmt::format("{:<16} {:0>4}, {:<16}\n", name, m_instructions[offset + 1], constant->str());
+  ss << fmt::format("{:<16} {:0>4}, {:<16}\n", name, m_instructions[offset + 1],
+                    constant->str());
   return offset + 2;
 }
 
-size_t Code::local_instruction(std::stringstream &ss, const char *name, size_t offset) const {
+size_t Code::local_instruction(std::stringstream &ss, const char *name,
+                               size_t offset) const {
   auto constant = m_identifier_table[m_instructions[offset + 1]];
-  ss << fmt::format("{:<16} {:0>4}, {:<16}\n", name, m_instructions[offset + 1], constant);
+  ss << fmt::format("{:<16} {:0>4}, {:<16}\n", name, m_instructions[offset + 1],
+                    constant);
   return offset + 2;
 }
 
-size_t Code::oprand_instruction(std::stringstream &ss, const char *name, size_t offset) const {
+size_t Code::oprand_instruction(std::stringstream &ss, const char *name,
+                                size_t offset) const {
   ss << fmt::format("{:<16} {:<4}\n", name, m_instructions[offset + 1]);
   return offset + 2;
 }
@@ -66,9 +72,9 @@ void Code::add_ins(Opcode code, uint32_t oprand, const SharedSpan &span) {
 }
 
 const char *opcode_to_string(Opcode op) {
-#define SIMPLE_INSTRUCTION(name) \
-        case Opcode::name:    \
-            return #name
+#define SIMPLE_INSTRUCTION(name)                                               \
+  case Opcode::name:                                                           \
+    return #name
 
   switch (op) {
   SIMPLE_INSTRUCTION(LOAD_CONST);
@@ -154,24 +160,24 @@ t_string Code::disassemble() const {
   std::stringstream ss;
   size_t count = 0;
 
-#define SIMPLE_INSTRUCTION(name) \
-        case Opcode::name:    \
-            count = simple_instruction(ss, #name, count);\
-            break
+#define SIMPLE_INSTRUCTION(name)                                               \
+  case Opcode::name:                                                           \
+    count = simple_instruction(ss, #name, count);                              \
+    break
 
-#define CONSTANT_INSTRUCTION(name) \
-        case Opcode::name:    \
-            count = constant_instruction(ss, #name, count);\
-            break
-#define OPRAND_INSTRUCTION(name) \
-        case Opcode::name:    \
-            count = oprand_instruction(ss, #name, count);\
-            break
+#define CONSTANT_INSTRUCTION(name)                                             \
+  case Opcode::name:                                                           \
+    count = constant_instruction(ss, #name, count);                            \
+    break
+#define OPRAND_INSTRUCTION(name)                                               \
+  case Opcode::name:                                                           \
+    count = oprand_instruction(ss, #name, count);                              \
+    break
 
-#define LOCAL_INSTRUCTION(name) \
-        case Opcode::name:    \
-            count = local_instruction(ss, #name, count);\
-            break
+#define LOCAL_INSTRUCTION(name)                                                \
+  case Opcode::name:                                                           \
+    count = local_instruction(ss, #name, count);                               \
+    break
 
   size_t pre_line = 0;
 
@@ -262,7 +268,6 @@ t_string Code::disassemble() const {
     SIMPLE_INSTRUCTION(I_BIT_AND);
     SIMPLE_INSTRUCTION(I_BIT_XOR);
     }
-
   }
 
 #undef SIMPLE_INSTRUCTION
@@ -287,7 +292,8 @@ t_string Code::disassemble() const {
 }
 
 uint32_t Code::add_or_get_identifier(const t_string &identifier) {
-  auto pos = std::find(m_identifier_table.begin(), m_identifier_table.end(), identifier);
+  auto pos = std::find(m_identifier_table.begin(), m_identifier_table.end(),
+                       identifier);
   if (pos == m_identifier_table.end()) {
     m_identifier_table.push_back(identifier);
     return (uint32_t) m_identifier_table.size() - 1;
@@ -308,6 +314,7 @@ obj_result Code_construct(const t_vector &args) {
 }
 
 void init_code() {
-  Runtime::ins()->CODE_STRUCT = make_immortal<NativeStruct>("Code", "Code()", Code_construct);
+  Runtime::ins()->CODE_STRUCT =
+      make_immortal<NativeStruct>("Code", "Code()", Code_construct);
 }
-}
+} // namespace bond

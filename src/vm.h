@@ -25,7 +25,8 @@
 #endif
 
 namespace bond {
-#define TO_BOOL(X) Runtime::ins()->BOOL_STRUCT->create({(X)}).value()->as<Bool>()
+#define TO_BOOL(X)                                                             \
+  Runtime::ins()->BOOL_STRUCT->create({(X)}).value()->as<Bool>()
 
 class Frame {
 public:
@@ -41,7 +42,7 @@ public:
 
   uint32_t get_oprand() { return m_code->get_code(m_ip++); }
 
-  SharedSpan get_span() {
+  SharedSpan get_span() const {
     if (m_ip == 0) {
       return m_code->get_span(0);
     }
@@ -95,7 +96,7 @@ public:
 
   GcPtr<StringMap> get_globals() { return m_globals; }
 
-  size_t get_ip() { return m_ip; }
+  size_t get_ip() const { return m_ip; }
 
   bool is_at_end() { return m_ip >= m_code->get_code_size(); }
 
@@ -123,7 +124,8 @@ struct AsyncFrame : public gc {
   Frame frame;
   GcPtr<Future> future;
 
-  AsyncFrame(Frame frame, const GcPtr<Future> &future) : frame(std::move(frame)), future(future) {}
+  AsyncFrame(Frame frame, const GcPtr<Future> &future)
+      : frame(std::move(frame)), future(future) {}
 };
 
 #define FRAME_MAX 512
@@ -157,9 +159,9 @@ public:
 
   void run(const GcPtr<Code> &code);
 
-  bool has_top() { return m_stack_pointer > 0; }
+  bool has_top() const { return m_stack_pointer > 0; }
 
-  bool had_error() { return m_has_error; }
+  bool had_error() const { return m_has_error; }
 
   void reset_error() { m_has_error = false; }
 
@@ -204,16 +206,19 @@ public:
 
   void runtime_error(const t_string &error);
 
-  void set_start_event_loop_cb(std::function<void()> cb) { m_start_event_loop_cb = cb; }
+  void set_start_event_loop_cb(std::function<void()> cb) {
+    m_start_event_loop_cb = cb;
+  }
 
-  GcPtr<Object> call_function_ex(const GcPtr<Object> &function, const t_vector &args);
+  GcPtr<Object> call_function_ex(const GcPtr<Object> &function,
+                                 const t_vector &args);
 
   std::optional<GcPtr<Object>> get_repl_result() { return repl_result; }
 
   void init_bin_funcs();
 
 #ifdef STORE_OPCODES
-  std::vector<std::pair<Opcode, std::chrono::microseconds>> m_opcodes;
+  std::vector<std::pair<Opcode, std::chrono::microseconds>> m_opcodes{};
 #endif
 
 private:
@@ -221,7 +226,7 @@ private:
   GcPtr<Object> stack[1024];
   int m_stack_pointer = -1;
 
-  std::optional<GcPtr<Object>> repl_result;
+  std::optional<GcPtr<Object>> repl_result{};
   GcPtr<Bool> m_True;
   GcPtr<Bool> m_False;
   GcPtr<None> m_Nil;
@@ -232,7 +237,7 @@ private:
   size_t m_frame_pointer = 0;
   std::array<Frame, FRAME_MAX> m_frames;
   Frame *m_current_frame = nullptr;
-  t_vector m_args;
+  t_vector m_args{};
 
   GcPtr<StringMap> m_globals;
 
@@ -272,15 +277,15 @@ private:
 
   void bin_alt(const NativeMethodPtr &meth, const char *op_name);
 
-  NativeMethodPtr i_add;
-  NativeMethodPtr i_sub;
-  NativeMethodPtr i_mul;
-  NativeMethodPtr i_div;
+  NativeMethodPtr i_add{};
+  NativeMethodPtr i_sub{};
+  NativeMethodPtr i_mul{};
+  NativeMethodPtr i_div{};
 
-  NativeMethodPtr f_add;
-  NativeMethodPtr f_sub;
-  NativeMethodPtr f_mul;
-  NativeMethodPtr f_div;
+  NativeMethodPtr f_add{};
+  NativeMethodPtr f_sub{};
+  NativeMethodPtr f_mul{};
+  NativeMethodPtr f_div{};
 
   t_vector alt = {nullptr};
 
@@ -288,7 +293,7 @@ private:
   size_t m_stop_frame = 0;
   std::atomic_bool m_aq = false;
 
-  std::vector<AsyncFrame, gc_allocator<AsyncFrame>> m_yield_frames;
+  std::vector<AsyncFrame, gc_allocator<AsyncFrame>> m_yield_frames{};
   std::function<void()> m_start_event_loop_cb;
 
   void process_events_if_needed();

@@ -567,6 +567,7 @@ public:
 
   t_string &get_identifier(uint32_t index);
 
+
 private:
   std::vector<uint32_t> m_instructions;
   std::vector<std::shared_ptr<Span>> m_spans;
