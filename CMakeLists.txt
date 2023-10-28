@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.22)
 project(bond VERSION 0.0.0 LANGUAGES CXX C)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 
-set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 
 OPTION(BOND_DEBUG "Debug mode" OFF)
@@ -62,17 +62,22 @@ else ()
 endif ()
 
 set_target_properties(bond PROPERTIES
-  CXX_STANDARD 23
-  CXX_STANDARD_REQUIRED ON
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
 )
 
-if(EMSCRIPTEN)
+if (EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -pthread")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -pthread")
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     TARGET_COMPILE_OPTIONS(bond PRIVATE -s --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/src/shell_minimal.html)
-endif()
+endif ()
 
+file(CREATE_LINK
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/compile_commands.json"
+        SYMBOLIC
+)
 
 target_link_libraries(bond PRIVATE bond-lib Argumentum::headers fmt::fmt-header-only)
 
